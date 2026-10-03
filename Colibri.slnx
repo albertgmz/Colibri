@@ -9,6 +9,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Colibri.App.Tests/Colibri.App.Tests.csproj" />
     <Project Path="tests/Colibri.Core.Tests/Colibri.Core.Tests.csproj" />
+    <Project Path="tests/Colibri.Engine.Aria2.Smoke/Colibri.Engine.Aria2.Smoke.csproj" />
     <Project Path="tests/Colibri.Engine.Aria2.Tests/Colibri.Engine.Aria2.Tests.csproj" />
   </Folder>
 </Solution>

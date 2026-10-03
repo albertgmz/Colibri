@@ -5,6 +5,11 @@ namespace Colibri.Core.Engine;
 /// <summary>
 /// Something that actually transfers bytes (for v1: aria2).
 /// </summary>
+/// <remarks>
+/// Operations on a single download throw <see cref="EngineOperationException"/> when the engine refuses
+/// them (wrong state, engine not running). Lost connections and timeouts surface as
+/// <see cref="IOException"/> and <see cref="TimeoutException"/>.
+/// </remarks>
 public interface IDownloadEngine
 {
     /// <summary>Stable engine id, stored on each <see cref="DownloadItem"/>.</summary>
@@ -27,6 +32,13 @@ public interface IDownloadEngine
 
     /// <summary>Stops the engine, keeping its session so downloads can resume later.</summary>
     Task StopAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Applies engine-wide settings. Concurrency and the speed limit apply at once when the engine is
+    /// running; connections per server apply to downloads added afterwards. The options are also kept
+    /// for the next start or restart.
+    /// </summary>
+    Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct);
 
     /// <summary>Adds a download and returns the engine handle.</summary>
     Task<string> AddAsync(DownloadRequest request, string saveFolder, string fileName, CancellationToken ct);

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Manual end-to-end check against a real aria2c and a real download:
+      dotnet run (in this folder), optionally followed by a URL
+    It needs the network, so it is a console app and not part of `dotnet test`.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
+  </ItemGroup>
+
+</Project>

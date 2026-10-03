@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.Engine.Aria2.Tests" />
+    <InternalsVisibleTo Include="Colibri.Engine.Aria2.Smoke" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
   </ItemGroup>
 

@@ -57,3 +57,47 @@ aria2's `out` option is always set from our sanitized file name, which overrides
 server sends in `Content-Disposition`. This keeps sanitizing, categories and unique names under
 our control. For browser captures the browser supplies its own resolved file name, so the
 server's name is still respected there.
+
+## 9. Hand-written JSON-RPC client over WebSocket
+
+The aria2 client is about 250 lines on `ClientWebSocket` and `System.Text.Json` (`JsonNode`), with
+no extra package. StreamJsonRpc expects its own message framing and conventions, and does not handle
+aria2's details (secret token as the first parameter, numbers sent as strings, notifications without
+an id). A small client is easy to read and to test against a fake transport.
+
+## 10. Colibri chooses aria2 GIDs
+
+`AddAsync` generates a random 16-hex-character GID and passes it in aria2's `gid` option. The handle
+is known before aria2 answers, so it can be stored with the download right away, and aria2 keeps the
+same GID across restarts through its session file.
+
+## 11. `--file-allocation=none`
+
+aria2 does not reserve disk space up front. `prealloc` writes the whole file before downloading
+(slow for large files) and `falloc` is not supported on every file system; `none` works everywhere.
+
+## 12. forcePause and forceRemove
+
+Pause and remove use `aria2.forcePause` and `aria2.forceRemove`. The plain versions only add
+BitTorrent tracker announcements, which can take seconds; Colibri does not use BitTorrent, and the
+forced versions react at once. The download can still be resumed from its `.aria2` control file.
+
+## 13. aria2 restart policy
+
+When aria2 exits without being asked to, it is restarted after 1 s, 2 s, then 5 s. After three quick
+failures in a row the engine state becomes `Failed`; aria2 staying up for 60 s resets the count. A
+restart reloads the session file, so listeners re-read all downloads when the state returns to `Running`.
+
+## 14. aria2's RPC secret is passed in a config file, not on the command line
+
+On Linux and macOS any local user can read other users' command lines (`ps`, `/proc/<pid>/cmdline`),
+so `--rpc-secret=...` would let them control aria2. Each launch writes a fresh random secret to
+`aria2-rpc.conf` in the data folder (owner-only `0600` on Unix, created before the secret is written;
+on Windows the per-user LocalAppData ACL covers it) and passes `--conf-path`. aria2 reads the file only
+at startup, so it is deleted as soon as the RPC connection works, and again on stop. Naming our own
+config file also keeps aria2 from loading a user's personal `~/.aria2/aria2.conf`.
+
+## 15. aria2.log is not redacted
+
+aria2 writes its own `aria2.log` (warnings only) to the per-user logs folder; it can contain full URLs,
+query strings included, which Colibri cannot redact.
