@@ -40,6 +40,12 @@ public interface IDownloadEngine
     /// </summary>
     Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct);
 
+    /// <summary>
+    /// Returns a new, unused handle. The caller stores it before calling <see cref="AddAsync"/> with it, so
+    /// a download whose add timed out (and may still have reached the engine) can be found again by it.
+    /// </summary>
+    string CreateHandle();
+
     /// <summary>Adds a download and returns the engine handle.</summary>
     /// <param name="request">What to download.</param>
     /// <param name="saveFolder">Folder the file is written to.</param>

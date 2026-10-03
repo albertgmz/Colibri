@@ -1,4 +1,5 @@
 using Avalonia;
+using Colibri.Core.Ipc;
 using Colibri.Core.Platform;
 using Colibri.Core.Settings;
 using Colibri.Platform;
@@ -17,8 +18,17 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Only one Colibri runs per user. A second start hands its arguments to the running one (which
+        // shows its window) and exits before starting anything, aria2 included. The guard is released
+        // when Main returns, on this same thread as the mutex requires.
+        using var primary = SingleInstanceGuard.TryAcquire(IpcProtocol.InstanceMutexName);
+        if (primary is null)
+        {
+            return ForwardToPrimary(args);
+        }
+
         // The generic host provides dependency injection, configuration and logging. It is not started:
-        // Avalonia's lifetime runs the app, and the main window's closing stops the downloads.
+        // Avalonia's lifetime runs the app, and DesktopShell.ExitAsync stops the downloads.
         var builder = Host.CreateApplicationBuilder(args);
         builder.Logging.ClearProviders();
         builder.Services.AddSerilog((services, logging) => logging
@@ -59,6 +69,22 @@ public static class Program
         catch (Exception ex)
         {
             logger.LogCritical(ex, "Colibri crashed");
+            return 1;
+        }
+    }
+
+    private static int ForwardToPrimary(string[] args)
+    {
+        try
+        {
+            var response = LocalPipeClient.SendAsync(IpcProtocol.DefaultPipeName, new ActivateRequest(args), LocalPipeClient.DefaultTimeout, CancellationToken.None)
+                .GetAwaiter().GetResult();
+            return response.Ok ? 0 : 1;
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
+        {
+            // The running Colibri did not answer (it may be exiting). Nothing else to do.
+            Console.Error.WriteLine($"Colibri is already running but did not answer: {ex.Message}");
             return 1;
         }
     }

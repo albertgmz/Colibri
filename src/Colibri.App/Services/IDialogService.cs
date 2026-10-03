@@ -15,7 +15,4 @@ public interface IDialogService
 
     /// <summary>Shows the Add URL window for <paramref name="viewModel"/>.</summary>
     void ShowAddUrl(AddUrlViewModel viewModel);
-
-    /// <summary>Shows a placeholder until the settings page exists.</summary>
-    void ShowSettings();
 }

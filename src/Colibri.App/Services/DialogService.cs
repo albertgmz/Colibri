@@ -2,8 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
-using Avalonia.Layout;
-using Colibri.App.Resources;
 using Colibri.App.ViewModels;
 using Colibri.App.Views;
 
@@ -34,6 +32,15 @@ public sealed class DialogService : IDialogService
         var window = new AddUrlWindow { DataContext = viewModel };
         viewModel.CloseRequested += (_, _) => window.Close();
 
+        // A browser capture opens this window while another app has the focus, and the OS does not let a
+        // background app take it. Being topmost until it has opened puts it in front of the browser anyway.
+        window.Topmost = true;
+        window.Opened += (_, _) =>
+        {
+            window.Activate();
+            window.Topmost = false;
+        };
+
         var owner = MainWindow;
         if (owner is { IsVisible: true } && owner.WindowState != WindowState.Minimized)
         {
@@ -42,48 +49,9 @@ public sealed class DialogService : IDialogService
         }
         else
         {
-            // Opened while Colibri is in the background (later: from a browser capture): show it on top of
-            // the other windows once, so it does not open hidden behind the browser.
+            // The main window is hidden in the tray or minimized: show the window on its own.
             window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            window.Topmost = true;
-            window.Opened += (_, _) =>
-            {
-                window.Activate();
-                window.Topmost = false;
-            };
             window.Show();
         }
-    }
-
-    public void ShowSettings()
-    {
-        var owner = MainWindow;
-        if (owner is null)
-        {
-            return;
-        }
-
-        var close = new Button { Content = Strings.Close, IsDefault = true, IsCancel = true, HorizontalAlignment = HorizontalAlignment.Right };
-        var window = new Window
-        {
-            Title = Strings.CommandSettings,
-            Width = 380,
-            SizeToContent = SizeToContent.Height,
-            CanResize = false,
-            ShowInTaskbar = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(24),
-                Spacing = 20,
-                Children =
-                {
-                    new TextBlock { Text = Strings.SettingsPlaceholderText, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                    close,
-                },
-            },
-        };
-        close.Click += (_, _) => window.Close();
-        _ = window.ShowDialog(owner);
     }
 }

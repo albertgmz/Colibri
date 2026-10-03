@@ -225,6 +225,45 @@ public sealed class DownloadManager
         }
     }
 
+    /// <summary>
+    /// Applies engine-wide options (concurrency, connections per server, speed limit) to every engine.
+    /// Failures are logged; the options are still used the next time an engine starts.
+    /// </summary>
+    public async Task ApplyEngineOptionsAsync(EngineOptions options, CancellationToken ct)
+    {
+        foreach (var engine in _engines)
+        {
+            try
+            {
+                await engine.ApplyOptionsAsync(options, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Engine {EngineId} did not accept the new options", engine.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stops and starts every engine, for example after the aria2 path changed. Unfinished downloads
+    /// continue from the engine's session; reconcile runs again once the engine is running.
+    /// </summary>
+    public async Task RestartEnginesAsync(CancellationToken ct)
+    {
+        foreach (var engine in _engines)
+        {
+            try
+            {
+                await engine.StopAsync(ct);
+                await engine.StartAsync(ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Engine {EngineId} failed to restart", engine.Id);
+            }
+        }
+    }
+
     /// <summary>Copies of all downloads.</summary>
     public Task<IReadOnlyList<DownloadItem>> GetItemsAsync(CancellationToken ct) =>
         RunLockedAsync<IReadOnlyList<DownloadItem>>(_ => Task.FromResult<IReadOnlyList<DownloadItem>>(
@@ -427,8 +466,8 @@ public sealed class DownloadManager
     /// its state is adopted, except that the user's choice wins (paused in Colibri but running in the
     /// engine -> paused in the engine, and the other way round). If the engine does not know it, it is
     /// added again with the same handle, folder and name (paused if it was paused), and the engine
-    /// resumes the partial file. Failed and completed downloads are left alone; so are engine downloads
-    /// that are not in the database.
+    /// resumes the partial file. Failed and completed downloads are left alone. Engine downloads that are
+    /// not in the database are removed from the engine (their files are kept).
     /// </summary>
     internal async Task ReconcileAsync(IDownloadEngine engine, CancellationToken ct)
     {
@@ -452,11 +491,23 @@ public sealed class DownloadManager
                 await ReconcileOneAsync(engine, item, known, changes, ct);
             }
 
+            // Colibri's engine session is private, so a download it holds that the database does not know
+            // is left over (for example deleted while the engine was not running). Remove it from the
+            // engine; its file is never touched.
             var ours = _items.Values.Select(i => i.EngineHandle).OfType<string>().ToHashSet();
             foreach (var status in statuses.Where(s => !ours.Contains(s.Handle)))
             {
-                _logger.LogInformation("Engine {EngineId} has download {Handle} that is not in the database; leaving it alone",
-                    engine.Id, status.Handle);
+                _logger.LogInformation("Removing download {Handle} from engine {EngineId}: it is not in the database",
+                    status.Handle, engine.Id);
+                try
+                {
+                    await engine.RemoveAsync(status.Handle, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // A leftover must never stop reconcile (and with it the start of polling).
+                    _logger.LogWarning(ex, "Could not remove download {Handle} from engine {EngineId}", status.Handle, engine.Id);
+                }
             }
 
             return true;
@@ -564,6 +615,10 @@ public sealed class DownloadManager
             State = DownloadState.Queued,
             TotalBytes = request.Size,
             EngineId = engine?.Id ?? string.Empty,
+
+            // Chosen and stored before the engine is asked: if the add times out but reached the engine
+            // anyway, polling and reconcile still find the download under this handle.
+            EngineHandle = engine?.CreateHandle(),
             Referrer = request.Referrer,
             UserAgent = request.UserAgent,
             Headers = headers,
@@ -781,6 +836,14 @@ public sealed class DownloadManager
         if (item.State == DownloadState.Completed && item.TotalBytes is { } total && item.CompletedBytes != total)
         {
             item.CompletedBytes = total;
+            changed = true;
+        }
+
+        // Only reported once the size is known; a paused download restored from the session has none.
+        if (status.NumPieces is > 0 && (item.Bitfield != status.Bitfield || item.NumPieces != status.NumPieces))
+        {
+            item.Bitfield = status.Bitfield;
+            item.NumPieces = status.NumPieces;
             changed = true;
         }
 

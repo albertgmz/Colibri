@@ -8,6 +8,17 @@ public static class HttpHeaders
     // RFC 7230 "tchar": the characters allowed in a header name besides letters and digits.
     private const string TokenSymbols = "!#$%&'*+-.^_`|~";
 
+    // Headers a browser may report that must not be passed on to the engine: aria2 sets them itself
+    // (Range for segmented downloads, Host, Content-Length, ...), they describe the browser's own connection
+    // (Connection, Keep-Alive, Upgrade, TE, Transfer-Encoding, Proxy-*), they would make the server send a
+    // compressed body that aria2 writes to disk as is (Accept-Encoding), or they have dedicated fields
+    // (Cookie, Referer, User-Agent).
+    private static readonly HashSet<string> NotForwardable = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Range", "Accept-Encoding", "Content-Length", "Host", "Connection", "Transfer-Encoding", "Upgrade",
+        "TE", "Keep-Alive", "Cookie", "Referer", "User-Agent",
+    };
+
     /// <summary>Creates an empty, case-insensitive header dictionary.</summary>
     public static Dictionary<string, string> Create() => new(StringComparer.OrdinalIgnoreCase);
 
@@ -40,6 +51,16 @@ public static class HttpHeaders
     /// </summary>
     public static bool IsValidValue(string? value) =>
         value is not null && value.All(c => c == '\t' || (c >= 0x20 && c != 0x7F));
+
+    /// <summary>
+    /// Whether a header captured from a browser may be passed on to the download engine. Headers the
+    /// engine manages itself, connection-level headers, <c>Proxy-*</c>, and headers that have their own
+    /// field (Cookie, Referer, User-Agent) are not forwarded.
+    /// </summary>
+    public static bool IsForwardable(string? name) =>
+        IsValidName(name)
+        && !NotForwardable.Contains(name!)
+        && !name!.StartsWith("Proxy-", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Returns <paramref name="value"/> if it is a valid header value, otherwise null.</summary>
     public static string? ValidValueOrNull(string? value) => IsValidValue(value) ? value : null;

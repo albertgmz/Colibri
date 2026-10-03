@@ -13,12 +13,14 @@ namespace Colibri.App.ViewModels;
 public partial class DownloadItemViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilePath))]
     private string _fileName = string.Empty;
 
     [ObservableProperty]
     private string _url = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilePath))]
     private string _saveFolder = string.Empty;
 
     [ObservableProperty]
@@ -41,6 +43,16 @@ public partial class DownloadItemViewModel : ObservableObject
 
     [ObservableProperty]
     private string? _errorMessage;
+
+    [ObservableProperty]
+    private int _connections;
+
+    /// <summary>The engine's piece bitfield, for the segment bar; null when unknown.</summary>
+    [ObservableProperty]
+    private string? _bitfield;
+
+    [ObservableProperty]
+    private int _numPieces;
 
     // Display values. Computed here instead of with converters so they change only when the text changes.
 
@@ -69,6 +81,14 @@ public partial class DownloadItemViewModel : ObservableObject
     [ObservableProperty]
     private string _addedText = string.Empty;
 
+    // Details pane texts.
+
+    [ObservableProperty]
+    private string _statusText = string.Empty;
+
+    [ObservableProperty]
+    private string _downloadedText = string.Empty;
+
     public DownloadItemViewModel(DownloadItem item)
     {
         Id = item.Id;
@@ -92,6 +112,9 @@ public partial class DownloadItemViewModel : ObservableObject
         Speed = item.DownloadSpeed;
         AddedAt = item.AddedAt;
         ErrorMessage = item.ErrorMessage;
+        Connections = item.Connections;
+        Bitfield = item.Bitfield;
+        NumPieces = item.NumPieces ?? 0;
 
         IconKey = "IconCategory" + item.Category;
         SizeText = DisplayFormat.Size(item.TotalBytes);
@@ -109,6 +132,21 @@ public partial class DownloadItemViewModel : ObservableObject
             DownloadState.Completed => Strings.StateCompleted,
             _ => Strings.StateFailed,
         };
+
+        StatusText = item.State switch
+        {
+            DownloadState.Active => Strings.StateDownloading,
+            DownloadState.Queued => Strings.StateQueued,
+            DownloadState.Paused => Strings.StatePaused,
+            DownloadState.Completed => Strings.StateCompleted,
+            _ when string.IsNullOrWhiteSpace(item.ErrorMessage) => Strings.StateFailed,
+            _ => string.Format(CultureInfo.CurrentCulture, Strings.StatusFailedFormat, item.ErrorMessage),
+        };
+        var completedBytes = item.State == DownloadState.Completed && item.TotalBytes is { } size ? size : item.CompletedBytes;
+        DownloadedText = item.TotalBytes is > 0
+            ? string.Format(CultureInfo.CurrentCulture, Strings.DetailsDownloadedFormat,
+                DisplayFormat.Size(completedBytes), DisplayFormat.Size(item.TotalBytes), DisplayFormat.Percent(ProgressValue))
+            : DisplayFormat.Size(completedBytes);
 
         var active = item.State == DownloadState.Active;
         var remaining = active ? DisplayFormat.Remaining(item.TotalBytes, item.CompletedBytes, item.DownloadSpeed) : null;

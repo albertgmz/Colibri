@@ -10,6 +10,7 @@ using Colibri.Core.Engine;
 using Colibri.Core.Models;
 using Colibri.Core.Platform;
 using Colibri.Core.Services;
+using Colibri.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,8 @@ using Microsoft.Extensions.Logging;
 namespace Colibri.App.ViewModels;
 
 /// <summary>
-/// The main window: navigation, command bar, download table and status bar.
+/// The main window: navigation, command bar, download table, details pane, status bar, the settings
+/// page and the delete confirmation.
 /// </summary>
 /// <remarks>
 /// All rows live in one collection, shown through a <see cref="DataGridCollectionView"/> that filters
@@ -32,10 +34,13 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly DownloadManager _manager;
     private readonly IShellService _shell;
     private readonly IDialogService _dialogs;
+    private readonly AppSettings _settings;
+    private readonly ISettingsStore _settingsStore;
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly ObservableCollection<DownloadItemViewModel> _items = [];
     private readonly Dictionary<Guid, DownloadItemViewModel> _byId = [];
     private IReadOnlyList<DownloadItemViewModel> _selectedItems = [];
+    private List<Guid> _pendingDelete = [];
 
     [ObservableProperty]
     private NavItemViewModel _selectedNav;
@@ -55,12 +60,54 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEngineMissing;
 
-    public MainWindowViewModel(DownloadManager manager, IShellService shell, IDialogService dialogs, ILogger<MainWindowViewModel> logger)
+    /// <summary>The download the details pane shows: the first selected one.</summary>
+    [ObservableProperty]
+    private DownloadItemViewModel? _selectedDetail;
+
+    [ObservableProperty]
+    private bool _isDetailsVisible;
+
+    [ObservableProperty]
+    private bool _isSettingsOpen;
+
+    [ObservableProperty]
+    private bool _isTrayAvailable = true;
+
+    [ObservableProperty]
+    private bool _isDeleteConfirmationOpen;
+
+    [ObservableProperty]
+    private string _deleteConfirmationText = string.Empty;
+
+    [ObservableProperty]
+    private bool _deleteAlsoFiles;
+
+    /// <summary>Text for the tray icon, for example "Colibri - 2 active, 1.5 MB/s".</summary>
+    [ObservableProperty]
+    private string _trayToolTipText;
+
+    /// <summary>Overall progress (0 to 1) of the unfinished downloads with a known size; null when none.</summary>
+    [ObservableProperty]
+    private double? _taskbarProgress;
+
+    public MainWindowViewModel(
+        DownloadManager manager,
+        IShellService shell,
+        IDialogService dialogs,
+        SettingsViewModel settingsPage,
+        AppSettings settings,
+        ISettingsStore settingsStore,
+        ILogger<MainWindowViewModel> logger)
     {
         _manager = manager;
         _shell = shell;
         _dialogs = dialogs;
+        _settings = settings;
+        _settingsStore = settingsStore;
         _logger = logger;
+        SettingsPage = settingsPage;
+        _isDetailsVisible = settings.ShowDetailsPane;
+        _trayToolTipText = Strings.AppName;
 
         NavItems =
         [
@@ -101,6 +148,8 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>The rows the table shows (filtered and sorted).</summary>
     public DataGridCollectionView Downloads { get; }
 
+    public SettingsViewModel SettingsPage { get; }
+
     /// <summary>Every row, whatever the filter.</summary>
     public IReadOnlyList<DownloadItemViewModel> AllItems => _items;
 
@@ -111,6 +160,7 @@ public partial class MainWindowViewModel : ObservableObject
         set
         {
             _selectedItems = value;
+            SelectedDetail = value.Count > 0 ? value[0] : null;
             NotifyCommands();
         }
     }
@@ -134,6 +184,13 @@ public partial class MainWindowViewModel : ObservableObject
     public void SetWindowVisible(bool visible) =>
         _manager.SetPollingInterval(visible ? VisiblePollInterval : HiddenPollInterval);
 
+    /// <summary>Called once the desktop knows whether it can show a tray icon.</summary>
+    public void SetTrayAvailable(bool available)
+    {
+        IsTrayAvailable = available;
+        SettingsPage.IsTrayAvailable = available;
+    }
+
     /// <summary>Stops polling and the engine; called when the app exits.</summary>
     public Task ShutdownAsync() => _manager.StopAsync();
 
@@ -146,6 +203,12 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnSelectedNavChanged(NavItemViewModel value) => Downloads.Refresh();
 
     partial void OnSearchTextChanged(string value) => Downloads.Refresh();
+
+    partial void OnIsDetailsVisibleChanged(bool value)
+    {
+        _settings.ShowDetailsPane = value;
+        _ = RunSafeAsync(() => _settingsStore.SaveAsync(_settings, CancellationToken.None), "save the settings");
+    }
 
     [RelayCommand]
     private async Task AddUrlAsync()
@@ -176,11 +239,36 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanPauseAll))]
     private Task PauseAllAsync() => RunSafeAsync(() => _manager.PauseAllAsync(CancellationToken.None), "pause all");
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private Task DeleteAsync() => RunSafeAsync(() => _manager.DeleteAsync(SelectedIds(), deleteFiles: false, CancellationToken.None), "delete");
+    [RelayCommand]
+    private Task ResumeAllAsync() => RunSafeAsync(() => _manager.ResumeAllAsync(CancellationToken.None), "resume all");
 
+    /// <summary>Asks for confirmation; <see cref="ConfirmDeleteCommand"/> does the deleting.</summary>
     [RelayCommand(CanExecute = nameof(HasSelection))]
-    private Task DeleteWithFileAsync() => RunSafeAsync(() => _manager.DeleteAsync(SelectedIds(), deleteFiles: true, CancellationToken.None), "delete");
+    private void Delete()
+    {
+        _pendingDelete = SelectedIds();
+        DeleteAlsoFiles = false;
+        DeleteConfirmationText = _selectedItems.Count == 1
+            ? Format(Strings.DeleteConfirmOneFormat, _selectedItems[0].FileName)
+            : Format(Strings.DeleteConfirmManyFormat, _selectedItems.Count);
+        IsDeleteConfirmationOpen = true;
+    }
+
+    [RelayCommand]
+    private Task ConfirmDeleteAsync()
+    {
+        IsDeleteConfirmationOpen = false;
+        var ids = _pendingDelete;
+        _pendingDelete = [];
+        return RunSafeAsync(() => _manager.DeleteAsync(ids, DeleteAlsoFiles, CancellationToken.None), "delete");
+    }
+
+    [RelayCommand]
+    private void CancelDelete()
+    {
+        IsDeleteConfirmationOpen = false;
+        _pendingDelete = [];
+    }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private Task OpenAsync() => OpenItemAsync(_selectedItems[0]);
@@ -192,7 +280,14 @@ public partial class MainWindowViewModel : ObservableObject
     private Task CopyUrlAsync() => RunSafeAsync(() => _dialogs.WriteClipboardTextAsync(_selectedItems[0].Url), "copy the URL");
 
     [RelayCommand]
-    private void Settings() => _dialogs.ShowSettings();
+    private async Task OpenSettingsAsync()
+    {
+        await SettingsPage.LoadAsync();
+        IsSettingsOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseSettings() => IsSettingsOpen = false;
 
     [RelayCommand]
     private Task RetryEngineAsync() => RunSafeAsync(() => Task.Run(() => _manager.RetryEngineAsync(CancellationToken.None)), "start aria2");
@@ -258,6 +353,11 @@ public partial class MainWindowViewModel : ObservableObject
         if (_byId.Remove(id, out var row))
         {
             _items.Remove(row);
+            if (SelectedDetail == row)
+            {
+                SelectedDetail = null;
+            }
+
             UpdateCounts();
             NotifyCommands();
         }
@@ -277,7 +377,6 @@ public partial class MainWindowViewModel : ObservableObject
         PauseCommand.NotifyCanExecuteChanged();
         PauseAllCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
-        DeleteWithFileCommand.NotifyCanExecuteChanged();
         OpenCommand.NotifyCanExecuteChanged();
         ShowInFolderCommand.NotifyCanExecuteChanged();
         CopyUrlCommand.NotifyCanExecuteChanged();
@@ -290,6 +389,24 @@ public partial class MainWindowViewModel : ObservableObject
         var speed = stats.NumActive > 0 ? stats.DownloadSpeed : 0;
         SpeedText = Format(Strings.StatusSpeedFormat, DisplayFormat.Speed(speed));
         ActiveText = Format(Strings.StatusActiveFormat, stats.NumActive);
+        TrayToolTipText = string.Format(CultureInfo.CurrentCulture, Strings.TrayToolTipFormat, stats.NumActive, DisplayFormat.Speed(speed));
+        TaskbarProgress = OverallProgress();
+    }
+
+    /// <summary>
+    /// Bytes done out of bytes total over the queued and active downloads whose size is known, or null
+    /// when there are none. Rounded so the taskbar is not updated for invisible changes.
+    /// </summary>
+    internal double? OverallProgress()
+    {
+        long total = 0, done = 0;
+        foreach (var item in _items.Where(i => i.State is DownloadState.Active or DownloadState.Queued && i.TotalBytes is > 0))
+        {
+            total += item.TotalBytes!.Value;
+            done += Math.Min(item.CompletedBytes, item.TotalBytes.Value);
+        }
+
+        return total == 0 ? null : Math.Round((double)done / total, 3);
     }
 
     private void ShowEngineState(EngineState state)

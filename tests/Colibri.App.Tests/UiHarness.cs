@@ -28,10 +28,21 @@ internal sealed class UiHarness : IAsyncDisposable
 
         Repository = new InMemoryDownloadRepository(seed);
         Manager = new DownloadManager(
-            [Engine], Repository, new LinkResolverPipeline([new DirectLinkResolver()]), new AppSettings(), Paths,
+            [Engine], Repository, new LinkResolverPipeline([new DirectLinkResolver()]), Settings, Paths,
             NullLogger<DownloadManager>.Instance, TimeProvider.System);
-        ViewModel = new MainWindowViewModel(Manager, Shell, Dialogs, NullLogger<MainWindowViewModel>.Instance);
+        SettingsPage = new SettingsViewModel(
+            Settings, SettingsStore, Manager, Autostart, Shell, Paths, NullLogger<SettingsViewModel>.Instance);
+        ViewModel = new MainWindowViewModel(
+            Manager, Shell, Dialogs, SettingsPage, Settings, SettingsStore, NullLogger<MainWindowViewModel>.Instance);
     }
+
+    public AppSettings Settings { get; } = new();
+
+    public FakeSettingsStore SettingsStore { get; } = new();
+
+    public FakeAutostart Autostart { get; } = new();
+
+    public SettingsViewModel SettingsPage { get; }
 
     public TempAppPaths Paths { get; } = new();
 
@@ -110,8 +121,6 @@ internal sealed class FakeDialogs : IDialogService
 
     public AddUrlViewModel? ShownAddUrl { get; private set; }
 
-    public bool SettingsShown { get; private set; }
-
     public Task<string?> ReadClipboardTextAsync() => Task.FromResult(ClipboardText);
 
     public Task WriteClipboardTextAsync(string text)
@@ -121,8 +130,6 @@ internal sealed class FakeDialogs : IDialogService
     }
 
     public void ShowAddUrl(AddUrlViewModel viewModel) => ShownAddUrl = viewModel;
-
-    public void ShowSettings() => SettingsShown = true;
 }
 
 internal sealed class FakeShell : IShellService
@@ -143,5 +150,75 @@ internal sealed class FakeShell : IShellService
         return Task.CompletedTask;
     }
 
-    public Task OpenFolderAsync(string path) => Task.CompletedTask;
+    public List<string> OpenedFolders { get; } = [];
+
+    public Task OpenFolderAsync(string path)
+    {
+        OpenedFolders.Add(path);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Keeps the last saved settings as JSON, so a test sees exactly what would be written.</summary>
+internal sealed class FakeSettingsStore : ISettingsStore
+{
+    private readonly object _gate = new();
+    private string? _json;
+
+    public int SaveCount { get; private set; }
+
+    /// <summary>A fresh copy of what was saved last, or null.</summary>
+    public AppSettings? Saved
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _json is null ? null : System.Text.Json.JsonSerializer.Deserialize<AppSettings>(_json);
+            }
+        }
+    }
+
+    public Task<AppSettings> LoadAsync(CancellationToken ct) => Task.FromResult(Saved ?? new AppSettings());
+
+    public Task SaveAsync(AppSettings settings, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            _json = System.Text.Json.JsonSerializer.Serialize(settings);
+            SaveCount++;
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeAutostart : IAutostartService
+{
+    public bool IsSupported { get; set; } = true;
+
+    public bool Enabled { get; set; }
+
+    public Task<bool> IsEnabledAsync() => Task.FromResult(Enabled);
+
+    public Task SetEnabledAsync(bool enabled)
+    {
+        Enabled = enabled;
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeNotifications : INotificationService
+{
+    public List<(DownloadItem Item, string Path)> Completed { get; } = [];
+
+    public List<DownloadItem> Failed { get; } = [];
+
+    public event EventHandler<NotificationActionInvoked>? ActionInvoked;
+
+    public void ShowDownloadCompleted(DownloadItem item, string filePath) => Completed.Add((item, filePath));
+
+    public void ShowDownloadFailed(DownloadItem item) => Failed.Add(item);
+
+    public void Invoke(Guid id, NotificationAction action) => ActionInvoked?.Invoke(this, new NotificationActionInvoked(id, action));
 }

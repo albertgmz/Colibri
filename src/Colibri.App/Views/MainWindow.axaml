@@ -3,6 +3,8 @@
         xmlns:vm="using:Colibri.App.ViewModels"
         xmlns:res="using:Colibri.App.Resources"
         xmlns:conv="using:Colibri.App.Converters"
+        xmlns:controls="using:Colibri.App.Controls"
+        xmlns:views="using:Colibri.App.Views"
         x:Class="Colibri.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{x:Static res:Strings.AppName}"
@@ -89,6 +91,16 @@
         <Style Selector="DataGridCell TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <!-- Details pane: small grey labels next to their values. -->
+        <Style Selector="Grid.details TextBlock.label">
+            <Setter Property="Opacity" Value="0.65" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="Grid.details :is(TextBlock)">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -100,7 +112,7 @@
                 WindowDecorationProperties.ElementRole="TitleBar" />
 
         <!-- Command bar. -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="8,2,14,8">
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="8,2,14,8" IsVisible="{Binding !IsSettingsOpen}">
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <Button Classes="command" Command="{Binding AddUrlCommand}"
                         AutomationProperties.Name="{x:Static res:Strings.CommandAddUrl}" HotKey="Ctrl+N">
@@ -140,7 +152,7 @@
                     </StackPanel>
                 </Button>
                 <Rectangle Classes="commandSeparator" />
-                <Button Classes="command" Command="{Binding SettingsCommand}"
+                <Button Classes="command" Command="{Binding OpenSettingsCommand}"
                         AutomationProperties.Name="{x:Static res:Strings.CommandSettings}">
                     <StackPanel>
                         <PathIcon Data="{StaticResource IconSettings}" />
@@ -159,7 +171,7 @@
             </TextBox>
         </Grid>
 
-        <Grid Grid.Row="2" ColumnDefinitions="210,*">
+        <Grid Grid.Row="2" ColumnDefinitions="210,*" IsVisible="{Binding !IsSettingsOpen}">
 
             <!-- Navigation pane. The "Categories" title is a disabled (unselectable) entry. -->
             <ListBox x:Name="NavList" Classes="nav" Background="Transparent"
@@ -187,130 +199,225 @@
             </ListBox>
 
             <Border Grid.Column="1" Classes="contentPane" ClipToBounds="True">
-                <Panel>
-                    <!-- The DataGrid only creates rows that are on screen (row virtualization is built in). -->
-                    <DataGrid x:Name="DownloadsGrid"
-                              ItemsSource="{Binding Downloads}"
-                              AutoGenerateColumns="False" IsReadOnly="True"
-                              SelectionMode="Extended" CanUserSortColumns="True"
-                              CanUserResizeColumns="True" CanUserReorderColumns="True"
-                              RowHeight="32" GridLinesVisibility="None" HeadersVisibility="Column"
-                              SelectionChanged="OnGridSelectionChanged"
-                              DoubleTapped="OnGridDoubleTapped">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="{x:Static res:Strings.MenuOpen}" Command="{Binding OpenCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconOpen}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="{x:Static res:Strings.MenuShowInFolder}" Command="{Binding ShowInFolderCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconFolderOpen}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="{x:Static res:Strings.MenuCopyUrl}" Command="{Binding CopyUrlCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconCopy}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <Separator />
-                                <MenuItem Header="{x:Static res:Strings.CommandResume}" Command="{Binding ResumeCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconResume}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="{x:Static res:Strings.CommandPause}" Command="{Binding PauseCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconPause}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <Separator />
-                                <MenuItem Header="{x:Static res:Strings.CommandDelete}" Command="{Binding DeleteCommand}">
-                                    <MenuItem.Icon><PathIcon Data="{StaticResource IconDelete}" /></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="{x:Static res:Strings.MenuDeleteWithFile}" Command="{Binding DeleteWithFileCommand}" />
-                            </ContextMenu>
-                        </DataGrid.ContextMenu>
+                <!-- Table on top, details pane below; MainWindow.axaml.cs collapses the last row when the
+                     pane is hidden. -->
+                <Grid x:Name="ContentGrid">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" MinHeight="120" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="200" />
+                    </Grid.RowDefinitions>
+                    <Panel>
+                        <!-- The DataGrid only creates rows that are on screen (row virtualization is built in). -->
+                        <DataGrid x:Name="DownloadsGrid"
+                                  ItemsSource="{Binding Downloads}"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Extended" CanUserSortColumns="True"
+                                  CanUserResizeColumns="True" CanUserReorderColumns="True"
+                                  RowHeight="32" GridLinesVisibility="None" HeadersVisibility="Column"
+                                  SelectionChanged="OnGridSelectionChanged"
+                                  DoubleTapped="OnGridDoubleTapped">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="{x:Static res:Strings.MenuOpen}" Command="{Binding OpenCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconOpen}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="{x:Static res:Strings.MenuShowInFolder}" Command="{Binding ShowInFolderCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconFolderOpen}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="{x:Static res:Strings.MenuCopyUrl}" Command="{Binding CopyUrlCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconCopy}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <Separator />
+                                    <MenuItem Header="{x:Static res:Strings.CommandResume}" Command="{Binding ResumeCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconResume}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="{x:Static res:Strings.CommandPause}" Command="{Binding PauseCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconPause}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <Separator />
+                                    <MenuItem Header="{x:Static res:Strings.CommandDelete}" Command="{Binding DeleteCommand}">
+                                        <MenuItem.Icon><PathIcon Data="{StaticResource IconDelete}" /></MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
 
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="{x:Static res:Strings.ColumnFileName}"
-                                                    SortMemberPath="FileName" Width="*" MinWidth="220">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate x:DataType="vm:DownloadItemViewModel">
-                                        <Grid ColumnDefinitions="Auto,*" Margin="12,0,8,0" Background="Transparent"
-                                              ToolTip.Tip="{Binding ErrorMessage}">
-                                            <PathIcon Data="{Binding IconKey, Converter={StaticResource IconKey}}"
-                                                      Width="16" Height="16" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1" Text="{Binding FileName}" Margin="10,0,0,0"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="{x:Static res:Strings.ColumnFileName}"
+                                                        SortMemberPath="FileName" Width="*" MinWidth="220">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="vm:DownloadItemViewModel">
+                                            <Grid ColumnDefinitions="Auto,*" Margin="12,0,8,0" Background="Transparent"
+                                                  ToolTip.Tip="{Binding ErrorMessage}">
+                                                <PathIcon Data="{Binding IconKey, Converter={StaticResource IconKey}}"
+                                                          Width="16" Height="16" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding FileName}" Margin="10,0,0,0"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
-                            <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
-                                                Header="{x:Static res:Strings.ColumnSize}"
-                                                Binding="{Binding SizeText}" SortMemberPath="TotalBytes" Width="100" />
+                                <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
+                                                    Header="{x:Static res:Strings.ColumnSize}"
+                                                    Binding="{Binding SizeText}" SortMemberPath="TotalBytes" Width="100" />
 
-                            <DataGridTemplateColumn Header="{x:Static res:Strings.ColumnProgress}"
-                                                    SortMemberPath="ProgressValue" Width="240">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate x:DataType="vm:DownloadItemViewModel">
-                                        <Grid ColumnDefinitions="*,118" Margin="12,0,8,0">
-                                            <ProgressBar Value="{Binding ProgressValue}" Minimum="0" Maximum="100"
-                                                         MinWidth="40" MinHeight="4" Height="4" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Margin="10,0,0,0"
-                                                       FontSize="12" TextTrimming="CharacterEllipsis" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="{x:Static res:Strings.ColumnProgress}"
+                                                        SortMemberPath="ProgressValue" Width="240">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="vm:DownloadItemViewModel">
+                                            <Grid ColumnDefinitions="*,118" Margin="12,0,8,0">
+                                                <ProgressBar Value="{Binding ProgressValue}" Minimum="0" Maximum="100"
+                                                             MinWidth="40" MinHeight="4" Height="4" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Margin="10,0,0,0"
+                                                           FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
-                            <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
-                                                Header="{x:Static res:Strings.ColumnSpeed}"
-                                                Binding="{Binding SpeedText}" SortMemberPath="Speed" Width="110" />
-                            <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
-                                                Header="{x:Static res:Strings.ColumnTimeLeft}"
-                                                Binding="{Binding TimeLeftText}" SortMemberPath="SecondsLeft" Width="110" />
-                            <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
-                                                Header="{x:Static res:Strings.ColumnDateAdded}"
-                                                Binding="{Binding AddedText}" SortMemberPath="AddedAt" Width="150" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+                                <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
+                                                    Header="{x:Static res:Strings.ColumnSpeed}"
+                                                    Binding="{Binding SpeedText}" SortMemberPath="Speed" Width="110" />
+                                <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
+                                                    Header="{x:Static res:Strings.ColumnTimeLeft}"
+                                                    Binding="{Binding TimeLeftText}" SortMemberPath="SecondsLeft" Width="110" />
+                                <DataGridTextColumn x:DataType="vm:DownloadItemViewModel"
+                                                    Header="{x:Static res:Strings.ColumnDateAdded}"
+                                                    Binding="{Binding AddedText}" SortMemberPath="AddedAt" Width="150" />
+                            </DataGrid.Columns>
+                        </DataGrid>
 
-                    <!-- Shown when aria2c cannot be found. -->
-                    <Border IsVisible="{Binding IsEngineMissing}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            MaxWidth="560" Margin="24" Padding="24" CornerRadius="8" BorderThickness="1"
-                            Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource DividerBrush}">
-                        <StackPanel Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <PathIcon Data="{StaticResource IconWarning}" Width="20" Height="20"
-                                          Foreground="{DynamicResource WarningIconBrush}" />
-                                <TextBlock Text="{x:Static res:Strings.EngineMissingTitle}" FontSize="16" FontWeight="SemiBold" />
+                        <!-- Shown when aria2c cannot be found. -->
+                        <Border IsVisible="{Binding IsEngineMissing}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                MaxWidth="560" Margin="24" Padding="24" CornerRadius="8" BorderThickness="1"
+                                Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource DividerBrush}">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <PathIcon Data="{StaticResource IconWarning}" Width="20" Height="20"
+                                              Foreground="{DynamicResource WarningIconBrush}" />
+                                    <TextBlock Text="{x:Static res:Strings.EngineMissingTitle}" FontSize="16" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <TextBlock Text="{x:Static res:Strings.EngineMissingBody}" TextWrapping="Wrap" />
+                                <StackPanel Spacing="4">
+                                    <StackPanel.Styles>
+                                        <Style Selector="SelectableTextBlock">
+                                            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" />
+                                            <Setter Property="FontSize" Value="12" />
+                                        </Style>
+                                    </StackPanel.Styles>
+                                    <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingDebian}" />
+                                    <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingFedora}" />
+                                    <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingArch}" />
+                                    <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingOpenSuse}" />
+                                    <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingMac}" />
+                                </StackPanel>
+                                <Button Classes="accent" Content="{x:Static res:Strings.EngineRetry}"
+                                        Command="{Binding RetryEngineCommand}" HorizontalAlignment="Left" />
                             </StackPanel>
-                            <TextBlock Text="{x:Static res:Strings.EngineMissingBody}" TextWrapping="Wrap" />
-                            <StackPanel Spacing="4">
-                                <StackPanel.Styles>
-                                    <Style Selector="SelectableTextBlock">
-                                        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" />
-                                        <Setter Property="FontSize" Value="12" />
-                                    </Style>
-                                </StackPanel.Styles>
-                                <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingDebian}" />
-                                <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingFedora}" />
-                                <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingArch}" />
-                                <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingOpenSuse}" />
-                                <SelectableTextBlock Text="{x:Static res:Strings.EngineMissingMac}" />
-                            </StackPanel>
-                            <Button Classes="accent" Content="{x:Static res:Strings.EngineRetry}"
-                                    Command="{Binding RetryEngineCommand}" HorizontalAlignment="Left" />
-                        </StackPanel>
+                        </Border>
+                    </Panel>
+
+                    <GridSplitter Grid.Row="1" x:Name="DetailsSplitter" Height="5" ResizeDirection="Rows"
+                                  Background="{DynamicResource DividerBrush}" IsVisible="{Binding IsDetailsVisible}" />
+
+                    <!-- Details of the selected download (the first one when several are selected). -->
+                    <Border Grid.Row="2" x:Name="DetailsPane" Padding="16,12" IsVisible="{Binding IsDetailsVisible}">
+                        <Panel>
+                            <TextBlock Text="{x:Static res:Strings.DetailsEmpty}" Opacity="0.65"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNull}}" />
+                            <ScrollViewer IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="{Binding SelectedDetail.FileName, FallbackValue=''}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <controls:SegmentBar x:Name="SegmentBar" Height="14"
+                                                         Bitfield="{Binding SelectedDetail.Bitfield, FallbackValue={x:Null}}"
+                                                         PieceCount="{Binding SelectedDetail.NumPieces, FallbackValue=0}"
+                                                         Progress="{Binding SelectedDetail.ProgressValue, FallbackValue=0}"
+                                                         Fill="{DynamicResource SystemControlHighlightAccentBrush}"
+                                                         Track="{DynamicResource DividerBrush}"
+                                                         AutomationProperties.Name="{x:Static res:Strings.DetailsSegmentsName}" />
+                                    <Grid Classes="details" ColumnDefinitions="Auto,*,32,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                          RowSpacing="6">
+                                        <TextBlock Classes="label" Text="{x:Static res:Strings.DetailsUrl}" />
+                                        <SelectableTextBlock Grid.Column="1" Grid.ColumnSpan="4" x:Name="DetailsUrl"
+                                                             Text="{Binding SelectedDetail.Url, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
+
+                                        <TextBlock Grid.Row="1" Classes="label" Text="{x:Static res:Strings.DetailsSavedTo}" />
+                                        <SelectableTextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
+                                                             Text="{Binding SelectedDetail.FilePath, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
+
+                                        <TextBlock Grid.Row="2" Classes="label" Text="{x:Static res:Strings.DetailsStatus}" />
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.StatusText, FallbackValue=''}"
+                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedDetail.StatusText, FallbackValue=''}" />
+                                        <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="{x:Static res:Strings.DetailsDownloaded}" />
+                                        <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding SelectedDetail.DownloadedText, FallbackValue=''}" />
+
+                                        <TextBlock Grid.Row="3" Classes="label" Text="{x:Static res:Strings.DetailsSpeed}" />
+                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.SpeedText, FallbackValue=''}" />
+                                        <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="{x:Static res:Strings.DetailsTimeLeft}" />
+                                        <TextBlock Grid.Row="3" Grid.Column="4" Text="{Binding SelectedDetail.TimeLeftText, FallbackValue=''}" />
+
+                                        <TextBlock Grid.Row="4" Classes="label" Text="{x:Static res:Strings.DetailsConnections}" />
+                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedDetail.Connections, FallbackValue=''}" />
+                                    </Grid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Panel>
                     </Border>
-                </Panel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Settings page, in place of the command bar and the table. -->
+        <Grid Grid.Row="1" Grid.RowSpan="2" RowDefinitions="Auto,*" IsVisible="{Binding IsSettingsOpen}">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,2,14,8">
+                <Button Classes="command" MinWidth="0" Command="{Binding CloseSettingsCommand}"
+                        AutomationProperties.Name="{x:Static res:Strings.SettingsBack}" ToolTip.Tip="{x:Static res:Strings.SettingsBack}">
+                    <PathIcon Data="{StaticResource IconBack}" />
+                </Button>
+                <TextBlock Text="{x:Static res:Strings.SettingsTitle}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+            <Border Grid.Row="1" Classes="contentPane" ClipToBounds="True">
+                <views:SettingsView DataContext="{Binding SettingsPage}" />
             </Border>
         </Grid>
 
         <!-- Status bar. -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="28" Margin="16,5">
-            <StackPanel.Styles>
-                <Style Selector="TextBlock">
-                    <Setter Property="FontSize" Value="12" />
-                </Style>
-            </StackPanel.Styles>
-            <TextBlock Text="{Binding SpeedText}" />
-            <TextBlock Text="{Binding ActiveText}" />
-            <TextBlock Text="{Binding EngineStateText}" />
-        </StackPanel>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16,3,10,3">
+            <StackPanel Orientation="Horizontal" Spacing="28" VerticalAlignment="Center">
+                <StackPanel.Styles>
+                    <Style Selector="TextBlock">
+                        <Setter Property="FontSize" Value="12" />
+                    </Style>
+                </StackPanel.Styles>
+                <TextBlock Text="{Binding SpeedText}" />
+                <TextBlock Text="{Binding ActiveText}" />
+                <TextBlock Text="{Binding EngineStateText}" />
+                <TextBlock Text="{x:Static res:Strings.TrayUnavailable}" IsVisible="{Binding !IsTrayAvailable}" />
+            </StackPanel>
+            <ToggleButton Grid.Column="1" Content="{x:Static res:Strings.DetailsToggle}" IsChecked="{Binding IsDetailsVisible}"
+                          IsVisible="{Binding !IsSettingsOpen}" FontSize="12" Padding="10,2" MinHeight="0" />
+        </Grid>
+
+        <!-- Delete confirmation, over the whole window below the title bar. -->
+        <Panel Grid.Row="1" Grid.RowSpan="3" Background="#66000000" IsVisible="{Binding IsDeleteConfirmationOpen}">
+            <Border Width="440" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" CornerRadius="8"
+                    BorderThickness="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource DividerBrush}">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="{x:Static res:Strings.DeleteConfirmTitle}" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DeleteConfirmationText}" TextWrapping="Wrap" />
+                    <CheckBox x:Name="DeleteFilesBox" Content="{x:Static res:Strings.DeleteAlsoFiles}" IsChecked="{Binding DeleteAlsoFiles}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button Classes="accent" MinWidth="100" Content="{x:Static res:Strings.CommandDelete}"
+                                Command="{Binding ConfirmDeleteCommand}" />
+                        <!-- IsCancel: Esc closes the confirmation (a no-op while it is not shown). -->
+                        <Button x:Name="DeleteCancelButton" MinWidth="100" IsCancel="True" Content="{x:Static res:Strings.Cancel}"
+                                Command="{Binding CancelDeleteCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Panel>
     </Grid>
 </Window>

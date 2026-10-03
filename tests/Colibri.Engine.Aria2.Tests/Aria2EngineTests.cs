@@ -57,6 +57,22 @@ public class Aria2EngineTests
     }
 
     [Fact]
+    public async Task Create_handle_returns_a_fresh_gid_that_add_then_uses()
+    {
+        var (engine, _) = Create(_ => null);
+
+        var first = engine.CreateHandle();
+        var second = engine.CreateHandle();
+
+        Assert.Matches("^[0-9a-f]{16}$", first);
+        Assert.NotEqual(first, second);
+
+        var (gid, request) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a.zip") }, handle: first);
+        Assert.Equal(first, gid);
+        Assert.Equal(first, AddOptions(request)["gid"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task Add_returns_a_caller_generated_16_hex_gid_and_sends_it_to_aria2()
     {
         var (gid, request) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/file.zip") });

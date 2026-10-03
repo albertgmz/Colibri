@@ -31,6 +31,14 @@
     <InternalsVisibleTo Include="Colibri.App.Tests" />
   </ItemGroup>
 
+  <!-- App icon: window and tray icon (loaded through avares://), and the icon of the Windows executable. -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\colibri.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
   <!--
     User-facing strings. The SDK's GenerateResource task writes the strongly typed Strings class during
     the build (no Visual Studio designer needed); it is compiled with the project and usable from XAML

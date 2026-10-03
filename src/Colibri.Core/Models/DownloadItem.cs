@@ -51,6 +51,15 @@ public sealed class DownloadItem
 
     public string? ErrorMessage { get; set; }
 
+    /// <summary>
+    /// Which pieces are downloaded, as reported by the engine: a hex string where the highest bit of the
+    /// first byte is piece 0. Not stored in the database; null until the engine reports it.
+    /// </summary>
+    public string? Bitfield { get; set; }
+
+    /// <summary>Number of pieces <see cref="Bitfield"/> describes. Not stored in the database.</summary>
+    public int? NumPieces { get; set; }
+
     /// <summary>Returns an independent copy (the header dictionary is copied too).</summary>
     public DownloadItem Clone()
     {

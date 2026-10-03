@@ -123,9 +123,6 @@
   <data name="MenuCopyUrl" xml:space="preserve">
     <value>Copy URL</value>
   </data>
-  <data name="MenuDeleteWithFile" xml:space="preserve">
-    <value>Delete with file</value>
-  </data>
   <data name="StateQueued" xml:space="preserve">
     <value>Queued</value>
   </data>
@@ -282,10 +279,184 @@
   <data name="UrlErrorNoHost" xml:space="preserve">
     <value>The URL has no server name.</value>
   </data>
-  <data name="SettingsPlaceholderText" xml:space="preserve">
-    <value>Settings will be available in a later version.</value>
+  <data name="CommandResumeAll" xml:space="preserve">
+    <value>Resume all</value>
   </data>
-  <data name="Close" xml:space="preserve">
-    <value>Close</value>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Browse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="StateDownloading" xml:space="preserve">
+    <value>Downloading</value>
+  </data>
+  <data name="StatusFailedFormat" xml:space="preserve">
+    <value>Failed: {0}</value>
+  </data>
+  <data name="DetailsToggle" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="DetailsEmpty" xml:space="preserve">
+    <value>Select a download to see its details.</value>
+  </data>
+  <data name="DetailsUrl" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="DetailsSavedTo" xml:space="preserve">
+    <value>Saved to</value>
+  </data>
+  <data name="DetailsStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="DetailsDownloaded" xml:space="preserve">
+    <value>Downloaded</value>
+  </data>
+  <data name="DetailsSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="DetailsTimeLeft" xml:space="preserve">
+    <value>Time left</value>
+  </data>
+  <data name="DetailsConnections" xml:space="preserve">
+    <value>Connections</value>
+  </data>
+  <data name="DetailsDownloadedFormat" xml:space="preserve">
+    <value>{0} of {1} ({2})</value>
+  </data>
+  <data name="DetailsSegmentsName" xml:space="preserve">
+    <value>Downloaded parts of the file</value>
+  </data>
+  <data name="TrayToolTipFormat" xml:space="preserve">
+    <value>Colibri — {0} active, {1}</value>
+  </data>
+  <data name="TrayOpen" xml:space="preserve">
+    <value>Open Colibri</value>
+  </data>
+  <data name="TrayExit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="TrayUnavailable" xml:space="preserve">
+    <value>No tray icon: closing the window exits Colibri</value>
+  </data>
+  <data name="NotificationCompleted" xml:space="preserve">
+    <value>Download completed</value>
+  </data>
+  <data name="NotificationFailed" xml:space="preserve">
+    <value>Download failed</value>
+  </data>
+  <data name="NotificationOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="NotificationShowInFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="NotificationRetry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete downloads</value>
+  </data>
+  <data name="DeleteConfirmOneFormat" xml:space="preserve">
+    <value>Delete “{0}” from the list?</value>
+  </data>
+  <data name="DeleteConfirmManyFormat" xml:space="preserve">
+    <value>Delete {0} downloads from the list?</value>
+  </data>
+  <data name="DeleteAlsoFiles" xml:space="preserve">
+    <value>Also delete the file(s)</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsBack" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="SettingsSavedAutomatically" xml:space="preserve">
+    <value>Changes are saved as you make them.</value>
+  </data>
+  <data name="SettingsGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="SettingsStartWithSystem" xml:space="preserve">
+    <value>Start Colibri when I sign in</value>
+  </data>
+  <data name="SettingsAutostartUnsupported" xml:space="preserve">
+    <value>Starting with the system is not available on this desktop.</value>
+  </data>
+  <data name="SettingsCloseToTray" xml:space="preserve">
+    <value>Closing the window keeps Colibri running in the tray</value>
+  </data>
+  <data name="SettingsMinimizeToTray" xml:space="preserve">
+    <value>Minimizing the window hides it in the tray</value>
+  </data>
+  <data name="SettingsTrayUnavailable" xml:space="preserve">
+    <value>This desktop has no tray area, so closing the window exits Colibri.</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="SettingsThemeSystem" xml:space="preserve">
+    <value>Use system setting</value>
+  </data>
+  <data name="SettingsThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="SettingsThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="SettingsDownloads" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="SettingsDefaultFolder" xml:space="preserve">
+    <value>Default folder</value>
+  </data>
+  <data name="SettingsCategoryFolders" xml:space="preserve">
+    <value>Folder per category (empty = a subfolder of the default folder)</value>
+  </data>
+  <data name="SettingsUseDefault" xml:space="preserve">
+    <value>Use default</value>
+  </data>
+  <data name="SettingsMaxConcurrent" xml:space="preserve">
+    <value>Maximum simultaneous downloads</value>
+  </data>
+  <data name="SettingsConnections" xml:space="preserve">
+    <value>Connections per server</value>
+  </data>
+  <data name="SettingsSpeedLimit" xml:space="preserve">
+    <value>Global speed limit in KiB/s (0 = unlimited)</value>
+  </data>
+  <data name="SettingsBrowser" xml:space="preserve">
+    <value>Browser</value>
+  </data>
+  <data name="SettingsBrowserStatus" xml:space="preserve">
+    <value>Browser integration</value>
+  </data>
+  <data name="BrowserStatusRegistered" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="BrowserStatusNotRegistered" xml:space="preserve">
+    <value>Not configured</value>
+  </data>
+  <data name="BrowserStatusOutdated" xml:space="preserve">
+    <value>Needs repair</value>
+  </data>
+  <data name="SettingsCaptureExtensions" xml:space="preserve">
+    <value>File types to capture (comma-separated)</value>
+  </data>
+  <data name="SettingsCaptureMinSize" xml:space="preserve">
+    <value>Minimum size to capture in KiB (0 = any size)</value>
+  </data>
+  <data name="SettingsAdvanced" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="SettingsAria2Path" xml:space="preserve">
+    <value>aria2c path (empty = the bundled or system copy)</value>
+  </data>
+  <data name="SettingsAria2PickTitle" xml:space="preserve">
+    <value>Choose aria2c</value>
+  </data>
+  <data name="SettingsOpenLogs" xml:space="preserve">
+    <value>Open logs folder</value>
   </data>
 </root>

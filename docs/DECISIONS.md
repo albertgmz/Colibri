@@ -124,7 +124,7 @@ choice wins (paused in Colibri but running in aria2 is paused again, and the oth
 aria2 does not know it, it is added again with the same GID, folder and name, paused if it was paused,
 and aria2 continues the partial file from its control file. Completed and failed downloads are left
 alone (failed ones are retried only on request), and aria2 downloads that are not in the database are
-logged and left alone. While Colibri shows a download as paused, an "active" report from aria2 is
+removed from aria2 (see 32). While Colibri shows a download as paused, an "active" report from aria2 is
 ignored, because `forcePause` takes a moment to apply.
 
 ## 19. Window chrome behind `IWindowChrome`
@@ -154,3 +154,90 @@ selecting the file.
 `IDownloadEngine.AddAsync` accepts an existing handle and a "start paused" flag. Reconcile and retry
 add a download again under its old GID (so the handle in the database stays valid and aria2 finds its
 control file) and can restore a paused download without it starting first.
+
+## 23. App: single instance and the local pipe protocol
+
+The first Colibri process of a user owns a named mutex (`colibri-instance-<hash>`, current user only,
+not per session: on Unix each terminal is its own session, and the pipe name is per user); later processes send `activate` with their arguments over the local pipe and exit with
+code 0 before starting anything, aria2 included. A mutex was chosen over "whoever creates the pipe
+first": on Linux and macOS .NET replaces a leftover socket file when a pipe server starts, so a second
+process could take the pipe over silently, while named mutexes work across processes on all three
+systems and are released by the OS when the owner dies.
+
+The pipe is `colibri-<first 16 hex of SHA-256(user name)>`, created with `PipeOptions.CurrentUserOnly`
+(on Unix it is a socket in the temp folder; the short name keeps macOS under its ~104-character socket
+path limit). One request and one response per connection, each a UTF-8 JSON object on one line, at most
+1 MiB; 10 s per connection. Requests: `activate {args}` and `add {url, finalUrl?, fileName?, referrer?,
+cookies?, userAgent?, size?, mimeType?, headers?}`; response `{ok, error?}`. Unknown types, wrong field
+types, invalid URLs (`UrlPolicy`), header values with control characters, negative or fractional sizes
+and over-long strings are rejected with an error response; unknown fields are ignored. The same pipe
+will carry the native-messaging host's requests (browser capture). `finalUrl` is validated but not used
+yet; Colibri downloads `url` and lets aria2 follow the redirects.
+
+## 24. App: headers from the browser that are not forwarded
+
+`HttpHeaders.IsForwardable` drops Range, Accept-Encoding, Content-Length, Host, Connection,
+Transfer-Encoding, Upgrade, TE, Keep-Alive and every `Proxy-*` header (aria2 sets them itself or they
+describe the browser's own connection; Accept-Encoding would make servers send a compressed body that
+aria2 saves as is), and Cookie, Referer and User-Agent, which come in their own fields. These are dropped
+quietly because browsers report them routinely; a header with an invalid name or value rejects the
+whole request.
+
+## 25. App: a browser capture is acknowledged when the Add URL window is shown
+
+The `add` request is answered `ok` as soon as it is valid and the prefilled Add URL window is on screen
+(topmost until it opens, so it appears over the browser even with the main window hidden). The browser
+then cancels its own download. If the user cancels Colibri's window, the download is dropped; that is
+intended, as in other download managers. An invalid request is answered `ok: false` and the browser
+keeps its download.
+
+## 26. App: settings are saved as they change
+
+The settings page has no Save button: toggles, the theme and the numbers apply and save at once; text
+boxes (folders, aria2 path, extensions) when they lose focus. Engine options are sent to aria2 right
+away; a changed aria2 path restarts aria2. A relative folder is refused with a message and not saved,
+numbers are clamped to their range and an emptied number box keeps the old value. The shared
+`AppSettings` object is read by the download manager on other threads, so collections in it are
+replaced rather than changed in place.
+
+## 27. App: segment bar drawn from aria2's bitfield
+
+`DownloadItem` carries aria2's `bitfield` and `numPieces`, copied from each status snapshot. They are not
+stored in the database: they are only meaningful while aria2 knows the download, and aria2 reports them
+again on the first poll. The details pane's segment bar turns the bitfield (highest bit of the first byte
+is piece 0) into runs of consecutive finished pieces and draws one rectangle per run, so a file with
+thousands of pieces is a handful of rectangles; the runs are computed when the bitfield changes, not on
+every render. Without a bitfield (finished, or never started this session) it draws a plain bar from the
+progress.
+
+## 28. App: polling every second while visible, every 5 s while hidden
+
+The window reports its visibility to the download manager: 1 s while it is shown, 5 s while it is
+minimized, hidden in the tray or never shown (`--minimized`). The tray tooltip and taskbar progress are
+updated from the same tick and only when their value changes, which is the throttling they need.
+
+## 29. App: without a tray icon the window is never hidden
+
+`ITrayAvailability` is asked once at startup. Without a tray (some Linux desktops) closing the window
+exits, minimizing only minimizes, `--minimized` starts minimized to the taskbar instead of hidden, and the
+status bar and settings page say that the tray is not available. The app always runs with
+`ShutdownMode.OnExplicitShutdown`; the tray menu's Exit and a real close run the same exit: hide the
+window, stop the pipe server, stop the download manager (aria2 saves its session), then shut down.
+
+## 30. App: delete asks inside the window
+
+Delete (command bar or context menu) opens a confirmation over the window with the download's name or
+the number of downloads and an "Also delete the file(s)" box, unchecked each time. The separate "Delete
+with file" menu entry is gone.
+
+## 31. Engine handles are reserved before the add
+
+`IDownloadEngine.CreateHandle` returns a new handle (for aria2 a random GID). The download manager stores
+it with the new download before calling `AddAsync` with it. If the add times out but reached aria2 anyway,
+the next poll or reconcile finds the download under the stored handle instead of treating it as foreign.
+
+## 32. Reconcile removes aria2 downloads that are not in the database
+
+Colibri's aria2 session is private, so a download in it that the database does not know is left over (for
+example deleted while aria2 was not running). Reconcile removes it from aria2 (`forceRemove` and
+`removeDownloadResult`); its files are never deleted.

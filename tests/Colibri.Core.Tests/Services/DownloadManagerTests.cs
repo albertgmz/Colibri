@@ -189,12 +189,13 @@ public sealed class DownloadManagerTests : IAsyncDisposable
 
         var item = await AddAsync(manager);
         Assert.Equal(DownloadState.Queued, item.State);
-        Assert.Null(item.EngineHandle);
+        Assert.NotNull(item.EngineHandle); // Reserved up front.
+        Assert.Empty(_engine.Adds);
 
         _engine.SetState(EngineState.Running);
 
-        await WaitUntilAsync(async () => (await ItemAsync(manager, item.Id)).EngineHandle is not null);
-        Assert.Single(_engine.Adds);
+        await WaitUntilAsync(() => Task.FromResult(_engine.Adds.Count > 0));
+        Assert.Equal(item.EngineHandle, Assert.Single(_engine.Adds).Handle);
     }
 
     // ---- Pause, resume, delete ----
@@ -359,6 +360,62 @@ public sealed class DownloadManagerTests : IAsyncDisposable
         Assert.Null(_repository.Stored(item.Id));
     }
 
+    // ---- Handles ----
+
+    [Fact]
+    public async Task Add_stores_the_engine_handle_before_asking_the_engine()
+    {
+        var manager = await StartAsync();
+        string? storedHandleDuringAdd = null;
+        string? handleGiven = null;
+        _engine.OnAdd = handle =>
+        {
+            handleGiven = handle;
+            storedHandleDuringAdd = _repository.GetAllAsync(CancellationToken.None).Result.Single().EngineHandle;
+        };
+
+        var item = await AddAsync(manager);
+
+        Assert.NotNull(handleGiven);
+        Assert.Equal(handleGiven, storedHandleDuringAdd);
+        Assert.Equal(handleGiven, item.EngineHandle);
+    }
+
+    [Fact]
+    public async Task A_timed_out_add_that_reached_the_engine_is_found_again_by_its_handle()
+    {
+        var manager = await StartAsync();
+        _engine.FailureAfterAdding = new TimeoutException("No answer from aria2.");
+
+        var item = await AddAsync(manager);
+        Assert.Equal(DownloadState.Failed, item.State);
+        Assert.NotNull(item.EngineHandle);
+
+        // aria2 did get it and is downloading.
+        _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 1000, completed: 100, speed: 10);
+        await manager.ReconcileAsync(_engine, Ct);
+
+        Assert.Empty(_engine.Removes); // Not mistaken for a stray download.
+        var now = await ItemAsync(manager, item.Id);
+        Assert.Equal(DownloadState.Active, now.State);
+        Assert.Equal(100, now.CompletedBytes);
+    }
+
+    [Fact]
+    public async Task Polling_copies_the_piece_bitfield_from_the_engine()
+    {
+        var seed = Seed(DownloadState.Active, "a000000000000009");
+        _engine.Report("a000000000000009", EngineDownloadState.Active, total: 1000, completed: 500, bitfield: "f0", numPieces: 8);
+        var manager = await StartAsync(seed);
+
+        _engine.Report("a000000000000009", EngineDownloadState.Active, total: 1000, completed: 600, bitfield: "f8", numPieces: 8);
+        await manager.PollOnceAsync(Ct);
+
+        var item = await ItemAsync(manager, seed.Id);
+        Assert.Equal("f8", item.Bitfield);
+        Assert.Equal(8, item.NumPieces);
+    }
+
     // ---- Reconcile ----
 
     [Fact]
@@ -423,11 +480,10 @@ public sealed class DownloadManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task Reconcile_leaves_completed_and_failed_downloads_and_unknown_engine_downloads_alone()
+    public async Task Reconcile_leaves_completed_and_failed_downloads_alone()
     {
         var completed = Seed(DownloadState.Completed, "a000000000000006", "done.zip");
         var failed = Seed(DownloadState.Failed, "a000000000000007", "broken.zip");
-        _engine.Report("ffffffffffffffff", EngineDownloadState.Active);
 
         var manager = await StartAsync(completed, failed);
 
@@ -436,7 +492,37 @@ public sealed class DownloadManagerTests : IAsyncDisposable
         var items = await manager.GetItemsAsync(Ct);
         Assert.Equal(DownloadState.Completed, items.Single(i => i.Id == completed.Id).State);
         Assert.Equal(DownloadState.Failed, items.Single(i => i.Id == failed.Id).State);
-        Assert.NotNull(_engine.Status("ffffffffffffffff"));
+    }
+
+    [Fact]
+    public async Task Reconcile_removes_engine_downloads_that_are_not_in_the_database()
+    {
+        // Only the engine's remove is used, which never deletes files (see IDownloadEngine.RemoveAsync).
+        var ours = Seed(DownloadState.Active, "a000000000000008", "ours.zip");
+        _engine.Report("a000000000000008", EngineDownloadState.Active, total: 1000, completed: 500);
+        _engine.Report("ffffffffffffffff", EngineDownloadState.Active);
+        _engine.Report("eeeeeeeeeeeeeeee", EngineDownloadState.Complete);
+
+        await StartAsync(ours);
+
+        Assert.Equal(["eeeeeeeeeeeeeeee", "ffffffffffffffff"], _engine.Removes.Order());
+        Assert.Null(_engine.Status("ffffffffffffffff"));
+        Assert.NotNull(_engine.Status("a000000000000008"));
+    }
+
+    [Fact]
+    public async Task A_failing_removal_of_a_leftover_does_not_stop_the_start()
+    {
+        _engine.Report("ffffffffffffffff", EngineDownloadState.Active);
+        _engine.RemoveFailure = new InvalidOperationException("Unexpected aria2 error");
+
+        var manager = await StartAsync();
+
+        // Reconcile went on, and adding and polling still work.
+        var item = await AddAsync(manager);
+        _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 1000, completed: 10);
+        await manager.PollOnceAsync(Ct);
+        Assert.Equal(DownloadState.Active, (await ItemAsync(manager, item.Id)).State);
     }
 
     [Fact]

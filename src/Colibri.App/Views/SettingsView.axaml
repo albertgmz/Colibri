@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Colibri.App.ViewModels"
+             xmlns:res="using:Colibri.App.Resources"
+             x:Class="Colibri.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,18,0,2" />
+        </Style>
+        <Style Selector="TextBlock.note">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,12" />
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="Width" Value="160" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="24,8,24,24" Spacing="10" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsSavedAutomatically}" />
+
+            <!-- General -->
+            <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsGeneral}" />
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <CheckBox Content="{x:Static res:Strings.SettingsStartWithSystem}" IsChecked="{Binding StartWithSystem}"
+                              IsEnabled="{Binding IsAutostartSupported}" />
+                    <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsAutostartUnsupported}"
+                               IsVisible="{Binding !IsAutostartSupported}" />
+                    <CheckBox x:Name="CloseToTrayBox" Content="{x:Static res:Strings.SettingsCloseToTray}" IsChecked="{Binding CloseToTray}"
+                              IsEnabled="{Binding IsTrayAvailable}" />
+                    <CheckBox Content="{x:Static res:Strings.SettingsMinimizeToTray}" IsChecked="{Binding MinimizeToTray}"
+                              IsEnabled="{Binding IsTrayAvailable}" />
+                    <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsTrayUnavailable}" IsVisible="{Binding !IsTrayAvailable}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{x:Static res:Strings.SettingsTheme}" VerticalAlignment="Center" />
+                        <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeNames}" SelectedIndex="{Binding ThemeIndex}" MinWidth="200"
+                                  AutomationProperties.Name="{x:Static res:Strings.SettingsTheme}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Downloads -->
+            <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsDownloads}" />
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{x:Static res:Strings.SettingsDefaultFolder}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <!-- Text boxes save when they lose focus, not on every key press. -->
+                        <TextBox x:Name="DefaultFolderBox" Text="{Binding DefaultFolder, UpdateSourceTrigger=LostFocus}"
+                                 PlaceholderText="{Binding DefaultFolderPlaceholder}"
+                                 AutomationProperties.Name="{x:Static res:Strings.SettingsDefaultFolder}" />
+                        <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseDefaultFolder" />
+                    </Grid>
+
+                    <TextBlock Text="{x:Static res:Strings.SettingsCategoryFolders}" Margin="0,6,0,0" />
+                    <ItemsControl ItemsSource="{Binding CategoryFolders}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CategoryFolderViewModel">
+                                <Grid ColumnDefinitions="110,*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1" Text="{Binding Folder, UpdateSourceTrigger=LostFocus}"
+                                             PlaceholderText="{Binding Placeholder}" AutomationProperties.Name="{Binding Label}" />
+                                    <Button Grid.Column="2" Content="{x:Static res:Strings.Browse}" Click="OnBrowseCategoryFolder" />
+                                    <Button Grid.Column="3" Content="{x:Static res:Strings.SettingsUseDefault}" Command="{Binding UseDefaultCommand}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding FolderError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
+                               IsVisible="{Binding FolderError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                    <TextBlock Text="{x:Static res:Strings.SettingsMaxConcurrent}" Margin="0,6,0,0" />
+                    <NumericUpDown Value="{Binding MaxConcurrentDownloads}" Minimum="1" Maximum="20" Increment="1" FormatString="0"
+                                   AutomationProperties.Name="{x:Static res:Strings.SettingsMaxConcurrent}" />
+                    <TextBlock Text="{x:Static res:Strings.SettingsConnections}" />
+                    <NumericUpDown x:Name="ConnectionsBox" Value="{Binding ConnectionsPerServer}" Minimum="1" Maximum="16" Increment="1" FormatString="0"
+                                   AutomationProperties.Name="{x:Static res:Strings.SettingsConnections}" />
+                    <TextBlock Text="{x:Static res:Strings.SettingsSpeedLimit}" />
+                    <NumericUpDown Value="{Binding SpeedLimitKiB}" Minimum="0" Maximum="10000000" Increment="100" FormatString="0"
+                                   AutomationProperties.Name="{x:Static res:Strings.SettingsSpeedLimit}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Browser -->
+            <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsBrowser}" />
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsBrowserStatusVisible}">
+                        <TextBlock Text="{x:Static res:Strings.SettingsBrowserStatus}" />
+                        <TextBlock Text="{Binding BrowserStatusText}" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Static res:Strings.SettingsCaptureExtensions}" />
+                    <TextBox Text="{Binding CaptureExtensions, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap"
+                             AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureExtensions}" />
+                    <TextBlock Text="{x:Static res:Strings.SettingsCaptureMinSize}" />
+                    <NumericUpDown Value="{Binding CaptureMinSizeKiB}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                   AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureMinSize}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Advanced -->
+            <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsAdvanced}" />
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{x:Static res:Strings.SettingsAria2Path}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Text="{Binding Aria2Path, UpdateSourceTrigger=LostFocus}"
+                                 AutomationProperties.Name="{x:Static res:Strings.SettingsAria2Path}" />
+                        <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseAria2" />
+                    </Grid>
+                    <Button Content="{x:Static res:Strings.SettingsOpenLogs}" Command="{Binding OpenLogsFolderCommand}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

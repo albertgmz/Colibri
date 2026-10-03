@@ -7,15 +7,30 @@ using Colibri.Core.Services;
 using Colibri.Core.Settings;
 using Colibri.Engine.Aria2;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Colibri.App;
 
 public static class AppServices
 {
-    /// <summary>Registers Colibri's own services (storage, engine, download manager, view models).</summary>
+    /// <summary>
+    /// Registers Colibri's own services (storage, engine, download manager, view models). Call after
+    /// <c>AddColibriPlatform</c>: platform features it does not provide get a do-nothing stand-in.
+    /// </summary>
     public static IServiceCollection AddColibriApp(this IServiceCollection services)
     {
+        services.TryAddSingleton<INotificationService, NoOpNotificationService>();
+        services.TryAddSingleton<IAutostartService, NoOpAutostartService>();
+        services.TryAddSingleton<ITaskbarProgress, NoOpTaskbarProgress>();
+        services.TryAddSingleton<ITrayAvailability, AssumeTrayAvailable>();
+
+        // TODO(platform merge): register the localized notification texts once Colibri.Platform provides
+        // the NotificationTexts record:
+        // services.AddSingleton(new Colibri.Platform.NotificationTexts(
+        //     Completed: Strings.NotificationCompleted, Failed: Strings.NotificationFailed, Open: Strings.NotificationOpen,
+        //     ShowInFolder: Strings.NotificationShowInFolder, Retry: Strings.NotificationRetry));
+
         services.AddSingleton<ISettingsStore>(sp =>
             new JsonSettingsStore(sp.GetRequiredService<IAppPaths>().SettingsPath, sp.GetRequiredService<ILogger<JsonSettingsStore>>()));
 
@@ -45,6 +60,11 @@ public static class AppServices
         services.AddSingleton<DownloadManager>();
 
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<DownloadNotifier>();
+
+        // Its IBrowserHostRegistrar parameter is optional: until browser capture registers one, the
+        // container passes null and the page hides the integration status.
+        services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
 
         // The window frame depends on the OS. IWindowChrome uses Avalonia types, so it cannot live in

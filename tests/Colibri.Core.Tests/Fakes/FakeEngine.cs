@@ -23,6 +23,12 @@ public sealed class FakeEngine : IDownloadEngine
     /// <summary>When set, <see cref="AddAsync"/> throws it.</summary>
     public Exception? AddFailure { get; set; }
 
+    /// <summary>When set, <see cref="AddAsync"/> adds the download and then throws it (an ambiguous timeout).</summary>
+    public Exception? FailureAfterAdding { get; set; }
+
+    /// <summary>Runs at the start of <see cref="AddAsync"/> with the handle it was given.</summary>
+    public Action<string?>? OnAdd { get; set; }
+
     public List<AddCall> Adds { get; } = [];
 
     public List<string> Pauses { get; } = [];
@@ -41,6 +47,7 @@ public sealed class FakeEngine : IDownloadEngine
 
     public Task StartAsync(CancellationToken ct)
     {
+        StartCount++;
         SetState(StateAfterStart);
         return Task.CompletedTask;
     }
@@ -52,10 +59,28 @@ public sealed class FakeEngine : IDownloadEngine
         return Task.CompletedTask;
     }
 
-    public Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct) => Task.CompletedTask;
+    /// <summary>The options last passed to <see cref="ApplyOptionsAsync"/>.</summary>
+    public EngineOptions? AppliedOptions { get; private set; }
+
+    public int StartCount { get; private set; }
+
+    public Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct)
+    {
+        AppliedOptions = options;
+        return Task.CompletedTask;
+    }
+
+    public string CreateHandle()
+    {
+        lock (_gate)
+        {
+            return $"{++_nextHandle:x16}";
+        }
+    }
 
     public Task<string> AddAsync(DownloadRequest request, string saveFolder, string fileName, string? handle, bool startPaused, CancellationToken ct)
     {
+        OnAdd?.Invoke(handle);
         lock (_gate)
         {
             if (AddFailure is not null)
@@ -71,6 +96,11 @@ public sealed class FakeEngine : IDownloadEngine
 
             Adds.Add(new AddCall(request, saveFolder, fileName, handle, startPaused));
             _downloads[handle] = new EngineDownloadStatus(handle, startPaused ? EngineDownloadState.Paused : EngineDownloadState.Waiting, 0, 0, 0, 0);
+            if (FailureAfterAdding is not null)
+            {
+                throw FailureAfterAdding;
+            }
+
             return Task.FromResult(handle);
         }
     }
@@ -79,8 +109,16 @@ public sealed class FakeEngine : IDownloadEngine
 
     public Task ResumeAsync(string handle, CancellationToken ct) => Change(handle, EngineDownloadState.Waiting, Resumes);
 
+    /// <summary>When set, <see cref="RemoveAsync"/> throws it.</summary>
+    public Exception? RemoveFailure { get; set; }
+
     public Task RemoveAsync(string handle, CancellationToken ct)
     {
+        if (RemoveFailure is not null)
+        {
+            throw RemoveFailure;
+        }
+
         lock (_gate)
         {
             Removes.Add(handle);
@@ -125,11 +163,13 @@ public sealed class FakeEngine : IDownloadEngine
     }
 
     /// <summary>Sets what the engine reports for <paramref name="handle"/> (adds it if unknown).</summary>
-    public void Report(string handle, EngineDownloadState state, long total = 0, long completed = 0, long speed = 0, int connections = 0, string? error = null)
+    public void Report(
+        string handle, EngineDownloadState state, long total = 0, long completed = 0, long speed = 0, int connections = 0,
+        string? error = null, string? bitfield = null, int? numPieces = null)
     {
         lock (_gate)
         {
-            _downloads[handle] = new EngineDownloadStatus(handle, state, total, completed, speed, connections, error);
+            _downloads[handle] = new EngineDownloadStatus(handle, state, total, completed, speed, connections, error, Bitfield: bitfield, NumPieces: numPieces);
         }
     }
 

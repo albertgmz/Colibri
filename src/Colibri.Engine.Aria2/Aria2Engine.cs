@@ -96,6 +96,8 @@ public sealed class Aria2Engine : IDownloadEngine, IDisposable
         await Refusable(() => Client.ChangeGlobalOptionAsync(globalOptions, ct), "change its options");
     }
 
+    public string CreateHandle() => Aria2AddOptions.NewGid();
+
     public async Task<string> AddAsync(
         DownloadRequest request, string saveFolder, string fileName, string? handle, bool startPaused, CancellationToken ct)
     {

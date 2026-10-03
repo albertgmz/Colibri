@@ -18,6 +18,9 @@ public sealed class AppSettings
 
     public AppTheme Theme { get; set; } = AppTheme.System;
 
+    /// <summary>Whether the details pane under the download table is shown.</summary>
+    public bool ShowDetailsPane { get; set; } = true;
+
     /// <summary>Base download folder. Empty means the user's Downloads folder, resolved at runtime.</summary>
     public string DefaultDownloadFolder { get; set; } = string.Empty;
 

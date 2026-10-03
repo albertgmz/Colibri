@@ -77,4 +77,37 @@ public class HttpHeadersTests
     {
         Assert.False(HttpHeaders.IsValidValue(value));
     }
+
+    [Theory]
+    [InlineData("Range")]
+    [InlineData("accept-encoding")]
+    [InlineData("Content-Length")]
+    [InlineData("Host")]
+    [InlineData("Connection")]
+    [InlineData("Transfer-Encoding")]
+    [InlineData("Upgrade")]
+    [InlineData("TE")]
+    [InlineData("Keep-Alive")]
+    [InlineData("Proxy-Authorization")]
+    [InlineData("proxy-connection")]
+    [InlineData("Cookie")]
+    [InlineData("Referer")]
+    [InlineData("User-Agent")]
+    [InlineData("Bad Name")]
+    [InlineData("")]
+    public void Headers_that_aria2_manages_or_that_have_their_own_field_are_not_forwarded(string name)
+    {
+        Assert.False(HttpHeaders.IsForwardable(name));
+    }
+
+    [Theory]
+    [InlineData("Authorization")]
+    [InlineData("Accept")]
+    [InlineData("Accept-Language")]
+    [InlineData("X-Requested-With")]
+    [InlineData("Sec-Fetch-Mode")]
+    public void Ordinary_request_headers_are_forwarded(string name)
+    {
+        Assert.True(HttpHeaders.IsForwardable(name));
+    }
 }
