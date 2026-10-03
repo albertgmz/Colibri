@@ -6,7 +6,7 @@ Colibri uses the following third-party software. Each component remains under it
 
 | Component | Licence | Notes |
 |---|---|---|
-| [aria2](https://aria2.github.io/) 1.37.0 | GPLv2 (with an OpenSSL exception) | Shipped as a separate program (`aria2/aria2c.exe` on Windows) and controlled over JSON-RPC; it is not linked into Colibri. Its licence is copied next to it (`aria2/COPYING`); see `third_party/aria2/README.md` for the source code. |
+| [aria2](https://aria2.github.io/) 1.37.0 | GPLv2 (with an OpenSSL exception) | Shipped as a separate program (`aria2/aria2c.exe` on Windows) and controlled over JSON-RPC; it is not linked into Colibri. Its licence (`aria2/COPYING`) and the OpenSSL licence text its exception refers to (`aria2/LICENSE.OpenSSL`) are copied next to it; see `third_party/aria2/README.md` for the source code. |
 
 ## Artwork
 

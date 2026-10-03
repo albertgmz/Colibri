@@ -24,6 +24,7 @@ Versions are pinned centrally in `Directory.Packages.props`.
 src/Colibri.Core            domain + abstractions (no UI, no aria2, no OS code)
 src/Colibri.Engine.Aria2    aria2 process host + JSON-RPC client -> IDownloadEngine
 src/Colibri.Platform        per-OS implementations of the Core platform interfaces
+src/Colibri.Platform.Ipc    per-OS pipe/mutex names and foreground handoff, shared with the native host
 src/Colibri.App             Avalonia app (views, view models, storage, IPC, hosting)
 src/Colibri.NativeHost      native-messaging host <-> local pipe to the app
 extension/                  MV3 extension for Chrome and Edge
@@ -57,7 +58,7 @@ tests/*                     unit tests + headless UI smoke tests
 - Pure helpers: `FileNameSanitizer`, `CategoryMapper`, `UrlPolicy`.
 - Platform interfaces: `INotificationService`, `IAutostartService`,
   `IBrowserHostRegistrar`, `IShellService`, `ITaskbarProgress`,
-  `IAria2Locator`, `IAppPaths`.
+  `IAria2Locator`, `IAppPaths`, `IIpcEndpointProvider`, `IForegroundHandoff`.
 
 ## Milestones (step -> verify)
 

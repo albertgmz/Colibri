@@ -17,6 +17,8 @@ namespace Colibri.App.Services;
 /// </remarks>
 public sealed class IpcRequestHandler
 {
+    private const string ExitingError = "Colibri is exiting.";
+
     private readonly MainWindowViewModel _viewModel;
     private readonly IDialogService _dialogs;
     private readonly Action _showMainWindow;
@@ -36,18 +38,27 @@ public sealed class IpcRequestHandler
         switch (request)
         {
             case ActivateRequest activate:
+                // ct is cancelled when Colibri starts exiting (checked on the UI thread, where the exit runs).
+                // The refusal tells the new Colibri process to wait and take over instead of exiting too.
                 // "--minimized" (an autostart while Colibri already runs) changes nothing on screen.
-                if (!WindowBehavior.HasMinimizedArgument(activate.Args))
+                var accepted = false;
+                await OnUiThreadAsync(() =>
                 {
-                    await OnUiThreadAsync(_showMainWindow);
-                }
+                    if (!ct.IsCancellationRequested)
+                    {
+                        if (!WindowBehavior.HasMinimizedArgument(activate.Args))
+                        {
+                            _showMainWindow();
+                        }
 
-                return IpcResponse.Success;
+                        accepted = true;
+                    }
+                });
+                return accepted ? IpcResponse.Success : IpcResponse.Failure(ExitingError);
 
             case AddRequest add:
-                // ct is cancelled when Colibri starts exiting. Checked on the UI thread, where the exit runs:
-                // a window shown then would be closed by the exit, and the browser, told "ok", would have
-                // dropped its own download.
+                // Checked on the UI thread as above: a window shown while exiting would be closed by the exit,
+                // and the browser, told "ok", would have dropped its own download.
                 var shown = false;
                 await OnUiThreadAsync(() =>
                 {
@@ -57,7 +68,7 @@ public sealed class IpcRequestHandler
                         shown = true;
                     }
                 });
-                return shown ? IpcResponse.Success : IpcResponse.Failure("Colibri is exiting.");
+                return shown ? IpcResponse.Success : IpcResponse.Failure(ExitingError);
 
             case PingRequest:
                 return IpcResponse.Success;

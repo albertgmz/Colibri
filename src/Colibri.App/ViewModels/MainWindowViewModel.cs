@@ -41,6 +41,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly Dictionary<Guid, DownloadItemViewModel> _byId = [];
     private IReadOnlyList<DownloadItemViewModel> _selectedItems = [];
     private List<Guid> _pendingDelete = [];
+    private bool _loaded;
 
     [ObservableProperty]
     private NavItemViewModel _selectedNav;
@@ -59,6 +60,13 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isEngineMissing;
+
+    /// <summary>
+    /// True when there is not a single download (once they are loaded) and aria2 was found: the table then
+    /// shows a hint instead of staying blank.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isEmptyHintVisible;
 
     /// <summary>The download the details pane shows: the first selected one.</summary>
     [ObservableProperty]
@@ -173,6 +181,10 @@ public partial class MainWindowViewModel : ObservableObject
             // Off the UI thread: starting aria2 and reading the database take a moment.
             await Task.Run(() => _manager.InitializeAsync(CancellationToken.None));
             AddOrUpdate(await _manager.GetItemsAsync(CancellationToken.None), added: true);
+
+            // Only after a successful load: "no downloads yet" would be wrong when they could not be read.
+            _loaded = true;
+            UpdateEmptyHint();
         }
         catch (Exception ex)
         {
@@ -203,6 +215,8 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnSelectedNavChanged(NavItemViewModel value) => Downloads.Refresh();
 
     partial void OnSearchTextChanged(string value) => Downloads.Refresh();
+
+    partial void OnIsEngineMissingChanged(bool value) => UpdateEmptyHint();
 
     partial void OnIsDetailsVisibleChanged(bool value)
     {
@@ -369,7 +383,11 @@ public partial class MainWindowViewModel : ObservableObject
         {
             nav.Count = _items.Count(nav.Matches);
         }
+
+        UpdateEmptyHint();
     }
+
+    private void UpdateEmptyHint() => IsEmptyHintVisible = _loaded && _items.Count == 0 && !IsEngineMissing;
 
     private void NotifyCommands()
     {

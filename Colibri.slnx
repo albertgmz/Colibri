@@ -5,6 +5,7 @@
     <Project Path="src/Colibri.Engine.Aria2/Colibri.Engine.Aria2.csproj" />
     <Project Path="src/Colibri.NativeHost/Colibri.NativeHost.csproj" />
     <Project Path="src/Colibri.Platform/Colibri.Platform.csproj" />
+    <Project Path="src/Colibri.Platform.Ipc/Colibri.Platform.Ipc.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Colibri.App.Tests/Colibri.App.Tests.csproj" />

@@ -1,7 +1,9 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
+using System.IO.Pipes;
 using Colibri.Core.Ipc;
+using Colibri.Core.Platform;
 using Microsoft.Extensions.Logging.Abstractions;
 using static Colibri.NativeHost.Tests.NativeMessagingTests;
 
@@ -14,6 +16,7 @@ public sealed class HostSessionTests : IAsyncDisposable
     private readonly string _pipeName = "colibri-host-test-" + Guid.NewGuid().ToString("N")[..12];
     private readonly List<IpcRequest> _received = [];
     private readonly HostLog _log = new(null);
+    private readonly RecordingHandoff _foreground = new();
     private LocalPipeServer? _server;
     private int _starts;
 
@@ -114,6 +117,35 @@ public sealed class HostSessionTests : IAsyncDisposable
         Assert.Equal(["""{"ok":true}"""], ReadReplies(output));
         Assert.Equal(1, _starts);
         Assert.IsType<AddRequest>(Assert.Single(_received));
+        Assert.Equal(1, _foreground.ConnectedCalls); // The Colibri just started may come to the front too.
+    }
+
+    [Fact]
+    public async Task Only_an_add_lets_colibri_take_the_foreground_and_before_it_is_sent()
+    {
+        StartServer();
+        var output = new MemoryStream();
+        _foreground.OnCall = () => Assert.Empty(_received);
+
+        await Session(Frames("""{"type":"ping"}""", """{"type":"config"}"""), output).RunAsync(Ct);
+        Assert.Equal(0, _foreground.ConnectedCalls);
+
+        _received.Clear();
+        await Session(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
+        Assert.Equal(1, _foreground.ConnectedCalls);
+    }
+
+    [Fact]
+    public async Task An_add_still_goes_through_when_the_foreground_cannot_be_handed_over()
+    {
+        StartServer();
+        _foreground.Result = false;
+        var output = new MemoryStream();
+
+        await Session(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
+
+        Assert.Equal(["""{"ok":true}"""], ReadReplies(output));
+        Assert.IsType<AddRequest>(Assert.Single(_received));
     }
 
     [Fact]
@@ -131,7 +163,7 @@ public sealed class HostSessionTests : IAsyncDisposable
     public async Task When_colibri_cannot_be_started_the_browser_gets_an_error()
     {
         var output = new MemoryStream();
-        var client = new ColibriClient(_pipeName, () => { _starts++; return false; }, FastTimeouts, _log);
+        var client = new ColibriClient(_pipeName, () => { _starts++; return false; }, _foreground, FastTimeouts, _log);
 
         await new HostSession(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output, client.SendAsync, _log).RunAsync(Ct);
 
@@ -206,6 +238,7 @@ public sealed class HostSessionTests : IAsyncDisposable
 
                 return true;
             },
+            _foreground,
             FastTimeouts,
             _log);
         return new HostSession(input, output, client.SendAsync, _log);
@@ -242,5 +275,26 @@ public sealed class HostSessionTests : IAsyncDisposable
         }
 
         return replies;
+    }
+
+    /// <summary>Counts the calls made with a connected pipe.</summary>
+    private sealed class RecordingHandoff : IForegroundHandoff
+    {
+        public int ConnectedCalls { get; private set; }
+
+        public bool Result { get; set; } = true;
+
+        public Action? OnCall { get; set; }
+
+        public bool AllowAppToTakeForeground(PipeStream connectedPipe)
+        {
+            if (connectedPipe.IsConnected)
+            {
+                ConnectedCalls++;
+            }
+
+            OnCall?.Invoke();
+            return Result;
+        }
     }
 }

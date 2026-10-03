@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Colibri.App.Resources;
 using Colibri.App.ViewModels;
+using Colibri.Core.Abstractions;
 using Colibri.Core.Engine;
 using Colibri.Core.Models;
 
@@ -62,6 +63,44 @@ public class MainWindowTests
         Assert.Contains("Failed", texts);
         Assert.Equal(3, Nav(ui.ViewModel, NavFilter.All).Count);
         Assert.Equal(1, Nav(ui.ViewModel, NavFilter.Completed).Count);
+    }
+
+    private static TextBlock EmptyHint(Window window) => window.FindControl<TextBlock>("EmptyHint")!;
+
+    [AvaloniaFact]
+    public async Task An_empty_list_shows_a_hint_until_the_first_download_is_added()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var window = ui.ShowWindow();
+
+        Assert.True(EmptyHint(window).IsEffectivelyVisible);
+        Assert.Equal(Strings.EmptyListHint, EmptyHint(window).Text);
+
+        var addUrl = ui.ViewModel.CreateAddUrl(LinkContext.Empty, null);
+        addUrl.Url = "https://example.com/a.zip";
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(EmptyHint(window).IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task The_empty_list_hint_is_hidden_when_there_are_downloads()
+    {
+        await using var ui = await UiHarness.StartAsync(UiHarness.Item("done.zip", DownloadState.Completed));
+        var window = ui.ShowWindow();
+
+        Assert.False(EmptyHint(window).IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task The_empty_list_hint_gives_way_to_the_missing_engine_help()
+    {
+        await using var ui = await UiHarness.StartAsync(engine => engine.StateAfterStart = EngineState.NotFound);
+        var window = ui.ShowWindow();
+
+        Assert.True(ui.ViewModel.IsEngineMissing);
+        Assert.False(EmptyHint(window).IsEffectivelyVisible);
     }
 
     [AvaloniaFact]
@@ -138,6 +177,93 @@ public class MainWindowTests
         Assert.Equal("setup.exe", addUrl.FileName);
         Assert.Equal("3.0 MB", addUrl.SizeText);
         Assert.EndsWith("Programs", addUrl.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_lets_the_resolver_name_the_file_and_pick_its_folder_when_nothing_was_edited()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(LinkContext.Empty, "https://example.com/download?id=1");
+        Assert.Equal("download", addUrl.FileName);
+        Assert.EndsWith("Other", addUrl.SaveFolder);
+
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("movie.mp4", item.FileName);
+        Assert.Equal(ui.Manager.GetCategoryFolder(DownloadCategory.Video), item.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_uses_a_file_name_the_user_edited_over_the_resolver_name()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(LinkContext.Empty, "https://example.com/download?id=1");
+
+        addUrl.FileName = "mine.zip";
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("mine.zip", item.FileName);
+        Assert.Equal(ui.Manager.GetCategoryFolder(DownloadCategory.Compressed), item.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_uses_a_folder_the_user_chose_and_still_the_resolver_name()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(LinkContext.Empty, "https://example.com/download?id=1");
+        var picked = Path.Combine(ui.Paths.DefaultDownloadsDirectory, "Picked");
+
+        addUrl.SaveFolder = picked;
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("movie.mp4", item.FileName);
+        Assert.Equal(picked, item.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_keeps_a_browser_supplied_name_over_the_resolver_name()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(new LinkContext { FileName = "setup.exe" }, "https://example.com/download?id=1");
+
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("setup.exe", item.FileName);
+        Assert.Equal(ui.Manager.GetCategoryFolder(DownloadCategory.Programs), item.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_counts_browsing_to_the_folder_already_shown_as_a_choice()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(LinkContext.Empty, "https://example.com/download?id=1");
+        var shown = addUrl.SaveFolder;
+
+        addUrl.ChooseFolder(shown);
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("movie.mp4", item.FileName);
+        Assert.Equal(shown, item.SaveFolder);
+    }
+
+    [AvaloniaFact]
+    public async Task Add_url_hands_a_cleared_file_name_back_to_the_resolver()
+    {
+        await using var ui = await UiHarness.StartWithResolverAsync(new NamingResolver("movie.mp4"));
+        var addUrl = ui.ViewModel.CreateAddUrl(new LinkContext { FileName = "setup.exe" }, "https://example.com/download?id=1");
+
+        addUrl.FileName = "mine.zip";
+        addUrl.FileName = string.Empty;
+        await addUrl.DownloadCommand.ExecuteAsync(null);
+
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(CancellationToken.None));
+        Assert.Equal("movie.mp4", item.FileName);
+        Assert.Equal(ui.Manager.GetCategoryFolder(DownloadCategory.Video), item.SaveFolder);
     }
 
     [AvaloniaFact]
@@ -338,5 +464,16 @@ public class MainWindowTests
 
         // Virtualization: only the rows on screen exist as controls.
         Assert.True(RowCount(window) < 100, $"{RowCount(window)} row controls were created");
+    }
+
+    /// <summary>A resolver that handles every link and names the file <paramref name="fileName"/>.</summary>
+    private sealed class NamingResolver(string fileName) : ILinkResolver
+    {
+        public string Id => "naming";
+
+        public int Priority => 1;
+
+        public Task<IReadOnlyList<DownloadRequest>?> ResolveAsync(Uri url, LinkContext context, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<DownloadRequest>?>([new DownloadRequest { Uri = url, SuggestedFileName = fileName }]);
     }
 }

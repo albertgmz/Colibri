@@ -4,6 +4,7 @@ using Colibri.Core.Ipc;
 using Colibri.Core.Platform;
 using Colibri.Core.Settings;
 using Colibri.Platform;
+using Colibri.Platform.Ipc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,18 +15,28 @@ namespace Colibri.App;
 
 public static class Program
 {
+    /// <summary>
+    /// How long a new Colibri keeps trying when another one holds the single-instance mutex but does not accept
+    /// its arguments: that one is still starting (its pipe opens last) or exiting (the mutex is released when
+    /// its process ends).
+    /// </summary>
+    private static readonly TimeSpan WaitForExitingInstance = TimeSpan.FromSeconds(15);
+
     // Don't use any Avalonia, third-party APIs or any SynchronizationContext-reliant code before
     // StartWithClassicDesktopLifetime is called: things aren't initialized yet and stuff might break.
     [STAThread]
     public static int Main(string[] args)
     {
         // Only one Colibri runs per user. A second start hands its arguments to the running one (which
-        // shows its window) and exits before starting anything, aria2 included. The guard is released
-        // when Main returns, on this same thread as the mutex requires.
-        using var primary = SingleInstanceGuard.TryAcquire(IpcProtocol.InstanceMutexName);
-        if (primary is null)
+        // shows its window) and exits before starting anything, aria2 included. A Colibri that is still
+        // exiting is waited for and then replaced. The guard is released when Main returns, on this same
+        // thread as the mutex requires.
+        var endpoint = IpcPlatform.CreateEndpointProvider().GetEndpoint();
+        var election = InstanceElection.Run(endpoint.MutexName, () => ForwardToPrimary(endpoint.PipeName, args), WaitForExitingInstance);
+        using var primary = election.Guard;
+        if (election.Role == InstanceRole.Secondary)
         {
-            return ForwardToPrimary(args);
+            return 0;
         }
 
         // The generic host provides dependency injection, configuration and logging. It is not started:
@@ -42,9 +53,23 @@ public static class Program
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"));
         builder.Services.AddColibriPlatform(AppServices.CreateNotificationTexts());
         builder.Services.AddColibriApp();
+        builder.Services.AddSingleton(endpoint);
 
         using var host = builder.Build();
         var logger = host.Services.GetRequiredService<ILogger<App>>();
+
+        if (election.Role == InstanceRole.NoAnswer)
+        {
+            logger.LogError(
+                "Another Colibri holds the single-instance lock but neither took this start's arguments nor exited within {Seconds} s; this start is given up",
+                WaitForExitingInstance.TotalSeconds);
+            return 1;
+        }
+
+        if (election.Role == InstanceRole.PrimaryAfterWaiting)
+        {
+            logger.LogInformation("Waited for the previous Colibri to exit");
+        }
 
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception");
@@ -80,19 +105,17 @@ public static class Program
         }
     }
 
-    private static int ForwardToPrimary(string[] args)
+    /// <summary>Sends this start's arguments to the running Colibri; null when it does not answer (it may be starting or exiting).</summary>
+    private static IpcResponse? ForwardToPrimary(string pipeName, string[] args)
     {
         try
         {
-            var response = LocalPipeClient.SendAsync(IpcProtocol.DefaultPipeName, new ActivateRequest(args), LocalPipeClient.DefaultTimeout, CancellationToken.None)
+            return LocalPipeClient.SendAsync(pipeName, new ActivateRequest(args), LocalPipeClient.DefaultTimeout, CancellationToken.None)
                 .GetAwaiter().GetResult();
-            return response.Ok ? 0 : 1;
         }
         catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
         {
-            // The running Colibri did not answer (it may be exiting). Nothing else to do.
-            Console.Error.WriteLine($"Colibri is already running but did not answer: {ex.Message}");
-            return 1;
+            return null;
         }
     }
 

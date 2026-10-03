@@ -38,7 +38,9 @@ internal sealed class WindowsBrowserHostRegistrar : IBrowserHostRegistrar
     public async Task<IReadOnlyList<BrowserHostStatus>> GetStatusAsync(NativeHostRegistration expected)
     {
         var manifestPath = ManifestPath(expected);
+        // A host file that is gone (Colibri deleted or moved) cannot be started: the registration needs a repair.
         var manifestMatches = File.Exists(manifestPath)
+            && File.Exists(expected.HostExecutablePath)
             && NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.OrdinalIgnoreCase);
 
         return Browsers.Select(b =>

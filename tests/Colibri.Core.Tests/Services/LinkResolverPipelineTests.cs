@@ -177,6 +177,54 @@ public class LinkResolverPipelineTests
     }
 
     [Fact]
+    public async Task Drops_null_entries_and_relative_urls_from_resolver_output()
+    {
+        var good = Request("https://example.com/good.zip");
+        var logger = new ListLogger();
+        var output = new[] { null!, new DownloadRequest { Uri = new Uri("files/a.zip?token=abc123", UriKind.Relative) }, good };
+        var resolvers = new[] { new FakeResolver("sloppy", 0, [], output) };
+
+        var result = await new LinkResolverPipeline(resolvers, logger).ResolveAsync(Url, LinkContext.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Equal(good.Uri, Assert.Single(result).Uri);
+        Assert.Equal(2, logger.Entries.Count(e => e.Level == LogLevel.Warning));
+        Assert.All(logger.Entries, e => Assert.DoesNotContain("abc123", e.Message));
+    }
+
+    [Fact]
+    public async Task Drops_headers_the_engine_must_not_receive_from_resolver_output()
+    {
+        var request = new DownloadRequest
+        {
+            Uri = new Uri("https://example.com/a.zip"),
+            Headers = new Dictionary<string, string>
+            {
+                ["X-Good"] = "1", ["Range"] = "bytes=0-", ["Host"] = "evil.example", ["Accept-Encoding"] = "gzip",
+                ["Proxy-Authorization"] = "Basic x", ["Cookie"] = "c=1",
+            },
+        };
+        var resolvers = new[] { new FakeResolver("r", 0, [], [request]) };
+
+        var result = await new LinkResolverPipeline(resolvers).ResolveAsync(Url, LinkContext.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Equal("X-Good", Assert.Single(Assert.Single(result).Headers).Key);
+    }
+
+    [Fact]
+    public async Task Direct_resolver_does_not_pass_on_non_forwardable_context_headers()
+    {
+        var headers = HttpHeaders.Create();
+        headers["Accept-Language"] = "en";
+        headers["Range"] = "bytes=100-";
+        headers["Proxy-Connection"] = "keep-alive";
+        var context = new LinkContext { Headers = headers };
+
+        var result = await new LinkResolverPipeline([new DirectLinkResolver()]).ResolveAsync(Url, context, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Accept-Language", Assert.Single(Assert.Single(result).Headers).Key);
+    }
+
+    [Fact]
     public async Task Logs_urls_without_credentials_or_query()
     {
         var logger = new ListLogger();

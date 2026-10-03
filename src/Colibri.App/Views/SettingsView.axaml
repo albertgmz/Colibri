@@ -23,6 +23,10 @@
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="16,12" />
         </Style>
+        <!-- A label and its control: close together, and further from the next pair (card spacing). -->
+        <Style Selector="StackPanel.field">
+            <Setter Property="Spacing" Value="6" />
+        </Style>
         <Style Selector="NumericUpDown">
             <Setter Property="Width" Value="160" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -57,54 +61,64 @@
             <!-- Downloads -->
             <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsDownloads}" />
             <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{x:Static res:Strings.SettingsDefaultFolder}" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <!-- Text boxes save when they lose focus, not on every key press. -->
-                        <TextBox x:Name="DefaultFolderBox" Text="{Binding DefaultFolder, UpdateSourceTrigger=LostFocus}"
-                                 PlaceholderText="{Binding DefaultFolderPlaceholder}"
-                                 AutomationProperties.Name="{x:Static res:Strings.SettingsDefaultFolder}" />
-                        <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseDefaultFolder" />
-                    </Grid>
+                <StackPanel Spacing="16">
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsDefaultFolder}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <!-- Text boxes save when they lose focus, not on every key press. -->
+                            <TextBox x:Name="DefaultFolderBox" Text="{Binding DefaultFolder, UpdateSourceTrigger=LostFocus}"
+                                     PlaceholderText="{Binding DefaultFolderPlaceholder}"
+                                     AutomationProperties.Name="{x:Static res:Strings.SettingsDefaultFolder}" />
+                            <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseDefaultFolder" />
+                        </Grid>
+                    </StackPanel>
 
-                    <TextBlock Text="{x:Static res:Strings.SettingsCategoryFolders}" Margin="0,6,0,0" />
-                    <ItemsControl ItemsSource="{Binding CategoryFolders}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="6" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:CategoryFolderViewModel">
-                                <Grid ColumnDefinitions="110,*,Auto,Auto" ColumnSpacing="8">
-                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                                    <TextBox Grid.Column="1" Text="{Binding Folder, UpdateSourceTrigger=LostFocus}"
-                                             PlaceholderText="{Binding Placeholder}" AutomationProperties.Name="{Binding Label}" />
-                                    <Button Grid.Column="2" Content="{x:Static res:Strings.Browse}" Click="OnBrowseCategoryFolder" />
-                                    <Button Grid.Column="3" Content="{x:Static res:Strings.SettingsUseDefault}" Command="{Binding UseDefaultCommand}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="{Binding FolderError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
-                               IsVisible="{Binding FolderError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsCategoryFolders}" />
+                        <ItemsControl ItemsSource="{Binding CategoryFolders}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CategoryFolderViewModel">
+                                    <Grid ColumnDefinitions="110,*,Auto,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" Text="{Binding Folder, UpdateSourceTrigger=LostFocus}"
+                                                 PlaceholderText="{Binding Placeholder}" AutomationProperties.Name="{Binding Label}" />
+                                        <Button Grid.Column="2" Content="{x:Static res:Strings.Browse}" Click="OnBrowseCategoryFolder" />
+                                        <Button Grid.Column="3" Content="{x:Static res:Strings.SettingsUseDefault}" Command="{Binding UseDefaultCommand}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding FolderError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
+                                   IsVisible="{Binding FolderError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
 
-                    <TextBlock Text="{x:Static res:Strings.SettingsMaxConcurrent}" Margin="0,6,0,0" />
-                    <NumericUpDown Value="{Binding MaxConcurrentDownloads}" Minimum="1" Maximum="20" Increment="1" FormatString="0"
-                                   AutomationProperties.Name="{x:Static res:Strings.SettingsMaxConcurrent}" />
-                    <TextBlock Text="{x:Static res:Strings.SettingsConnections}" />
-                    <NumericUpDown x:Name="ConnectionsBox" Value="{Binding ConnectionsPerServer}" Minimum="1" Maximum="16" Increment="1" FormatString="0"
-                                   AutomationProperties.Name="{x:Static res:Strings.SettingsConnections}" />
-                    <TextBlock Text="{x:Static res:Strings.SettingsSpeedLimit}" />
-                    <NumericUpDown Value="{Binding SpeedLimitKiB}" Minimum="0" Maximum="10000000" Increment="100" FormatString="0"
-                                   AutomationProperties.Name="{x:Static res:Strings.SettingsSpeedLimit}" />
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsMaxConcurrent}" />
+                        <NumericUpDown Value="{Binding MaxConcurrentDownloads}" Minimum="1" Maximum="20" Increment="1" FormatString="0"
+                                       AutomationProperties.Name="{x:Static res:Strings.SettingsMaxConcurrent}" />
+                    </StackPanel>
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsConnections}" />
+                        <NumericUpDown x:Name="ConnectionsBox" Value="{Binding ConnectionsPerServer}" Minimum="1" Maximum="16" Increment="1" FormatString="0"
+                                       AutomationProperties.Name="{x:Static res:Strings.SettingsConnections}" />
+                    </StackPanel>
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsSpeedLimit}" />
+                        <NumericUpDown Value="{Binding SpeedLimitKiB}" Minimum="0" Maximum="10000000" Increment="100" FormatString="0"
+                                       AutomationProperties.Name="{x:Static res:Strings.SettingsSpeedLimit}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- Browser -->
             <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsBrowser}" />
             <Border Classes="card">
-                <StackPanel Spacing="10">
+                <StackPanel Spacing="16">
                     <StackPanel Spacing="8" IsVisible="{Binding IsBrowserStatusVisible}">
                         <TextBlock Text="{x:Static res:Strings.SettingsBrowserStatus}" />
                         <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsBrowserHint}" />
@@ -129,25 +143,31 @@
                         <TextBlock Text="{Binding BrowserError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
                                    IsVisible="{Binding BrowserError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
-                    <TextBlock Text="{x:Static res:Strings.SettingsCaptureExtensions}" />
-                    <TextBox Text="{Binding CaptureExtensions, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap"
-                             AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureExtensions}" />
-                    <TextBlock Text="{x:Static res:Strings.SettingsCaptureMinSize}" />
-                    <NumericUpDown Value="{Binding CaptureMinSizeKiB}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
-                                   AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureMinSize}" />
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsCaptureExtensions}" />
+                        <TextBox Text="{Binding CaptureExtensions, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap"
+                                 AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureExtensions}" />
+                    </StackPanel>
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsCaptureMinSize}" />
+                        <NumericUpDown Value="{Binding CaptureMinSizeKiB}" Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                       AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureMinSize}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- Advanced -->
             <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsAdvanced}" />
             <Border Classes="card">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{x:Static res:Strings.SettingsAria2Path}" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <TextBox Text="{Binding Aria2Path, UpdateSourceTrigger=LostFocus}"
-                                 AutomationProperties.Name="{x:Static res:Strings.SettingsAria2Path}" />
-                        <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseAria2" />
-                    </Grid>
+                <StackPanel Spacing="16">
+                    <StackPanel Classes="field">
+                        <TextBlock Text="{x:Static res:Strings.SettingsAria2Path}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox Text="{Binding Aria2Path, UpdateSourceTrigger=LostFocus}"
+                                     AutomationProperties.Name="{x:Static res:Strings.SettingsAria2Path}" />
+                            <Button Grid.Column="1" Content="{x:Static res:Strings.Browse}" Click="OnBrowseAria2" />
+                        </Grid>
+                    </StackPanel>
                     <Button Content="{x:Static res:Strings.SettingsOpenLogs}" Command="{Binding OpenLogsFolderCommand}" />
                 </StackPanel>
             </Border>

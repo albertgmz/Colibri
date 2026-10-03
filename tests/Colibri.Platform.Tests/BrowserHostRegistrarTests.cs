@@ -126,6 +126,10 @@ public sealed class BrowserHostRegistrarTests : IDisposable
         Assert.All(await registrar.GetStatusAsync(moved), s => Assert.Equal(BrowserIntegrationStatus.Outdated, s.Status));
         await registrar.RegisterAsync(moved);
         Assert.All(await registrar.GetStatusAsync(moved), s => Assert.Equal(BrowserIntegrationStatus.Registered, s.Status));
+
+        // A registered host file that was deleted needs a repair too.
+        File.Delete(moved.HostExecutablePath);
+        Assert.All(await registrar.GetStatusAsync(moved), s => Assert.Equal(BrowserIntegrationStatus.Outdated, s.Status));
     }
 
     [Fact]
@@ -195,13 +199,21 @@ public sealed class BrowserHostRegistrarTests : IDisposable
                 [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Outdated)],
                 await registrar.GetStatusAsync(expected));
 
+            // A deleted host file needs a repair.
+            File.Delete(expected.HostExecutablePath);
+            Assert.All(await registrar.GetStatusAsync(expected), s => Assert.Equal(BrowserIntegrationStatus.Outdated, s.Status));
+            File.WriteAllText(expected.HostExecutablePath, "host");
+            Assert.Equal(BrowserIntegrationStatus.Registered, (await registrar.GetStatusAsync(expected))[0].Status);
+
             // A deleted manifest file also needs a repair.
             File.Delete(manifestPath);
             Assert.All(await registrar.GetStatusAsync(expected), s => Assert.Equal(BrowserIntegrationStatus.Outdated, s.Status));
         }
         finally
         {
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Colibri.Tests", throwOnMissingSubKey: false);
+            // Delete only this test's own key: tests run in parallel, and removing the shared
+            // Software\Colibri.Tests parent would pull the key out from under another test.
+            Registry.CurrentUser.DeleteSubKeyTree(software, throwOnMissingSubKey: false);
         }
     }
 }

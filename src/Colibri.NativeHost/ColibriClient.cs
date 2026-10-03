@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using Colibri.Core.Ipc;
+using Colibri.Core.Platform;
 
 namespace Colibri.NativeHost;
 
@@ -24,13 +25,15 @@ internal sealed class ColibriClient
 
     private readonly string _pipeName;
     private readonly Func<bool> _startApp;
+    private readonly IForegroundHandoff _foreground;
     private readonly ColibriTimeouts _timeouts;
     private readonly HostLog _log;
 
-    public ColibriClient(string pipeName, Func<bool> startApp, ColibriTimeouts timeouts, HostLog log)
+    public ColibriClient(string pipeName, Func<bool> startApp, IForegroundHandoff foreground, ColibriTimeouts timeouts, HostLog log)
     {
         _pipeName = pipeName;
         _startApp = startApp;
+        _foreground = foreground;
         _timeouts = timeouts;
         _log = log;
     }
@@ -61,6 +64,12 @@ internal sealed class ColibriClient
 
         await using (pipe)
         {
+            // An "add" opens Colibri's Add URL window, which must come up in front of the browser.
+            if (request is AddRequest && !_foreground.AllowAppToTakeForeground(pipe))
+            {
+                _log.Info("Could not let Colibri come to the front; its window may open behind the browser");
+            }
+
             try
             {
                 return await LocalPipeClient.ExchangeAsync(pipe, request, _timeouts.Response, ct);

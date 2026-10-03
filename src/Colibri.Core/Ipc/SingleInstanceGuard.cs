@@ -20,8 +20,11 @@ public sealed class SingleInstanceGuard : IDisposable
         _mutex = mutex;
     }
 
-    /// <summary>Returns a guard when this process became the primary instance, or null when another one is.</summary>
-    public static SingleInstanceGuard? TryAcquire(string name)
+    /// <summary>
+    /// Returns a guard when this process became the primary instance, or null when another process still
+    /// holds the mutex after <paramref name="wait"/> (zero: do not wait). Blocks the calling thread while waiting.
+    /// </summary>
+    public static SingleInstanceGuard? TryAcquire(string name, TimeSpan wait)
     {
         // CurrentUserOnly: another user cannot create or hold this name to block us. Not limited to the
         // session: on Unix every terminal is its own session, and the pipe name is per user, not per session.
@@ -29,7 +32,7 @@ public sealed class SingleInstanceGuard : IDisposable
         bool owned;
         try
         {
-            owned = mutex.WaitOne(TimeSpan.Zero);
+            owned = mutex.WaitOne(wait);
         }
         catch (AbandonedMutexException)
         {

@@ -102,6 +102,16 @@ public partial class AddUrlViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// A folder picked with Browse. It counts as chosen even when it is the folder already shown, which
+    /// raises no change.
+    /// </summary>
+    public void ChooseFolder(string path)
+    {
+        SaveFolder = path;
+        _folderEdited = !string.IsNullOrWhiteSpace(path);
+    }
+
     [RelayCommand]
     private async Task DownloadAsync()
     {
@@ -119,7 +129,10 @@ public partial class AddUrlViewModel : ObservableObject
 
         try
         {
-            var added = await _manager.AddAsync(Url.Trim(), _context, FileName, SaveFolder, CancellationToken.None);
+            // The name and folder shown are only a preview of what the URL suggests; unless the user (or the
+            // browser, for the name) chose them, the link resolvers decide (DECISIONS 52).
+            var added = await _manager.AddAsync(
+                Url.Trim(), _context, _fileNameEdited ? FileName : null, _folderEdited ? SaveFolder : null, CancellationToken.None);
             if (added.Count == 0)
             {
                 ErrorText = Strings.AddUrlNothingToDownload;

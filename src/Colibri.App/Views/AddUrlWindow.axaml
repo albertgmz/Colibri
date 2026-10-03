@@ -5,7 +5,9 @@
         x:Class="Colibri.App.Views.AddUrlWindow"
         x:DataType="vm:AddUrlViewModel"
         Title="{x:Static res:Strings.AddUrlTitle}"
-        Width="580" SizeToContent="Height" CanResize="False">
+        Width="580" SizeToContent="Height" CanResize="False" CanMinimize="False"
+        Background="{DynamicResource ChromeBackgroundBrush}">
+    <!-- A dialog: no minimize or maximize button (Windows then hides both), and the main window's surface color. -->
 
     <StackPanel Margin="24,20" Spacing="18">
         <Grid ColumnDefinitions="90,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="10">

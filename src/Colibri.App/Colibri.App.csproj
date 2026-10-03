@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
     <ProjectReference Include="..\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
     <ProjectReference Include="..\Colibri.Platform\Colibri.Platform.csproj" />
+    <ProjectReference Include="..\Colibri.Platform.Ipc\Colibri.Platform.Ipc.csproj" />
     <!--
       The browser's native-messaging host must sit next to Colibri (it starts Colibri from its own folder,
       and "Install / repair" registers the copy next to the app). Referencing another executable makes the
@@ -67,9 +68,10 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Windows builds ship aria2c.exe (and its licence) in an "aria2" folder next to Colibri. -->
+  <!-- Windows builds ship aria2c.exe (and its licence files) in an "aria2" folder next to Colibri. -->
   <ItemGroup Condition="$(TargetFramework.Contains('-windows')) Or $(RuntimeIdentifier.StartsWith('win'))">
     <None Include="..\..\third_party\aria2\win-x64\aria2c.exe" Link="aria2\aria2c.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\third_party\aria2\COPYING" Link="aria2\COPYING" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\aria2\LICENSE.OpenSSL" Link="aria2\LICENSE.OpenSSL" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -16,7 +16,8 @@ public static class PlatformServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the implementations of the Core platform interfaces for the current OS. This is the
-    /// only place that chooses an implementation by operating system.
+    /// only place that chooses an implementation by operating system, except for the local pipe names and
+    /// the foreground handoff, which are needed before this runs (see <c>IpcPlatform</c> in Colibri.Platform.Ipc).
     /// </summary>
     /// <param name="services">The app's service collection.</param>
     /// <param name="notificationTexts">

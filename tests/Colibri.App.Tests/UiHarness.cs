@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using Colibri.App.Services;
 using Colibri.App.ViewModels;
 using Colibri.App.Views;
+using Colibri.Core.Abstractions;
 using Colibri.Core.Models;
 using Colibri.Core.Platform;
 using Colibri.Core.Services;
@@ -21,14 +22,14 @@ internal sealed class UiHarness : IAsyncDisposable
     private readonly CultureInfo _culture = CultureInfo.CurrentCulture;
     private readonly CultureInfo _uiCulture = CultureInfo.CurrentUICulture;
 
-    private UiHarness(DownloadItem[] seed)
+    private UiHarness(DownloadItem[] seed, ILinkResolver[] resolvers)
     {
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 
         Repository = new InMemoryDownloadRepository(seed);
         Manager = new DownloadManager(
-            [Engine], Repository, new LinkResolverPipeline([new DirectLinkResolver()]), Settings, Paths,
+            [Engine], Repository, new LinkResolverPipeline([.. resolvers, new DirectLinkResolver()]), Settings, Paths,
             NullLogger<DownloadManager>.Instance, TimeProvider.System);
         SettingsPage = new SettingsViewModel(
             Settings, SettingsStore, Manager, Autostart, Shell, Paths, NullLogger<SettingsViewModel>.Instance, BrowserRegistrar);
@@ -64,9 +65,15 @@ internal sealed class UiHarness : IAsyncDisposable
 
     public static Task<UiHarness> StartAsync(params DownloadItem[] seed) => StartAsync(_ => { }, seed);
 
-    public static async Task<UiHarness> StartAsync(Action<FakeEngine> configureEngine, params DownloadItem[] seed)
+    public static Task<UiHarness> StartAsync(Action<FakeEngine> configureEngine, params DownloadItem[] seed) =>
+        StartAsync(new UiHarness(seed, []), configureEngine);
+
+    /// <summary>Starts with <paramref name="resolver"/> registered besides the direct-link fallback.</summary>
+    public static Task<UiHarness> StartWithResolverAsync(ILinkResolver resolver) =>
+        StartAsync(new UiHarness([], [resolver]), _ => { });
+
+    private static async Task<UiHarness> StartAsync(UiHarness harness, Action<FakeEngine> configureEngine)
     {
-        var harness = new UiHarness(seed);
         configureEngine(harness.Engine);
         await harness.ViewModel.InitializeAsync();
         Dispatcher.UIThread.RunJobs();

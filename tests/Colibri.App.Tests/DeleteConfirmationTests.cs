@@ -39,11 +39,13 @@ public class DeleteConfirmationTests
         Assert.Equal("Delete “keep.zip” from the list?", ui.ViewModel.DeleteConfirmationText);
         Assert.True(window.FindControl<CheckBox>("DeleteFilesBox")!.IsEffectivelyVisible);
         Assert.Single(ui.ViewModel.AllItems); // Nothing deleted yet.
+        Assert.False(window.FindControl<Grid>("CommandBar")!.IsEffectivelyEnabled); // No other command meanwhile.
 
         ui.ViewModel.CancelDeleteCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
         Assert.False(ui.ViewModel.IsDeleteConfirmationOpen);
+        Assert.True(window.FindControl<Grid>("CommandBar")!.IsEffectivelyEnabled);
         Assert.Single(ui.ViewModel.AllItems);
         Assert.True(File.Exists(file));
     }

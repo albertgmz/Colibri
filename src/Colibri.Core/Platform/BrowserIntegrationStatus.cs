@@ -8,6 +8,6 @@ public enum BrowserIntegrationStatus
     NotRegistered,
     Registered,
 
-    /// <summary>Registered, but pointing to a different manifest, host path or origin list, or the manifest is unreadable.</summary>
+    /// <summary>Registered, but pointing to a different manifest, host path or origin list, the manifest is unreadable, or the host file is gone.</summary>
     Outdated,
 }

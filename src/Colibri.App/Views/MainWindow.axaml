@@ -101,6 +101,20 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <!-- Status bar "Details" switch: a quiet highlight when on, instead of the accent fill. -->
+        <Style Selector="ToggleButton.statusToggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="ToggleButton.statusToggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavHoverBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.statusToggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavSelectedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -112,7 +126,9 @@
                 WindowDecorationProperties.ElementRole="TitleBar" />
 
         <!-- Command bar. -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="8,2,14,8" IsVisible="{Binding !IsSettingsOpen}">
+        <!-- Disabled while the delete confirmation is open; the dimmed layer starts below it. -->
+        <Grid Grid.Row="1" x:Name="CommandBar" ColumnDefinitions="*,Auto" Margin="8,2,14,8" IsVisible="{Binding !IsSettingsOpen}"
+              IsEnabled="{Binding !IsDeleteConfirmationOpen}">
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <Button Classes="command" Command="{Binding AddUrlCommand}"
                         AutomationProperties.Name="{x:Static res:Strings.CommandAddUrl}" HotKey="Ctrl+N">
@@ -288,6 +304,12 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
+                        <!-- Shown instead of an empty table. -->
+                        <TextBlock x:Name="EmptyHint" Text="{x:Static res:Strings.EmptyListHint}" IsVisible="{Binding IsEmptyHintVisible}"
+                                   IsHitTestVisible="False"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24"
+                                   TextWrapping="Wrap" TextAlignment="Center" Opacity="0.65" />
+
                         <!-- Shown when aria2c cannot be found. -->
                         <Border IsVisible="{Binding IsEngineMissing}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 MaxWidth="560" Margin="24" Padding="24" CornerRadius="8" BorderThickness="1"
@@ -318,8 +340,11 @@
                         </Border>
                     </Panel>
 
-                    <GridSplitter Grid.Row="1" x:Name="DetailsSplitter" Height="5" ResizeDirection="Rows"
-                                  Background="{DynamicResource DividerBrush}" IsVisible="{Binding IsDetailsVisible}" />
+                    <!-- A thin line between table and details; the transparent splitter on it is easier to grab. -->
+                    <Border Grid.Row="1" Height="1" VerticalAlignment="Center" Background="{DynamicResource DividerBrush}"
+                            IsVisible="{Binding IsDetailsVisible}" />
+                    <GridSplitter Grid.Row="1" x:Name="DetailsSplitter" Height="7" ResizeDirection="Rows"
+                                  Background="Transparent" IsVisible="{Binding IsDetailsVisible}" IsTabStop="False" />
 
                     <!-- Details of the selected download (the first one when several are selected). -->
                     <Border Grid.Row="2" x:Name="DetailsPane" Padding="16,12" IsVisible="{Binding IsDetailsVisible}">
@@ -385,7 +410,8 @@
         </Grid>
 
         <!-- Status bar. -->
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16,3,10,3">
+        <!-- MinHeight: the same height on the settings page, where the Details switch is hidden. -->
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16,3,10,3" MinHeight="24">
             <StackPanel Orientation="Horizontal" Spacing="28" VerticalAlignment="Center">
                 <StackPanel.Styles>
                     <Style Selector="TextBlock">
@@ -397,12 +423,13 @@
                 <TextBlock Text="{Binding EngineStateText}" />
                 <TextBlock Text="{x:Static res:Strings.TrayUnavailable}" IsVisible="{Binding !IsTrayAvailable}" />
             </StackPanel>
-            <ToggleButton Grid.Column="1" Content="{x:Static res:Strings.DetailsToggle}" IsChecked="{Binding IsDetailsVisible}"
-                          IsVisible="{Binding !IsSettingsOpen}" FontSize="12" Padding="10,2" MinHeight="0" />
+            <ToggleButton Grid.Column="1" Classes="statusToggle" Content="{x:Static res:Strings.DetailsToggle}" IsChecked="{Binding IsDetailsVisible}"
+                          IsVisible="{Binding !IsSettingsOpen}" FontSize="12" Padding="10,3" MinHeight="0" />
         </Grid>
 
-        <!-- Delete confirmation, over the whole window below the title bar. -->
-        <Panel Grid.Row="1" Grid.RowSpan="3" Background="#66000000" IsVisible="{Binding IsDeleteConfirmationOpen}">
+        <!-- Delete confirmation, over the window below the command bar. A translucent layer over the search box
+             let other windows show through the Mica window on Windows, so the command bar is disabled instead. -->
+        <Panel Grid.Row="2" Grid.RowSpan="2" Background="#66000000" IsVisible="{Binding IsDeleteConfirmationOpen}">
             <Border Width="440" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" CornerRadius="8"
                     BorderThickness="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource DividerBrush}">
                 <StackPanel Spacing="16">

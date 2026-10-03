@@ -8,8 +8,9 @@ namespace Colibri.Core.Services;
 /// <summary>
 /// Asks link resolvers in priority order (highest first); the first non-null answer wins.
 /// A resolver that throws is logged and skipped so it cannot block the others.
-/// Every request a resolver returns is checked again: URLs that fail <see cref="UrlPolicy"/> are
-/// dropped, and so are header values that are not valid HTTP.
+/// Every request a resolver returns is checked again: null entries, relative URLs and URLs that fail
+/// <see cref="UrlPolicy"/> are dropped, and so are headers that are not valid HTTP or not forwardable
+/// (<see cref="HttpHeaders.IsForwardable"/>).
 /// </summary>
 public sealed class LinkResolverPipeline
 {
@@ -64,6 +65,13 @@ public sealed class LinkResolverPipeline
         var cleaned = new List<DownloadRequest>(requests.Count);
         foreach (var request in requests)
         {
+            // AbsoluteUri throws for a relative Uri, so such entries (and null ones) are dropped first.
+            if (request?.Uri is not { IsAbsoluteUri: true })
+            {
+                _logger.LogWarning("Link resolver {ResolverId} returned an entry without an absolute URL", resolver.Id);
+                continue;
+            }
+
             if (!UrlPolicy.TryValidate(request.Uri.AbsoluteUri, out _, out var error))
             {
                 _logger.LogWarning("Link resolver {ResolverId} returned a rejected URL {Url}: {Reason}",
@@ -73,7 +81,7 @@ public sealed class LinkResolverPipeline
 
             cleaned.Add(request with
             {
-                Headers = HttpHeaders.CopyValid(request.Headers),
+                Headers = HttpHeaders.CopyValid(request.Headers.Where(h => HttpHeaders.IsForwardable(h.Key))),
                 Referrer = HttpHeaders.ValidValueOrNull(request.Referrer),
                 UserAgent = HttpHeaders.ValidValueOrNull(request.UserAgent),
                 Cookies = HttpHeaders.ValidValueOrNull(request.Cookies),

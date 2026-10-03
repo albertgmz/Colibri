@@ -40,7 +40,7 @@ public partial class AddUrlWindow : Window
 
         if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path)
         {
-            viewModel.SaveFolder = path;
+            viewModel.ChooseFolder(path);
         }
     }
 }

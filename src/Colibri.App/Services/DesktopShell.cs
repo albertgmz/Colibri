@@ -32,6 +32,7 @@ public sealed class DesktopShell
     private readonly ITrayAvailability _trayAvailability;
     private readonly ITaskbarProgress _taskbar;
     private readonly IDialogService _dialogs;
+    private readonly IpcEndpoint _endpoint;
     private readonly ILogger _logger;
 
     private MainWindow? _window;
@@ -51,6 +52,7 @@ public sealed class DesktopShell
         ITrayAvailability trayAvailability,
         ITaskbarProgress taskbar,
         IDialogService dialogs,
+        IpcEndpoint endpoint,
         ILogger<DesktopShell> logger)
     {
         _desktop = desktop;
@@ -60,6 +62,7 @@ public sealed class DesktopShell
         _trayAvailability = trayAvailability;
         _taskbar = taskbar;
         _dialogs = dialogs;
+        _endpoint = endpoint;
         _logger = logger;
     }
 
@@ -110,7 +113,7 @@ public sealed class DesktopShell
         }
 
         var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow, _settings);
-        _pipeServer = new LocalPipeServer(IpcProtocol.DefaultPipeName, handler.HandleAsync, _logger);
+        _pipeServer = new LocalPipeServer(_endpoint.PipeName, handler.HandleAsync, _logger);
         _pipeServer.Start();
     }
 

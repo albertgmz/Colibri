@@ -69,7 +69,9 @@ public sealed class AutostartTests : IDisposable
         }
         finally
         {
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Colibri.Tests", throwOnMissingSubKey: false);
+            // Delete only this test's own key: tests run in parallel, and removing the shared
+            // Software\Colibri.Tests parent would pull the key out from under another test.
+            Registry.CurrentUser.DeleteSubKeyTree(keyPath, throwOnMissingSubKey: false);
         }
     }
 

@@ -156,16 +156,15 @@ control file) and can restore a paused download without it starting first.
 
 ## 23. App: single instance and the local pipe protocol
 
-The first Colibri process of a user owns a named mutex (`colibri-instance-<hash>`, current user only,
+The first Colibri process of a user owns a named mutex (its name comes from entry 49; current user only,
 not per session: on Unix each terminal is its own session, and the pipe name is per user); later processes send `activate` with their arguments over the local pipe and exit with
-code 0 before starting anything, aria2 included. A mutex was chosen over "whoever creates the pipe
+code 0 before starting anything, aria2 included, once the running Colibri accepts them (see entry 50 otherwise). A mutex was chosen over "whoever creates the pipe
 first": on Linux and macOS .NET replaces a leftover socket file when a pipe server starts, so a second
 process could take the pipe over silently, while named mutexes work across processes on all three
 systems and are released by the OS when the owner dies.
 
-The pipe is `colibri-<first 16 hex of SHA-256(user name)>`, created with `PipeOptions.CurrentUserOnly`
-(on Unix it is a socket in the temp folder; the short name keeps macOS under its ~104-character socket
-path limit). One request and one response per connection, each a UTF-8 JSON object on one line, at most
+The pipe's name or socket path comes from entry 49; it is created with `PipeOptions.CurrentUserOnly`. A
+Colibri that is still exiting is waited for (entry 50). One request and one response per connection, each a UTF-8 JSON object on one line, at most
 1 MiB; 10 s per connection. Requests: `activate {args}` and `add {url, finalUrl?, fileName?, referrer?,
 cookies?, userAgent?, size?, mimeType?, headers?}`; response `{ok, error?}`. Unknown types, wrong field
 types, invalid URLs (`UrlPolicy`), header values with control characters, negative or fractional sizes
@@ -185,7 +184,8 @@ whole request.
 ## 25. App: a browser capture is acknowledged when the Add URL window is shown
 
 The `add` request is answered `ok` as soon as it is valid and the prefilled Add URL window is on screen
-(topmost until it opens, so it appears over the browser even with the main window hidden). The browser
+(topmost until it opens, and on Windows allowed to the foreground by the native host, entry 51, so it appears
+over the browser and has the keyboard focus even with the main window hidden). The browser
 then cancels its own download. If the user cancels Colibri's window, the download is dropped; that is
 intended, as in other download managers. An invalid request, or one that arrives while Colibri is exiting,
 is answered `ok: false` and the browser keeps its download.
@@ -225,7 +225,9 @@ window, stop the pipe server, stop the download manager (aria2 saves its session
 
 ## 30. App: delete asks inside the window
 
-Delete (command bar or context menu) opens a confirmation over the window with the download's name or
+Delete (command bar or context menu) opens a confirmation over the window below the command bar, which is
+disabled meanwhile (a translucent layer over the search box let other windows show through the Mica window
+on Windows), with the download's name or
 the number of downloads and an "Also delete the file(s)" box, unchecked each time. The separate "Delete
 with file" menu entry is gone.
 
@@ -389,7 +391,8 @@ would keep them open after the host exits (on Unix only the standard streams are
 replaced). On Windows, Colibri started this way keeps running when the browser closes. Referencing the host
 project from `Colibri.App` makes the SDK copy the host's apphost, dll, runtimeconfig and deps files next to
 `Colibri.exe`, in the build output and in `dotnet publish` (built for the same runtime identifier, also
-self-contained); the host references only `Colibri.Core`, never the Windows build of `Colibri.Platform`.
+self-contained); the host references only `Colibri.Core` and `Colibri.Platform.Ipc` (entry 49), never the Windows
+build of `Colibri.Platform`.
 
 ## 46. Browser capture: one message per host process
 
@@ -422,8 +425,60 @@ the same key under `Microsoft\Edge` (both always written). Linux: `com.colibri.h
 `~/.config`). macOS: the same under `~/Library/Application Support/Google/Chrome`, `Chromium` and
 `Microsoft Edge`. On Linux and macOS only browsers whose profile folder exists are listed and set up, and the
 host gets its owner's execute bit. A browser shows "Needs repair" when its entry points to another manifest, the
-manifest is unreadable, or the host path (case-insensitive on Windows) or the origins differ, for example after
-Colibri was moved. Registering fails when the host file is missing. The path registered is wherever Colibri runs
+manifest is unreadable, the host path (case-insensitive on Windows) or the origins differ, for example after
+Colibri was moved, or the registered host file no longer exists. Registering fails when the host file is missing. The path registered is wherever Colibri runs
 from, so an AppImage (temporary mount) or a translocated macOS app needs "Install / repair" after each start, and
 Snap or Flatpak browsers cannot start hosts outside their sandbox; packaging is milestone 6. There is no "remove"
 yet.
+
+## 49. Local pipe and mutex names per OS, in `Colibri.Platform.Ipc`
+
+`IIpcEndpointProvider` gives the pipe name (or socket path) and the single-instance mutex name. The app and the
+native host must agree on them, but the host cannot reference `Colibri.Platform` (entry 45), so the providers live
+in a small project of their own, `Colibri.Platform.Ipc` (net10.0 only), referenced by both. `IpcPlatform` there picks
+the implementation; it is not done in `AddColibriPlatform` because the app needs the names before dependency
+injection exists, and the host has none.
+
+- Windows: `colibri-<16 hex>` and `colibri-instance-<16 hex>` from the SHA-256 of the user's SID. Pipe names and the
+  machine-wide mutex are visible to every user; two accounts with the same user name (a domain and a local "bob")
+  have different SIDs.
+- Linux: the socket is `$XDG_RUNTIME_DIR/colibri.sock` (a 0700 folder of the user's own, usually
+  `/run/user/<uid>`), so another user cannot create it first in the shared `/tmp` and block Colibri. .NET uses a
+  rooted pipe name as the socket path itself (`PipeStream.Unix.cs`, `GetPipePath`). Without a usable
+  `$XDG_RUNTIME_DIR` (unset, relative, missing, or a path over the 107 bytes a socket path may have) the names below
+  are used.
+- macOS, and the Linux fallback: the hash of the user name, as before; .NET puts the socket in `$TMPDIR` as
+  `CoreFxPipe_colibri-<16 hex>`. On macOS `$TMPDIR` is a per-user 0700 folder and the path (about 85 characters)
+  stays under the 103 a macOS socket path may have.
+
+The mutex uses `CurrentUserOnly`, which on Unix gives each user a namespace of their own for mutex names. The Linux
+socket depends on `$XDG_RUNTIME_DIR` but the mutex does not, so the app and the host must see the same value: a
+browser in a sandbox that changes it (some Snap packages) or a shell after `su` would look for another socket.
+
+## 50. A new Colibri waits for one that is starting or exiting
+
+Exit refuses `activate` (as it refuses `add`, entry 25), stops the pipe and releases the mutex only when the process
+ends, after aria2 has saved its session; a Colibri that is still starting opens its pipe last. A Colibri started in
+either moment finds the mutex taken and its arguments not accepted. For up to 15 s (`InstanceElection`) it then waits
+half a second at a time for the mutex, becoming the primary instance when it is released, and asks the running
+Colibri again in between. Only after that does it log an error and exit with code 1.
+
+## 51. Windows: the native host lets Colibri take the foreground
+
+Windows lets a background process bring its window to the front only in some cases, so the Add URL window for a
+browser capture could open without the focus, or behind the browser. The browser starts the host and is the
+foreground app when the user starts a download, so the host may pass that right on: for an `add`, once connected,
+it asks Windows for the pipe server's process (`GetNamedPipeServerProcessId`) and calls `AllowSetForegroundWindow`
+for that process only, rather than `ASFW_ANY` for every process. The right lasts until the user's next input
+elsewhere; Colibri's own `Activate` (with a moment of `Topmost`) then works. `IForegroundHandoff` does nothing on
+Linux and macOS, which have no such rule; there the window manager decides.
+
+## 52. The Add URL window passes a file name or folder only when it was chosen
+
+The Add URL window shows a file name taken from the last part of the URL and the category folder that goes with
+it, but these are only a preview: a link resolver may know the real name (a share page whose URL ends in `download`).
+So the window passes a file name to `DownloadManager.AddAsync` only when the user edited it or the browser supplied
+it with a captured download, and a folder only when the user typed one or picked one with Browse (even the folder
+already shown). Otherwise it passes null, and the name the resolver suggests decides the name and, through its
+extension, the category folder. A name or folder box the user clears counts as not chosen again. As before, a file
+name override applies only when the link resolves to a single download.

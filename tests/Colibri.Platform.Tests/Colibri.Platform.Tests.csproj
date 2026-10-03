@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Colibri.Platform\Colibri.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Colibri.Platform.Ipc\Colibri.Platform.Ipc.csproj" />
   </ItemGroup>
 
 </Project>

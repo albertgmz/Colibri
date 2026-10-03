@@ -297,6 +297,9 @@
   <data name="DetailsToggle" xml:space="preserve">
     <value>Details</value>
   </data>
+  <data name="EmptyListHint" xml:space="preserve">
+    <value>No downloads yet. Choose Add URL, or start a download in your browser.</value>
+  </data>
   <data name="DetailsEmpty" xml:space="preserve">
     <value>Select a download to see its details.</value>
   </data>

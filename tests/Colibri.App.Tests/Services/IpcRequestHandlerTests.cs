@@ -109,6 +109,21 @@ public class IpcRequestHandlerTests
     }
 
     [AvaloniaFact]
+    public async Task Activate_arriving_while_colibri_exits_is_refused_so_the_new_start_takes_over()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var shown = 0;
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++, ui.Settings);
+        using var stopped = new CancellationTokenSource();
+        await stopped.CancelAsync(); // The pipe server stops first when Colibri exits.
+
+        var response = await handler.HandleAsync(new ActivateRequest([]), stopped.Token);
+
+        Assert.False(response.Ok);
+        Assert.Equal(0, shown);
+    }
+
+    [AvaloniaFact]
     public async Task Activate_from_a_process_that_windows_started_for_a_toast_just_shows_the_window()
     {
         await using var ui = await UiHarness.StartAsync();

@@ -1,4 +1,4 @@
-using Colibri.Core.Ipc;
+using Colibri.Platform.Ipc;
 
 namespace Colibri.NativeHost;
 
@@ -24,7 +24,11 @@ public static class Program
             // The browser passes the calling extension's origin first (on Windows also --parent-window=...).
             log.Info($"Started by {(args.Length > 0 ? args[0] : "(no origin)")}");
             var client = new ColibriClient(
-                IpcProtocol.DefaultPipeName, () => AppLauncher.TryStart(AppLauncher.AppExecutablePath(), log), ColibriTimeouts.Default, log);
+                IpcPlatform.CreateEndpointProvider().GetEndpoint().PipeName,
+                () => AppLauncher.TryStart(AppLauncher.AppExecutablePath(), log),
+                IpcPlatform.CreateForegroundHandoff(),
+                ColibriTimeouts.Default,
+                log);
             var session = new HostSession(Console.OpenStandardInput(), stdout, client.SendAsync, log);
             return session.RunAsync(CancellationToken.None).GetAwaiter().GetResult();
         }

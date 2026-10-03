@@ -185,10 +185,4 @@ public class IpcProtocolTests
 
         await Assert.ThrowsAsync<InvalidDataException>(() => IpcProtocol.ReadLineAsync(new MemoryStream([0xC3, 0x28, 0x0A]), 100, ct));
     }
-
-    [Fact]
-    public void Pipe_name_is_short_and_safe()
-    {
-        Assert.Matches("^colibri-[0-9a-f]{16}$", IpcProtocol.DefaultPipeName);
-    }
 }

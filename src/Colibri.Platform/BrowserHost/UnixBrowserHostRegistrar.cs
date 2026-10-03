@@ -56,9 +56,11 @@ internal sealed class UnixBrowserHostRegistrar : IBrowserHostRegistrar
         foreach (var browser in InstalledBrowsers())
         {
             var manifestPath = Path.Combine(browser.HostsFolder, NativeHostManifest.FileName(expected));
+            // A host file that is gone (Colibri deleted or moved) cannot be started: the registration needs a repair.
             var status = !File.Exists(manifestPath)
                 ? BrowserIntegrationStatus.NotRegistered
-                : NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.Ordinal)
+                : File.Exists(expected.HostExecutablePath)
+                  && NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.Ordinal)
                     ? BrowserIntegrationStatus.Registered
                     : BrowserIntegrationStatus.Outdated;
             statuses.Add(new BrowserHostStatus(browser.Browser, status));

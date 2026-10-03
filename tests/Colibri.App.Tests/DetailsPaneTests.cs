@@ -83,4 +83,14 @@ public class DetailsPaneTests
         ui.ViewModel.IsDetailsVisible = true;
         Assert.Equal(200, grid.RowDefinitions[2].Height.Value);
     }
+
+    [AvaloniaFact]
+    public async Task The_splitter_is_not_a_tab_stop()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var window = ui.ShowWindow();
+
+        // Focused by Tab it would only draw a focus frame across the window.
+        Assert.False(window.FindControl<GridSplitter>("DetailsSplitter")!.IsTabStop);
+    }
 }

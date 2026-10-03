@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Colibri.Core.Models;
@@ -44,20 +43,6 @@ public static class IpcProtocol
     public const int MaxCaptureExtensionLength = 16;
 
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-
-    /// <summary>
-    /// The pipe name for the current user: "colibri-" plus a short hash of the user name, so the name has
-    /// no characters a pipe name cannot hold and different users never share a pipe.
-    /// </summary>
-    /// <remarks>
-    /// On Linux and macOS .NET implements named pipes as Unix domain sockets in the temp folder
-    /// (<c>$TMPDIR/CoreFxPipe_&lt;name&gt;</c>). macOS limits socket paths to about 104 characters and
-    /// its per-user temp folder is already long, so the name must stay short.
-    /// </remarks>
-    public static string DefaultPipeName { get; } = "colibri-" + UserHash();
-
-    /// <summary>Name of the mutex that marks the primary Colibri instance of the current user.</summary>
-    public static string InstanceMutexName { get; } = "colibri-instance-" + UserHash();
 
     /// <summary>
     /// Parses and validates one request line. Returns false with an English <paramref name="error"/> when
@@ -484,12 +469,6 @@ public static class IpcProtocol
         {
             json.WriteString(name, value);
         }
-    }
-
-    private static string UserHash()
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(Environment.UserName));
-        return Convert.ToHexStringLower(hash, 0, 8);
     }
 
     /// <summary>A field has the wrong type or breaks a limit; the message goes into the error response.</summary>
