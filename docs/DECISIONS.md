@@ -187,8 +187,8 @@ whole request.
 The `add` request is answered `ok` as soon as it is valid and the prefilled Add URL window is on screen
 (topmost until it opens, so it appears over the browser even with the main window hidden). The browser
 then cancels its own download. If the user cancels Colibri's window, the download is dropped; that is
-intended, as in other download managers. An invalid request is answered `ok: false` and the browser
-keeps its download.
+intended, as in other download managers. An invalid request, or one that arrives while Colibri is exiting,
+is answered `ok: false` and the browser keeps its download.
 
 ## 26. App: settings are saved as they change
 
@@ -240,7 +240,6 @@ the next poll or reconcile finds the download under the stored handle instead of
 Colibri's aria2 session is private, so a download in it that the database does not know is left over (for
 example deleted while aria2 was not running). Reconcile removes it from aria2 (`forceRemove` and
 `removeDownloadResult`); its files are never deleted.
-||||||| 2e6b6d4
 
 ## 33. Platform: Windows toasts through Microsoft.Toolkit.Uwp.Notifications 7.1.3
 
@@ -255,8 +254,8 @@ also clears the toasts in Action Center and their buttons would stop working; re
 is an uninstaller's job. Clicking a toast after Colibri exited starts the exe with
 `-ToastActivated -Embedding` and delivers the click by COM once the notification service is created, so
 the app must create that service at startup and ignore those arguments. Toast and button arguments are
-`<action>;<download id>`. Clicking a "completed" toast opens the file; clicking a "failed" toast only
-dismisses it (retrying needs the button). The package depends on System.Drawing.Common 4.7.0, which has a
+`<action>;<download id>`. Clicking a "completed" toast opens the file; clicking a "failed" toast shows
+Colibri's window (retrying needs the button). How a click reaches the app is described in entry 41. The package depends on System.Drawing.Common 4.7.0, which has a
 critical advisory (GHSA-rxg9-xrhp-64gj), so `Colibri.Platform` references System.Drawing.Common 10.0.12
 directly. The toast code is compiled only for the Windows target framework (`#if WINDOWS`); the plain
 net10.0 build running on Windows (only tests do that) shows no notifications.
@@ -270,7 +269,8 @@ so the app ends up with one copy at 0.95.1. One shared connection is opened on f
 bus or a notification server, notifications do nothing (logged, never thrown); this is checked once per
 run, at the first notification. `ShowItems` is given up on after 5 s (D-Bus calls have no timeout of
 their own) and the folder is opened instead. Notification buttons are
-D-Bus actions; the "default" action (clicking the notification) opens a completed download. Servers that
+D-Bus actions; the "default" action (clicking the notification) opens a completed download and shows
+Colibri's window for a failed one. Servers that
 announce `body-markup` get the body with `&`, `<` and `>` escaped, so file names show as written.
 
 ## 35. Platform: macOS notifications have no buttons
@@ -316,3 +316,30 @@ counts as unavailable. Windows and macOS always have one.
 
 `Colibri.Platform` has no resources. The app passes a `NotificationTexts` record built from its
 `Strings.resx` to `AddColibriPlatform(notificationTexts)`; without one, English defaults are used.
+
+## 41. App: notification clicks, including a toast clicked after Colibri exited
+
+The notification service is created, and `DownloadNotifier` subscribes to it, in `Program.Main` right after the
+host is built, in the primary instance only. On Windows creating the toast service registers the COM activator,
+so a click can be delivered from then on. Actions are not carried out until the downloads are loaded and the
+window exists (`DownloadNotifier.StartHandlingActions`); until then they wait. The download is looked up in the
+download manager when the action runs, because a toast may belong to an earlier session. `Activate` (a click on
+a "failed" notification) shows and restores the main window.
+
+The three Windows cases:
+
+- Colibri is running: Windows calls the COM activator in the running process; no new process starts.
+- Colibri is not running: Windows starts `"<exe>" -ToastActivated -Embedding`. That process takes the
+  single-instance mutex, starts normally (window shown; the two arguments mean nothing to Colibri, like any
+  unknown argument) and receives the click once the toast service exists.
+- Colibri is running but Windows still starts a new process (only if the click lands in the moment before the
+  running Colibri has created its toast service, or while it is exiting): the new process is a secondary
+  instance, forwards `activate` with its arguments over the pipe (the running Colibri shows its window) and
+  exits with code 0. The click itself is lost in that case; the user can click again.
+
+## 42. The executable is `Colibri`
+
+The app project is still `Colibri.App`, but its assembly is named `Colibri` (`Colibri.exe` on Windows), with
+`AssemblyTitle` and `Product` set to `Colibri`. Windows shows the title as the sender of toasts and in Task
+Manager. Avalonia resource URIs use the assembly name (`avares://Colibri/...`). Toast registration is keyed by
+the exe path (entry 33), so a renamed or moved exe registers again; the old entries stay until removed.

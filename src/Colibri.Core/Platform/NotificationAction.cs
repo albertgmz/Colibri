@@ -8,4 +8,7 @@ public enum NotificationAction
     Open,
     ShowInFolder,
     Retry,
+
+    /// <summary>Show and restore Colibri's main window.</summary>
+    Activate,
 }

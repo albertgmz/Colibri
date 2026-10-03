@@ -23,9 +23,9 @@ Colibri uses the following third-party software. Each component remains under it
 | Avalonia.Controls.DataGrid | 12.1.2 | MIT |
 | Avalonia.Angle.Windows.Natives (dependency of Avalonia on Windows) | 2.1.27548.20260419 | BSD-3-Clause (ANGLE project) |
 | SkiaSharp, HarfBuzzSharp (dependencies of Avalonia) | 3.119.4, 8.3.1.3 | MIT |
-| MicroCom.Runtime, Tmds.DBus.Protocol (dependencies of Avalonia) | 0.11.6, 0.94.1 | MIT |
+| MicroCom.Runtime (dependency of Avalonia) | 0.11.6 | MIT |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT |
-| Microsoft.Extensions.Hosting (and the Microsoft.Extensions.* packages it brings in) | 10.0.12 | MIT |
+| Microsoft.Extensions.Hosting (and the Microsoft.Extensions.* and System.Diagnostics.EventLog packages it brings in) | 10.0.12 | MIT |
 | Microsoft.Extensions.Logging.Abstractions | 10.0.12 | MIT |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.12 | MIT |
 | Microsoft.Data.Sqlite, Microsoft.Data.Sqlite.Core | 10.0.12 | MIT |
@@ -34,9 +34,10 @@ Colibri uses the following third-party software. Each component remains under it
 | Serilog | 4.3.0 | Apache-2.0 |
 | Serilog.Extensions.Hosting, Serilog.Extensions.Logging | 10.0.0 | Apache-2.0 |
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 |
-| Tmds.DBus.Protocol (used directly by Colibri.Platform on Linux; replaces the 0.94.1 that Avalonia asks for) | 0.95.1 | MIT |
+| Tmds.DBus.Protocol (used by Colibri.Platform on Linux and by Avalonia; the one copy shipped) | 0.95.1 | MIT |
 | Microsoft.Toolkit.Uwp.Notifications (Windows builds) | 7.1.3 | MIT |
-| System.Drawing.Common, Microsoft.Win32.SystemEvents (Windows builds) | 10.0.12 | MIT |
+| System.Drawing.Common, Microsoft.Win32.SystemEvents (Windows builds; replaces the vulnerable 4.7.0 the notifications package asks for) | 10.0.12 | MIT |
+| Microsoft.Windows.SDK.NET.Ref (Windows builds; `Microsoft.Windows.SDK.NET.dll` and `WinRT.Runtime.dll`, added by the .NET SDK for the Windows target framework) | 10.0.19041.57 | [Windows SDK licence terms](https://aka.ms/WinSDKLicenseURL); WinRT.Runtime is part of C#/WinRT (MIT) |
 
 ## NuGet packages used only by the tests
 

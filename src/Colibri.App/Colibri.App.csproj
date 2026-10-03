@@ -3,6 +3,11 @@
     <OutputType>WinExe</OutputType>
     <!-- See Directory.Build.props: Windows TFM on Windows builds, net10.0 elsewhere. -->
     <TargetFramework>$(ColibriAppTfm)</TargetFramework>
+    <!-- The executable is Colibri(.exe). The title is the file description Windows shows, for example as
+         the sender of toast notifications. -->
+    <AssemblyName>Colibri</AssemblyName>
+    <AssemblyTitle>Colibri</AssemblyTitle>
+    <Product>Colibri</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Already the default since Avalonia 12; set explicitly so the intent is visible. -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>

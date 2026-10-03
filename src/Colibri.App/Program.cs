@@ -1,4 +1,5 @@
 using Avalonia;
+using Colibri.App.Services;
 using Colibri.Core.Ipc;
 using Colibri.Core.Platform;
 using Colibri.Core.Settings;
@@ -39,7 +40,7 @@ public static class Program
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"));
-        builder.Services.AddColibriPlatform();
+        builder.Services.AddColibriPlatform(AppServices.CreateNotificationTexts());
         builder.Services.AddColibriApp();
 
         using var host = builder.Build();
@@ -57,6 +58,12 @@ public static class Program
 
         // Load the settings now, while no UI thread exists yet (loading is async; see AppServices).
         host.Services.GetRequiredService<AppSettings>();
+
+        // Create the notification service and listen to it before anything slow happens. When a Windows toast
+        // is clicked after Colibri exited, Windows starts Colibri ("-ToastActivated -Embedding", ignored like
+        // any unknown argument) and delivers the click as soon as the toast service exists; the notifier
+        // keeps it until the app is ready (see DownloadNotifier).
+        host.Services.GetRequiredService<DownloadNotifier>().Start();
 
         try
         {

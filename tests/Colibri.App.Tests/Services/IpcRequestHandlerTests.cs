@@ -55,4 +55,33 @@ public class IpcRequestHandlerTests
         Assert.True((await handler.HandleAsync(new ActivateRequest(["--minimized"]), CancellationToken.None)).Ok);
         Assert.Equal(1, shown);
     }
+
+    [AvaloniaFact]
+    public async Task Add_request_arriving_while_colibri_exits_is_refused_so_the_browser_keeps_its_download()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { });
+        using var stopped = new CancellationTokenSource();
+        await stopped.CancelAsync(); // The pipe server stops first when Colibri exits.
+
+        var response = await handler.HandleAsync(Parse("""{"type":"add","url":"https://example.com/file.zip"}"""), stopped.Token);
+
+        Assert.False(response.Ok);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+    }
+
+    [AvaloniaFact]
+    public async Task Activate_from_a_process_that_windows_started_for_a_toast_just_shows_the_window()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var shown = 0;
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++);
+
+        // The arguments of a COM-activated start (toast clicked) carry no meaning for Colibri.
+        var response = await handler.HandleAsync(new ActivateRequest(["-ToastActivated", "-Embedding"]), CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.Equal(1, shown);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+    }
 }

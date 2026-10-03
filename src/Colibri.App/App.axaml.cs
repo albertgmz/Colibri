@@ -36,26 +36,30 @@ public partial class App : Application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             ThemeService.Apply(services.GetRequiredService<AppSettings>().Theme);
-            services.GetRequiredService<DownloadNotifier>().Start();
 
             var viewModel = services.GetRequiredService<MainWindowViewModel>();
             var shell = ActivatorUtilities.CreateInstance<DesktopShell>(services, desktop);
-            _ = viewModel.InitializeAsync();
+            var initialized = viewModel.InitializeAsync();
 
             // Posted, so it runs once the lifetime has started: a MainWindow set before that would be shown
             // by the lifetime itself, even when Colibri should start hidden in the tray.
             var minimized = WindowBehavior.HasMinimizedArgument(desktop.Args);
-            Dispatcher.UIThread.Post(() => _ = StartShellAsync(shell, minimized, logger));
+            var notifier = services.GetRequiredService<DownloadNotifier>();
+            Dispatcher.UIThread.Post(() => _ = StartShellAsync(shell, minimized, initialized, notifier, logger));
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static async Task StartShellAsync(DesktopShell shell, bool minimized, ILogger logger)
+    private static async Task StartShellAsync(DesktopShell shell, bool minimized, Task initialized, DownloadNotifier notifier, ILogger logger)
     {
         try
         {
             await shell.StartAsync(minimized);
+
+            // Notification actions need the downloads (open, retry) and the window (show).
+            await initialized;
+            notifier.StartHandlingActions(shell.ShowMainWindow);
         }
         catch (Exception ex)
         {

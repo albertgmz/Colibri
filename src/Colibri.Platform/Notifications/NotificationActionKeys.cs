@@ -10,12 +10,14 @@ internal static class NotificationActionKeys
     public const string Open = "open";
     public const string ShowInFolder = "folder";
     public const string Retry = "retry";
+    public const string Activate = "activate";
 
     public static string ToKey(NotificationAction action) => action switch
     {
         NotificationAction.Open => Open,
         NotificationAction.ShowInFolder => ShowInFolder,
         NotificationAction.Retry => Retry,
+        NotificationAction.Activate => Activate,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
     };
 
@@ -25,6 +27,7 @@ internal static class NotificationActionKeys
         Open => NotificationAction.Open,
         ShowInFolder => NotificationAction.ShowInFolder,
         Retry => NotificationAction.Retry,
+        Activate => NotificationAction.Activate,
         _ => null,
     };
 }

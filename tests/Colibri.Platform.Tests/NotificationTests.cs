@@ -11,6 +11,7 @@ public sealed class NotificationTests
     [InlineData(NotificationAction.Open)]
     [InlineData(NotificationAction.ShowInFolder)]
     [InlineData(NotificationAction.Retry)]
+    [InlineData(NotificationAction.Activate)]
     public void Toast_arguments_round_trip_the_action_and_download_id(NotificationAction action)
     {
         var id = Guid.NewGuid();
@@ -46,13 +47,30 @@ public sealed class NotificationTests
     // ---- Linux (D-Bus) ----
 
     [Theory]
-    [InlineData("default", NotificationAction.Open)]
     [InlineData("open", NotificationAction.Open)]
     [InlineData("folder", NotificationAction.ShowInFolder)]
     [InlineData("retry", NotificationAction.Retry)]
+    [InlineData("activate", NotificationAction.Activate)]
     public void Dbus_action_keys_map_to_notification_actions(string key, NotificationAction expected)
     {
-        Assert.Equal(expected, LinuxNotificationService.ActionFromKey(key));
+        Assert.Equal(expected, LinuxNotificationService.ActionFromKey(key, NotificationAction.Activate));
+    }
+
+    [Theory]
+    [InlineData(NotificationAction.Open)]
+    [InlineData(NotificationAction.Activate)]
+    public void Clicking_a_dbus_notification_itself_means_its_default_action(NotificationAction defaultAction)
+    {
+        Assert.Equal(defaultAction, LinuxNotificationService.ActionFromKey("default", defaultAction));
+    }
+
+    [Fact]
+    public void Completed_dbus_notifications_open_on_click_and_failed_ones_offer_retry_and_a_click()
+    {
+        var texts = new NotificationTexts();
+
+        Assert.Equal(["default", "Open", "open", "Open", "folder", "Show in folder"], LinuxNotificationService.CompletedActions(texts));
+        Assert.Equal(["default", "Colibri", "retry", "Retry"], LinuxNotificationService.FailedActions(texts));
     }
 
     [Theory]
@@ -61,7 +79,7 @@ public sealed class NotificationTests
     [InlineData("dismiss")]
     public void Unknown_dbus_action_keys_are_ignored(string key)
     {
-        Assert.Null(LinuxNotificationService.ActionFromKey(key));
+        Assert.Null(LinuxNotificationService.ActionFromKey(key, NotificationAction.Open));
     }
 
     [Fact]

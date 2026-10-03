@@ -27,8 +27,9 @@ internal sealed class LinuxNotificationService : INotificationService
     private readonly NotificationTexts _texts;
     private readonly ILogger<LinuxNotificationService> _logger;
 
-    // Notification id (chosen by the server) -> download, for the notifications that are still open.
-    private readonly ConcurrentDictionary<uint, Guid> _downloadIds = new();
+    // Notification id (chosen by the server) -> download and what a click on the notification itself does,
+    // for the notifications that are still open.
+    private readonly ConcurrentDictionary<uint, (Guid DownloadId, NotificationAction DefaultAction)> _notifications = new();
     private readonly Lazy<Task<NotificationServer?>> _server;
 
     public LinuxNotificationService(SessionBus bus, NotificationTexts texts, ILogger<LinuxNotificationService> logger)
@@ -42,26 +43,41 @@ internal sealed class LinuxNotificationService : INotificationService
     /// <summary>Raised on a D-Bus reader thread, not the UI thread.</summary>
     public event EventHandler<NotificationActionInvoked>? ActionInvoked;
 
+    // Clicking a completed download's notification opens the file.
     public void ShowDownloadCompleted(DownloadItem item, string filePath) =>
-        _ = NotifyAsync(item.Id, _texts.DownloadCompleteTitle, item.FileName,
-        [
-            DefaultActionKey, _texts.Open,
-            NotificationActionKeys.Open, _texts.Open,
-            NotificationActionKeys.ShowInFolder, _texts.ShowInFolder,
-        ]);
+        _ = NotifyAsync(item.Id, NotificationAction.Open, _texts.DownloadCompleteTitle, item.FileName, CompletedActions(_texts));
 
+    // Clicking a failed download's notification shows Colibri's window; retrying needs the button.
     public void ShowDownloadFailed(DownloadItem item)
     {
         var body = string.IsNullOrWhiteSpace(item.ErrorMessage) ? item.FileName : $"{item.FileName}\n{item.ErrorMessage}";
-        _ = NotifyAsync(item.Id, _texts.DownloadFailedTitle, body, [NotificationActionKeys.Retry, _texts.Retry]);
+        _ = NotifyAsync(item.Id, NotificationAction.Activate, _texts.DownloadFailedTitle, body, FailedActions(_texts));
     }
 
+    /// <summary>The D-Bus actions (pairs of key and label) of a "completed" notification.</summary>
+    internal static string[] CompletedActions(NotificationTexts texts) =>
+    [
+        DefaultActionKey, texts.Open,
+        NotificationActionKeys.Open, texts.Open,
+        NotificationActionKeys.ShowInFolder, texts.ShowInFolder,
+    ];
+
     /// <summary>
-    /// Maps an action key sent back by the server. "default" is only offered on completed downloads, where
-    /// clicking the notification opens the file.
+    /// The D-Bus actions of a "failed" notification. Servers do not show "default" as a button; the few that
+    /// list it in a menu show the app's name, which is what clicking brings up.
     /// </summary>
-    internal static NotificationAction? ActionFromKey(string key) =>
-        key == DefaultActionKey ? NotificationAction.Open : NotificationActionKeys.FromKey(key);
+    internal static string[] FailedActions(NotificationTexts texts) =>
+    [
+        DefaultActionKey, "Colibri",
+        NotificationActionKeys.Retry, texts.Retry,
+    ];
+
+    /// <summary>
+    /// Maps an action key sent back by the server. "default" (a click on the notification itself) means
+    /// <paramref name="defaultAction"/>, which depends on the kind of notification.
+    /// </summary>
+    internal static NotificationAction? ActionFromKey(string key, NotificationAction defaultAction) =>
+        key == DefaultActionKey ? defaultAction : NotificationActionKeys.FromKey(key);
 
     /// <summary>
     /// Servers that announce "body-markup" read the body as a small subset of HTML, so a file name such as
@@ -70,7 +86,7 @@ internal sealed class LinuxNotificationService : INotificationService
     internal static string FormatBody(string body, bool supportsMarkup) =>
         supportsMarkup ? body.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;") : body;
 
-    private async Task NotifyAsync(Guid downloadId, string summary, string body, string[] actions)
+    private async Task NotifyAsync(Guid downloadId, NotificationAction defaultAction, string summary, string body, string[] actions)
     {
         try
         {
@@ -83,7 +99,7 @@ internal sealed class LinuxNotificationService : INotificationService
                 CreateNotifyMessage(server.Connection, summary, FormatBody(body, server.SupportsMarkup), actions),
                 (message, _) => message.GetBodyReader().ReadUInt32(),
                 null).ConfigureAwait(false);
-            _downloadIds[notificationId] = downloadId;
+            _notifications[notificationId] = (downloadId, defaultAction);
         }
         catch (Exception ex)
         {
@@ -103,7 +119,7 @@ internal sealed class LinuxNotificationService : INotificationService
         try
         {
             // Subscribe before the first Notify so no click can be missed. Signals from every client's
-            // notifications arrive here; only ids in _downloadIds are ours.
+            // notifications arrive here; only ids in _notifications are ours.
             subscriptions.Add(await connection.WatchSignalAsync(
                 Service, ObjectPath, Interface, "ActionInvoked",
                 (message, _) =>
@@ -128,7 +144,7 @@ internal sealed class LinuxNotificationService : INotificationService
                 {
                     if (signal.HasValue)
                     {
-                        _downloadIds.TryRemove(signal.Value, out _);
+                        _notifications.TryRemove(signal.Value, out _);
                     }
                 },
                 ObserverFlags.None,
@@ -179,9 +195,10 @@ internal sealed class LinuxNotificationService : INotificationService
         // The handler runs on the connection's reader: an exception here would close the connection.
         try
         {
-            if (_downloadIds.TryGetValue(notificationId, out var downloadId) && ActionFromKey(actionKey) is { } action)
+            if (_notifications.TryGetValue(notificationId, out var notification)
+                && ActionFromKey(actionKey, notification.DefaultAction) is { } action)
             {
-                ActionInvoked?.Invoke(this, new NotificationActionInvoked(downloadId, action));
+                ActionInvoked?.Invoke(this, new NotificationActionInvoked(notification.DownloadId, action));
             }
         }
         catch (Exception ex)

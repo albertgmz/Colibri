@@ -41,8 +41,19 @@ public sealed class IpcRequestHandler
                 return IpcResponse.Success;
 
             case AddRequest add:
-                await OnUiThreadAsync(() => _dialogs.ShowAddUrl(_viewModel.CreateAddUrl(add.Context, add.Url)));
-                return IpcResponse.Success;
+                // ct is cancelled when Colibri starts exiting. Checked on the UI thread, where the exit runs:
+                // a window shown then would be closed by the exit, and the browser, told "ok", would have
+                // dropped its own download.
+                var shown = false;
+                await OnUiThreadAsync(() =>
+                {
+                    if (!ct.IsCancellationRequested)
+                    {
+                        _dialogs.ShowAddUrl(_viewModel.CreateAddUrl(add.Context, add.Url));
+                        shown = true;
+                    }
+                });
+                return shown ? IpcResponse.Success : IpcResponse.Failure("Colibri is exiting.");
 
             default:
                 return IpcResponse.Failure("Unsupported request.");

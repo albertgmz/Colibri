@@ -46,7 +46,10 @@ internal sealed class WindowsToastNotificationService : INotificationService, ID
         ToastNotificationManagerCompat.OnActivated += OnToastActivated;
     }
 
-    /// <summary>Raised on a COM thread, not the UI thread.</summary>
+    /// <summary>
+    /// Raised on whatever thread COM delivers the click on (the UI thread or another one), so handlers must
+    /// not assume either.
+    /// </summary>
     public event EventHandler<NotificationActionInvoked>? ActionInvoked;
 
     public void ShowDownloadCompleted(DownloadItem item, string filePath)
@@ -63,9 +66,10 @@ internal sealed class WindowsToastNotificationService : INotificationService, ID
 
     public void ShowDownloadFailed(DownloadItem item)
     {
-        // No activation arguments on the body: clicking it only dismisses the toast (or starts Colibri if it
-        // is not running). Retrying needs the explicit button.
+        // Clicking the body shows Colibri's window (starting Colibri if it is not running); retrying needs
+        // the explicit button.
         var builder = new ToastContentBuilder()
+            .AddToastActivationInfo(ToastArguments.Encode(NotificationAction.Activate, item.Id), ToastActivationType.Foreground)
             .AddText(_texts.DownloadFailedTitle)
             .AddText(item.FileName);
         if (!string.IsNullOrWhiteSpace(item.ErrorMessage))

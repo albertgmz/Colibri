@@ -23,7 +23,7 @@ namespace Colibri.App.Services;
 /// </remarks>
 public sealed class DesktopShell
 {
-    private static readonly Uri IconUri = new("avares://Colibri.App/Assets/colibri.ico");
+    private static readonly Uri IconUri = new("avares://Colibri/Assets/colibri.ico");
 
     private readonly IClassicDesktopStyleApplicationLifetime _desktop;
     private readonly MainWindowViewModel _viewModel;

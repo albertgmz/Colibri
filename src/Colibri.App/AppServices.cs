@@ -1,3 +1,4 @@
+using Colibri.App.Resources;
 using Colibri.App.Services;
 using Colibri.App.ViewModels;
 using Colibri.Core.Abstractions;
@@ -6,31 +7,30 @@ using Colibri.Core.Platform;
 using Colibri.Core.Services;
 using Colibri.Core.Settings;
 using Colibri.Engine.Aria2;
+using Colibri.Platform.Notifications;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Colibri.App;
 
 public static class AppServices
 {
+    /// <summary>The notification texts in the user's language, for <c>AddColibriPlatform</c>.</summary>
+    public static NotificationTexts CreateNotificationTexts() => new()
+    {
+        DownloadCompleteTitle = Strings.NotificationCompleted,
+        DownloadFailedTitle = Strings.NotificationFailed,
+        Open = Strings.NotificationOpen,
+        ShowInFolder = Strings.NotificationShowInFolder,
+        Retry = Strings.NotificationRetry,
+    };
+
     /// <summary>
-    /// Registers Colibri's own services (storage, engine, download manager, view models). Call after
-    /// <c>AddColibriPlatform</c>: platform features it does not provide get a do-nothing stand-in.
+    /// Registers Colibri's own services (storage, engine, download manager, view models). The platform
+    /// services come from <c>AddColibriPlatform</c>.
     /// </summary>
     public static IServiceCollection AddColibriApp(this IServiceCollection services)
     {
-        services.TryAddSingleton<INotificationService, NoOpNotificationService>();
-        services.TryAddSingleton<IAutostartService, NoOpAutostartService>();
-        services.TryAddSingleton<ITaskbarProgress, NoOpTaskbarProgress>();
-        services.TryAddSingleton<ITrayAvailability, AssumeTrayAvailable>();
-
-        // TODO(platform merge): register the localized notification texts once Colibri.Platform provides
-        // the NotificationTexts record:
-        // services.AddSingleton(new Colibri.Platform.NotificationTexts(
-        //     Completed: Strings.NotificationCompleted, Failed: Strings.NotificationFailed, Open: Strings.NotificationOpen,
-        //     ShowInFolder: Strings.NotificationShowInFolder, Retry: Strings.NotificationRetry));
-
         services.AddSingleton<ISettingsStore>(sp =>
             new JsonSettingsStore(sp.GetRequiredService<IAppPaths>().SettingsPath, sp.GetRequiredService<ILogger<JsonSettingsStore>>()));
 

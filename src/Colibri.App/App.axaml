@@ -7,7 +7,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://Colibri.App/Resources/Icons.axaml" />
+                <ResourceInclude Source="avares://Colibri/Resources/Icons.axaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Replaces the DataGrid theme's opaque header so the header sits on the pane's background. -->
