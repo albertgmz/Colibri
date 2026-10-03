@@ -11,6 +11,9 @@ public interface IAutostartService
     /// <summary>Whether autostart is currently enabled.</summary>
     Task<bool> IsEnabledAsync();
 
-    /// <summary>Enables or disables autostart of <paramref name="executablePath"/>.</summary>
-    Task SetEnabledAsync(bool enabled, string executablePath);
+    /// <summary>
+    /// Enables or disables autostart. The implementation works out what to launch (the running
+    /// executable, or the .app bundle / AppImage that contains it) and passes <c>--minimized</c>.
+    /// </summary>
+    Task SetEnabledAsync(bool enabled);
 }
