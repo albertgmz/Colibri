@@ -10,10 +10,10 @@ public sealed class CaptureSession : IDisposable
     private Operation? _operation;
     private bool _cleanupUnsafe;
     private TaskCompletionSource _settled = CompletedSignal();
-    public CaptureSession(TimeSpan lifetime)
+    public CaptureSession(TimeSpan lifetime, TimeProvider? timeProvider = null)
     {
         Id = Guid.NewGuid().ToString("D");
-        _lifetime = new CancellationTokenSource(lifetime);
+        _lifetime = new CancellationTokenSource(lifetime, timeProvider ?? TimeProvider.System);
         _lifetime.Token.Register(() => Reject("browser"));
     }
     public string Id { get; }
