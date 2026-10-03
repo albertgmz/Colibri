@@ -77,7 +77,9 @@ public sealed class ShellTests : IDisposable
 
             await shell.OpenFileAsync("-rf");
 
-            Assert.Equal([$"open {Path.Combine(_root, "-rf")}"], shell.Calls);
+            // Compare against the current directory as the OS reports it: on macOS the temp folder
+            // /var/folders/... is a symlink and comes back as /private/var/folders/...
+            Assert.Equal([$"open {Path.Combine(Environment.CurrentDirectory, "-rf")}"], shell.Calls);
         }
         finally
         {
