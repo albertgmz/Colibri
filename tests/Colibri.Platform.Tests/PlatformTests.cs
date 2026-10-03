@@ -3,6 +3,8 @@ using Colibri.Platform.Paths;
 
 namespace Colibri.Platform.Tests;
 
+// Some tests change the process-wide current directory, so classes that do must not run in parallel.
+[Collection("CurrentDirectory")]
 public sealed class PlatformTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "colibri-platform-tests", Guid.NewGuid().ToString("N"));
