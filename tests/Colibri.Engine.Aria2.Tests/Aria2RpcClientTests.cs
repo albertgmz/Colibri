@@ -41,8 +41,8 @@ public class Aria2RpcClientTests
         var (client, transport) = Create();
         transport.Responder = _ => FakeTransport.Result("OK");
 
-        await client.SaveSessionAsync(Ct);
-        await client.SaveSessionAsync(Ct);
+        await client.CallAsync("aria2.getGlobalStat", [], Ct);
+        await client.CallAsync("aria2.getGlobalStat", [], Ct);
 
         var ids = transport.Sent.Select(r => r["id"]!.GetValue<string>()).ToList();
         Assert.Equal(2, ids.Distinct().Count());

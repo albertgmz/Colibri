@@ -35,11 +35,37 @@ public sealed class HostSessionTests : IAsyncDisposable
     [Theory]
     [InlineData("""{"type":"ping"}""", typeof(PingRequest))]
     [InlineData("""{"type":"config"}""", typeof(ConfigRequest))]
-    [InlineData("""{"type":"add","url":"https://example.com/a.zip","fileName":"a.zip","size":10,"cookies":"a=b"}""", typeof(AddRequest))]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a.zip","fileName":"a.zip","size":10,"cookies":"a=b"}""", typeof(AddRequest))]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","headers":{"Authorization":"Bearer x"}}""", typeof(AddRequest))]
     public void Ping_config_and_add_are_accepted(string json, Type expected)
     {
         Assert.True(HostSession.TryParseBrowserMessage(Encoding.UTF8.GetBytes(json), out var request, out var error), error);
         Assert.IsType(expected, request);
+    }
+
+    [Fact]
+    public void Valid_authorization_is_preserved_for_the_engine()
+    {
+        const string json = """{"type":"add","protocolVersion":2,"url":"https://example.com/a","headers":{"Authorization":"Bearer x"}}""";
+        Assert.True(HostSession.TryParseBrowserMessage(Encoding.UTF8.GetBytes(json), out var request, out var error), error);
+        Assert.Equal("Bearer x", Assert.IsType<AddRequest>(request).Context.Headers["authorization"]);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"add","url":"https://example.com/a.zip"}""")]
+    [InlineData("""{"type":"add","protocolVersion":1,"url":"https://example.com/a.zip"}""")]
+    public async Task Legacy_add_is_rejected_before_forwarding_or_starting_the_app(string json)
+    {
+        var output = new MemoryStream();
+
+        await Session(Frames(json), output, startServerOnLaunch: true).RunAsync(Ct);
+
+        var response = IpcProtocol.ParseResponse(Assert.Single(ReadReplies(output)));
+        Assert.False(response.Ok);
+        Assert.False(string.IsNullOrWhiteSpace(response.Error));
+        Assert.Empty(_received);
+        Assert.Equal(0, _starts);
+        Assert.Equal(0, _foreground.ConnectedCalls);
     }
 
     [Theory]
@@ -48,17 +74,17 @@ public sealed class HostSessionTests : IAsyncDisposable
     [InlineData("""{"type":"activate","args":[]}""")]
     [InlineData("""{"type":"shutdown"}""")]
     [InlineData("""{"type":1}""")]
-    [InlineData("""{"type":"add"}""")]
-    [InlineData("""{"type":"add","url":5}""")]
-    [InlineData("""{"type":"add","url":"javascript:alert(1)"}""")]
-    [InlineData("""{"type":"add","url":"blob:https://example.com/0f6e"}""")]
-    [InlineData("""{"type":"add","url":"data:application/zip;base64,AAAA"}""")]
-    [InlineData("""{"type":"add","url":"file:///C:/Windows/win.ini"}""")]
-    [InlineData("""{"type":"add","url":"https://example.com/a","size":"big"}""")]
-    [InlineData("""{"type":"add","url":"https://example.com/a","size":-5}""")]
-    [InlineData("""{"type":"add","url":"https://example.com/a","fileName":["a"]}""")]
-    [InlineData("""{"type":"add","url":"https://example.com/a","cookies":"a=b\r\nX-Injected: 1"}""")]
-    [InlineData("""{"type":"add","url":"https://example.com/a","headers":{"Authorization":"Bearer x"}}""")]
+    [InlineData("""{"type":"add","protocolVersion":2}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":5}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"javascript:alert(1)"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"blob:https://example.com/0f6e"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"data:application/zip;base64,AAAA"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"file:///C:/Windows/win.ini"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","size":"big"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","size":-5}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","fileName":["a"]}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","cookies":"a=b\r\nX-Injected: 1"}""")]
+    [InlineData("""{"type":"add","protocolVersion":2,"url":"https://example.com/a","headers":{"Authorization":"Bearer x\r\nInjected: 1"}}""")]
     public void Malformed_or_unsafe_messages_are_rejected(string json)
     {
         Assert.False(HostSession.TryParseBrowserMessage(Encoding.UTF8.GetBytes(json), out _, out var error));
@@ -70,10 +96,10 @@ public sealed class HostSessionTests : IAsyncDisposable
     {
         var cookies = new string('c', IpcProtocol.MaxCookiesLength + 1);
         Assert.False(HostSession.TryParseBrowserMessage(
-            Encoding.UTF8.GetBytes($$"""{"type":"add","url":"https://example.com/a","cookies":"{{cookies}}"}"""), out _, out _));
+            Encoding.UTF8.GetBytes($$"""{"type":"add","protocolVersion":2,"url":"https://example.com/a","cookies":"{{cookies}}"}"""), out _, out _));
 
         var url = "https://example.com/" + new string('a', 9000);
-        Assert.False(HostSession.TryParseBrowserMessage(Encoding.UTF8.GetBytes($$"""{"type":"add","url":"{{url}}"}"""), out _, out _));
+        Assert.False(HostSession.TryParseBrowserMessage(Encoding.UTF8.GetBytes($$"""{"type":"add","protocolVersion":2,"url":"{{url}}"}"""), out _, out _));
 
         Assert.False(HostSession.TryParseBrowserMessage([0x7B, 0xC3, 0x28, 0x7D], out _, out var error));
         Assert.Contains("UTF-8", error);
@@ -82,13 +108,31 @@ public sealed class HostSessionTests : IAsyncDisposable
     // ---- Session against a test pipe server ----
 
     [Fact]
+    public async Task Hello_does_not_launch_a_closed_app_and_open_launches_it_once()
+    {
+        var output = new MemoryStream();
+        await Session(Frames(
+            """{"type":"hello","protocolVersion":2,"extensionVersion":"2.0.0","capabilities":[]}""",
+            """{"type":"open","protocolVersion":2}"""), output, startServerOnLaunch: true).RunAsync(Ct);
+
+        var replies = ReadReplies(output).Select(IpcProtocol.ParseResponse).ToList();
+        Assert.False(replies[0].Ok);
+        Assert.Equal(ColibriClient.NotRunningError, replies[0].Error);
+        Assert.Equal(BrowserProtocol.Version, replies[0].ProtocolVersion);
+        Assert.Contains("capture-confirmation", replies[0].Capabilities!);
+        Assert.True(replies[1].Ok);
+        Assert.Equal(1, _starts);
+        Assert.IsType<OpenRequest>(Assert.Single(_received));
+    }
+
+    [Fact]
     public async Task Messages_are_forwarded_to_a_running_colibri_and_answered_in_order()
     {
         StartServer();
         var input = Frames(
             """{"type":"ping"}""",
             """{"type":"config"}""",
-            """{"type":"add","url":"https://example.com/get?id=1","fileName":"a.zip","cookies":"sid=1","referrer":"https://example.com/","size":42,"unknown":true}""");
+            """{"type":"add","protocolVersion":2,"url":"https://example.com/get?id=1","fileName":"a.zip","cookies":"sid=1","referrer":"https://example.com/","size":42,"unknown":true}""");
         var output = new MemoryStream();
 
         var exitCode = await Session(input, output).RunAsync(Ct);
@@ -96,7 +140,17 @@ public sealed class HostSessionTests : IAsyncDisposable
         Assert.Equal(0, exitCode);
         var replies = ReadReplies(output);
         Assert.Equal("""{"ok":true}""", replies[0]);
-        Assert.Equal("""{"ok":true,"captureExtensions":["zip","iso"],"minSizeKiB":64}""", replies[1]);
+        using var document = JsonDocument.Parse(replies[1]);
+        var config = document.RootElement;
+        Assert.True(config.GetProperty("ok").GetBoolean());
+        Assert.Equal(["zip", "iso"], config.GetProperty("captureExtensions").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(64, config.GetProperty("minSizeKiB").GetInt32());
+        Assert.True(config.GetProperty("enabled").GetBoolean());
+        Assert.Empty(config.GetProperty("excludedSites").EnumerateArray());
+        Assert.False(config.GetProperty("capturePrivate").GetBoolean());
+        Assert.Equal("none", config.GetProperty("bypassModifier").GetString());
+        Assert.Equal("system", config.GetProperty("theme").GetString());
+        Assert.Equal("#C42B1C", config.GetProperty("accent").GetString());
         Assert.Equal("""{"ok":true}""", replies[2]);
         Assert.Equal(0, _starts);
 
@@ -111,7 +165,7 @@ public sealed class HostSessionTests : IAsyncDisposable
     {
         var output = new MemoryStream();
 
-        var exitCode = await Session(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output, startServerOnLaunch: true).RunAsync(Ct);
+        var exitCode = await Session(Frames("""{"type":"add","protocolVersion":2,"url":"https://example.com/a.zip"}"""), output, startServerOnLaunch: true).RunAsync(Ct);
 
         Assert.Equal(0, exitCode);
         Assert.Equal(["""{"ok":true}"""], ReadReplies(output));
@@ -131,7 +185,7 @@ public sealed class HostSessionTests : IAsyncDisposable
         Assert.Equal(0, _foreground.ConnectedCalls);
 
         _received.Clear();
-        await Session(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
+        await Session(Frames("""{"type":"add","protocolVersion":2,"url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
         Assert.Equal(1, _foreground.ConnectedCalls);
     }
 
@@ -142,7 +196,7 @@ public sealed class HostSessionTests : IAsyncDisposable
         _foreground.Result = false;
         var output = new MemoryStream();
 
-        await Session(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
+        await Session(Frames("""{"type":"add","protocolVersion":2,"url":"https://example.com/a.zip"}"""), output).RunAsync(Ct);
 
         Assert.Equal(["""{"ok":true}"""], ReadReplies(output));
         Assert.IsType<AddRequest>(Assert.Single(_received));
@@ -165,7 +219,7 @@ public sealed class HostSessionTests : IAsyncDisposable
         var output = new MemoryStream();
         var client = new ColibriClient(_pipeName, () => { _starts++; return false; }, _foreground, FastTimeouts, _log);
 
-        await new HostSession(Frames("""{"type":"add","url":"https://example.com/a.zip"}"""), output, client.SendAsync, _log).RunAsync(Ct);
+        await new HostSession(Frames("""{"type":"add","protocolVersion":2,"url":"https://example.com/a.zip"}"""), output, client.SendAsync, _log).RunAsync(Ct);
 
         var reply = JsonDocument.Parse(Assert.Single(ReadReplies(output))).RootElement;
         Assert.False(reply.GetProperty("ok").GetBoolean());
@@ -178,7 +232,7 @@ public sealed class HostSessionTests : IAsyncDisposable
         StartServer();
         var output = new MemoryStream();
 
-        var exitCode = await Session(Frames("""{"type":"add","url":"javascript:void(0)"}""", """{"type":"ping"}"""), output).RunAsync(Ct);
+        var exitCode = await Session(Frames("""{"type":"add","protocolVersion":2,"url":"javascript:void(0)"}""", """{"type":"ping"}"""), output).RunAsync(Ct);
 
         Assert.Equal(0, exitCode);
         var replies = ReadReplies(output);

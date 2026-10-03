@@ -17,22 +17,6 @@
     </Window.Resources>
 
     <Window.Styles>
-        <Style Selector="Window.iconsOnly Button.command TextBlock">
-            <Setter Property="IsVisible" Value="False" />
-        </Style>
-        <Style Selector="Window.iconsOnly Button.command">
-            <Setter Property="MinWidth" Value="36" />
-            <Setter Property="MinHeight" Value="36" />
-        </Style>
-        <Style Selector="Window.smallIcons Button.command PathIcon">
-            <Setter Property="Width" Value="16" />
-            <Setter Property="Height" Value="16" />
-        </Style>
-        <Style Selector="Window.smallIcons Button.command">
-            <Setter Property="MinWidth" Value="28" />
-            <Setter Property="MinHeight" Value="28" />
-            <Setter Property="Padding" Value="5" />
-        </Style>
         <Style Selector="Window.sidebarCollapsed TextBlock.navLabel">
             <Setter Property="IsVisible" Value="False" />
         </Style>
@@ -87,6 +71,23 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <!-- Avalonia applies styles in declaration order: mode sizes override the base command sizes. -->
+        <Style Selector="Window.iconsOnly Button.command TextBlock">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Window.iconsOnly Button.command">
+            <Setter Property="MinWidth" Value="36" />
+            <Setter Property="MinHeight" Value="36" />
+        </Style>
+        <Style Selector="Window.smallIcons Button.command PathIcon">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+        </Style>
+        <Style Selector="Window.smallIcons Button.command">
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="5" />
         </Style>
         <Style Selector="Rectangle.commandSeparator">
             <Setter Property="Width" Value="1" />
@@ -155,9 +156,9 @@
 
         <!-- Command bar. -->
         <!-- Disabled while the delete confirmation is open; the dimmed layer starts below it. -->
-        <Grid Grid.Row="1" x:Name="CommandBar" ColumnDefinitions="*,Auto" Margin="8,2,14,8" IsVisible="{Binding !IsSettingsOpen}"
+        <Grid Grid.Row="1" x:Name="CommandBar" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,2,14,8" IsVisible="{Binding !IsSettingsOpen}"
               IsEnabled="{Binding !IsDeleteConfirmationOpen}">
-            <StackPanel Orientation="Horizontal" Spacing="2">
+            <StackPanel x:Name="ToolbarCommands" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left">
                 <Button Classes="command" Command="{Binding AddUrlCommand}"
                         AutomationProperties.Name="{x:Static res:Strings.CommandAddUrl}" HotKey="Ctrl+N">
                     <StackPanel>
@@ -203,8 +204,13 @@
                         <TextBlock Text="{x:Static res:Strings.CommandSettings}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="LayoutButton" Content="⋮" Click="OnLayoutMenuClick" MinWidth="28" Padding="6,2"
-                        ToolTip.Tip="{x:Static res:Strings.LayoutMenu}" AutomationProperties.Name="{x:Static res:Strings.LayoutMenu}" />
+                <Button x:Name="LayoutButton" Classes="command" Click="OnLayoutMenuClick"
+                        ToolTip.Tip="{x:Static res:Strings.LayoutMenu}" AutomationProperties.Name="{x:Static res:Strings.LayoutMenu}">
+                    <StackPanel>
+                        <PathIcon Data="{StaticResource IconLayout}" />
+                        <TextBlock Text="{x:Static res:Strings.LayoutMenu}" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <TextBox Grid.Column="1" x:Name="SearchBox" Width="170" VerticalAlignment="Center"
@@ -344,6 +350,8 @@
                                                     Binding="{Binding CategoryText}" SortMemberPath="CategoryText" Width="120" />
                                 <DataGridTextColumn x:DataType="vm:DownloadItemViewModel" Header="{x:Static res:Strings.ColumnCompleted}"
                                                     Binding="{Binding CompletedText}" SortMemberPath="CompletedAt" Width="150" />
+                                <DataGridTextColumn x:DataType="vm:DownloadItemViewModel" Header="{x:Static res:Strings.DetailsAverageSpeed}"
+                                                    Binding="{Binding AverageSpeedText}" SortMemberPath="AverageSpeed" Width="120" />
                             </DataGrid.Columns>
                         </DataGrid>
                         <primitives:Thumb x:Name="HeaderGrip" Height="4" VerticalAlignment="Top" Margin="0,26,0,0"
@@ -398,43 +406,7 @@
                             <TextBlock Text="{x:Static res:Strings.DetailsEmpty}" Opacity="0.65"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNull}}" />
-                            <ScrollViewer IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="{Binding SelectedDetail.FileName, FallbackValue=''}" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <controls:SegmentBar x:Name="SegmentBar" Height="14"
-                                                         Bitfield="{Binding SelectedDetail.Bitfield, FallbackValue={x:Null}}"
-                                                         PieceCount="{Binding SelectedDetail.NumPieces, FallbackValue=0}"
-                                                         Progress="{Binding SelectedDetail.ProgressValue, FallbackValue=0}"
-                                                         Fill="{DynamicResource SystemControlHighlightAccentBrush}"
-                                                         Track="{DynamicResource DividerBrush}"
-                                                         AutomationProperties.Name="{x:Static res:Strings.DetailsSegmentsName}" />
-                                    <Grid Classes="details" ColumnDefinitions="Auto,*,32,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                                          RowSpacing="6">
-                                        <TextBlock Classes="label" Text="{x:Static res:Strings.DetailsUrl}" />
-                                        <SelectableTextBlock Grid.Column="1" Grid.ColumnSpan="4" x:Name="DetailsUrl"
-                                                             Text="{Binding SelectedDetail.Url, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
-
-                                        <TextBlock Grid.Row="1" Classes="label" Text="{x:Static res:Strings.DetailsSavedTo}" />
-                                        <SelectableTextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4"
-                                                             Text="{Binding SelectedDetail.FilePath, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
-
-                                        <TextBlock Grid.Row="2" Classes="label" Text="{x:Static res:Strings.DetailsStatus}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.StatusText, FallbackValue=''}"
-                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedDetail.StatusText, FallbackValue=''}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="{x:Static res:Strings.DetailsDownloaded}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding SelectedDetail.DownloadedText, FallbackValue=''}" />
-
-                                        <TextBlock Grid.Row="3" Classes="label" Text="{x:Static res:Strings.DetailsSpeed}" />
-                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.SpeedText, FallbackValue=''}" />
-                                        <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="{x:Static res:Strings.DetailsTimeLeft}" />
-                                        <TextBlock Grid.Row="3" Grid.Column="4" Text="{Binding SelectedDetail.TimeLeftText, FallbackValue=''}" />
-
-                                        <TextBlock Grid.Row="4" Classes="label" Text="{x:Static res:Strings.DetailsConnections}" />
-                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedDetail.Connections, FallbackValue=''}" />
-                                    </Grid>
-                                </StackPanel>
-                            </ScrollViewer>
+                            <Border IsVisible="{Binding SelectedDetail, Converter={x:Static ObjectConverters.IsNotNull}}"><views:DownloadDetailsView DataContext="{Binding DetailViewModel}" /></Border>
                         </Panel>
                     </Border>
                 </Grid>
@@ -451,7 +423,7 @@
                 <TextBlock Text="{x:Static res:Strings.SettingsTitle}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
             <Border Grid.Row="1" Classes="contentPane" ClipToBounds="True">
-                <views:SettingsView DataContext="{Binding SettingsPage}" />
+                <views:SettingsView x:Name="SettingsContent" DataContext="{Binding SettingsPage}" />
             </Border>
         </Grid>
 

@@ -16,7 +16,7 @@ internal static class Aria2AddOptions
     /// <summary>
     /// A new random GID: 16 lower-case hex characters. Colibri chooses the GID itself (aria2 accepts it
     /// through the "gid" option), so the handle is known before aria2 answers and survives restarts
-    /// through the session file.
+    /// through Core's repository and reconciliation against partial/control files.
     /// </summary>
     public static string NewGid() => RandomNumberGenerator.GetHexString(16, lowercase: true);
 
@@ -40,7 +40,7 @@ internal static class Aria2AddOptions
     /// </summary>
     public static JsonObject Build(DownloadRequest request, string saveFolder, string fileName, string gid, int connectionsPerServer)
     {
-        var connections = Math.Clamp(connectionsPerServer, 1, MaxConnectionsPerServer)
+        var connections = Math.Clamp(request.TransferOptions?.ConnectionsPerServer ?? connectionsPerServer, 1, MaxConnectionsPerServer)
             .ToString(CultureInfo.InvariantCulture);
 
         var options = new JsonObject
@@ -55,6 +55,8 @@ internal static class Aria2AddOptions
         };
 
         var headers = new JsonArray();
+        if (request.TransferOptions is { } transferOptions)
+            options["max-download-limit"] = Math.Max(0, transferOptions.SpeedLimitBytesPerSecond).ToString(CultureInfo.InvariantCulture);
         foreach (var (name, value) in request.Headers)
         {
             // The dedicated fields below win over the same header in the dictionary.

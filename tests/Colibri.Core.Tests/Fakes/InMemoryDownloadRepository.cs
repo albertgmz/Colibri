@@ -10,6 +10,7 @@ public sealed class InMemoryDownloadRepository : IDownloadRepository
     private readonly Dictionary<Guid, DownloadItem> _items = new();
 
     public int UpdateCount { get; private set; }
+    public Exception? ReadFailure { get; set; }
 
     public InMemoryDownloadRepository(params DownloadItem[] seed)
     {
@@ -41,6 +42,7 @@ public sealed class InMemoryDownloadRepository : IDownloadRepository
 
     public Task<IReadOnlyList<DownloadItem>> GetAllAsync(CancellationToken ct)
     {
+        if (ReadFailure is not null) throw ReadFailure;
         lock (_gate)
         {
             return Task.FromResult<IReadOnlyList<DownloadItem>>(_items.Values.Select(i => i.Clone()).ToList());

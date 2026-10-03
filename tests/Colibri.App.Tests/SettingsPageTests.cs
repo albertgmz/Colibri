@@ -1,11 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Colibri.App.Resources;
 using Colibri.App.ViewModels;
+using Colibri.App.Views;
 using Colibri.Core.Models;
 using Colibri.Core.Settings;
 
@@ -13,6 +16,97 @@ namespace Colibri.App.Tests;
 
 public class SettingsPageTests
 {
+    [AvaloniaFact]
+    public async Task Switching_pages_retains_controls_edits_and_existing_preferences()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Settings.AutoOpenDetailsWindow = true;
+        ui.Settings.Theme = AppTheme.Dark;
+        ui.Settings.CategoryFolders = new() { [DownloadCategory.Music] = @"C:\Music" };
+        var window = ui.ShowWindow();
+        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+        var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
+        var navigation = view.FindControl<ListBox>("PageNavigation")!;
+        var folder = view.FindControl<TextBox>("DefaultFolderBox")!;
+        var pages = new[] { "GeneralPage", "AppearancePage", "DownloadsPage", "BrowserPage", "AdvancedPage" }
+            .Select(name => view.FindControl<ScrollViewer>(name)!).ToArray();
+
+        navigation.SelectedIndex = 2;
+        Dispatcher.UIThread.RunJobs();
+        ui.SettingsPage.DefaultFolder = Path.Combine(ui.Paths.DataDirectory, "Saved");
+        ui.SettingsPage.ConnectionsPerServer = 7;
+        await ui.SettingsPage.PendingWork;
+        var saves = ui.SettingsStore.SaveCount;
+        for (var index = 0; index < pages.Length; index++)
+        {
+            navigation.SelectedIndex = index;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(index, ui.SettingsPage.SelectedPageIndex);
+            Assert.Single(pages, page => page.IsEffectivelyVisible);
+            Assert.True(pages[index].IsEffectivelyVisible);
+        }
+        navigation.SelectedIndex = 2;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(folder, view.FindControl<TextBox>("DefaultFolderBox"));
+        Assert.Equal(ui.Settings.DefaultDownloadFolder, folder.Text);
+        Assert.Equal(saves, ui.SettingsStore.SaveCount);
+        Assert.True(ui.SettingsStore.Saved!.AutoOpenDetailsWindow);
+        Assert.Equal(AppTheme.Dark, ui.SettingsStore.Saved.Theme);
+        Assert.Equal(@"C:\Music", ui.SettingsStore.Saved.CategoryFolders[DownloadCategory.Music]);
+        Assert.Equal(7, ui.SettingsStore.Saved.ConnectionsPerServer);
+        ui.ViewModel.CloseSettingsCommand.Execute(null);
+        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        Assert.Equal(2, ui.SettingsPage.SelectedPageIndex);
+        Assert.Equal(7, ui.SettingsPage.ConnectionsPerServer);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(960, false)]
+    [InlineData(640, true)]
+    public async Task Settings_navigation_adapts_and_both_selectors_share_page_state(int width, bool compact)
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Settings.Layout.Width = width;
+        var window = ui.ShowWindow();
+        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+        var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
+        var navigation = view.FindControl<ListBox>("PageNavigation")!;
+        var selector = view.FindControl<ComboBox>("PageSelector")!;
+        Assert.Equal(!compact, navigation.IsEffectivelyVisible);
+        Assert.Equal(compact, selector.IsEffectivelyVisible);
+        if (compact) selector.SelectedIndex = 4;
+        else navigation.SelectedIndex = 4;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(4, ui.SettingsPage.SelectedPageIndex);
+        Assert.Equal(4, navigation.SelectedIndex);
+        Assert.Equal(4, selector.SelectedIndex);
+        Assert.True(view.FindControl<ScrollViewer>("AdvancedPage")!.IsEffectivelyVisible);
+        var focusTarget = compact ? (Control)selector : navigation.ContainerFromIndex(4)!;
+        Assert.True(focusTarget.Focus());
+        Assert.Equal(0, ui.SettingsStore.SaveCount);
+    }
+
+    [AvaloniaFact]
+    public async Task Settings_sidebar_supports_keyboard_page_selection()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var window = ui.ShowWindow();
+        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+        var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
+        var navigation = view.FindControl<ListBox>("PageNavigation")!;
+        navigation.SelectedIndex = 4;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(navigation.ContainerFromIndex(4)!.Focus());
+        window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.None, null);
+        window.KeyRelease(Key.Up, RawInputModifiers.None, PhysicalKey.None, null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(3, ui.SettingsPage.SelectedPageIndex);
+        Assert.True(view.FindControl<ScrollViewer>("BrowserPage")!.IsEffectivelyVisible);
+    }
+
     [AvaloniaFact]
     public async Task Settings_command_swaps_the_table_for_the_settings_page_and_back()
     {
@@ -183,6 +277,8 @@ public class SettingsPageTests
         Dispatcher.UIThread.RunJobs();
         var page = ui.SettingsPage;
 
+        page.SelectedPageIndex = 3;
+        Dispatcher.UIThread.RunJobs();
         Assert.True(page.IsBrowserStatusVisible);
         Assert.Equal(
             [new(Strings.BrowserChrome, Strings.BrowserStatusNotRegistered), new(Strings.BrowserEdge, Strings.BrowserStatusNotRegistered)],

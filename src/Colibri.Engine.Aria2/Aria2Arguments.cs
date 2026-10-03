@@ -13,8 +13,6 @@ internal static class Aria2Arguments
         int port,
         string configPath,
         int parentProcessId,
-        string sessionPath,
-        bool sessionExists,
         string logPath,
         EngineOptions options)
     {
@@ -35,15 +33,9 @@ internal static class Aria2Arguments
             $"--stop-with-process={parentProcessId}",
         };
 
-        if (sessionExists)
-        {
-            arguments.Add($"--input-file={sessionPath}");
-        }
-
         arguments.AddRange(
         [
-            $"--save-session={sessionPath}",
-            "--save-session-interval=30",
+            // Core owns recovery. Session files serialize request headers in plaintext.
             "--continue=true",
             $"--max-connection-per-server={Aria2AddOptions.MaxConnectionsPerServer}",
             "--split=16",

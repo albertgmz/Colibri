@@ -34,6 +34,7 @@ public sealed class DesktopShell
     private readonly IDialogService _dialogs;
     private readonly IpcEndpoint _endpoint;
     private readonly ILogger _logger;
+    private readonly ISettingsStore? _settingsStore;
 
     private MainWindow? _window;
     private TrayIcon? _trayIcon;
@@ -53,7 +54,7 @@ public sealed class DesktopShell
         ITaskbarProgress taskbar,
         IDialogService dialogs,
         IpcEndpoint endpoint,
-        ILogger<DesktopShell> logger)
+        ILogger<DesktopShell> logger, ISettingsStore? settingsStore = null)
     {
         _desktop = desktop;
         _viewModel = viewModel;
@@ -64,6 +65,7 @@ public sealed class DesktopShell
         _dialogs = dialogs;
         _endpoint = endpoint;
         _logger = logger;
+        _settingsStore = settingsStore;
     }
 
     /// <summary>
@@ -112,7 +114,7 @@ public sealed class DesktopShell
                 break;
         }
 
-        var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow, _settings);
+        var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow, _settings, _settingsStore);
         _pipeServer = new LocalPipeServer(_endpoint.PipeName, handler.HandleAsync, _logger);
         _pipeServer.Start();
     }

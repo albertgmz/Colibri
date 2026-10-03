@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Colibri.App.ViewModels"
+             xmlns:res="using:Colibri.App.Resources"
+             xmlns:controls="using:Colibri.App.Controls"
+             x:Class="Colibri.App.Views.DownloadDetailsView"
+             x:DataType="vm:DownloadDetailsViewModel">
+  <UserControl.Styles>
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="5,4" />
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,4">
+      <TextBlock Text="{Binding Row.FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      <Button x:Name="PopOutButton" Grid.Column="1" Content="{x:Static res:Strings.DetailsPopOut}" Click="OnPopOut" Padding="8,2"
+              AutomationProperties.Name="{x:Static res:Strings.DetailsPopOut}" />
+    </Grid>
+    <TabControl Grid.Row="1" x:Name="DetailTabs">
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsOverview}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsOverview}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <ScrollViewer>
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="12" Margin="4">
+            <TextBlock Text="{x:Static res:Strings.DetailsUrl}" Opacity="0.65" />
+            <SelectableTextBlock Grid.Column="1" Text="{Binding Row.Url}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="1" Text="{x:Static res:Strings.DetailsFinalUrl}" Opacity="0.65" />
+            <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FinalUrl}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="2" Text="{x:Static res:Strings.DetailsSavedTo}" Opacity="0.65" />
+            <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Row.FilePath}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="3" Text="{x:Static res:Strings.DetailsStatus}" Opacity="0.65" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Row.StatusText}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="4" Text="{x:Static res:Strings.DetailsDownloaded}" Opacity="0.65" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Row.DownloadedText}" />
+            <TextBlock Grid.Row="5" Text="{x:Static res:Strings.DetailsSpeed}" Opacity="0.65" />
+            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding CurrentSpeed}" />
+            <TextBlock Grid.Row="6" Text="{x:Static res:Strings.DetailsAverageSpeed}" Opacity="0.65" />
+            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding AverageSpeed}" ToolTip.Tip="{x:Static res:Strings.DetailsHistoryNote}" />
+            <TextBlock Grid.Row="7" Text="{x:Static res:Strings.DetailsTimeLeft}" Opacity="0.65" />
+            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding TimeLeft}" />
+            <TextBlock Grid.Row="8" Text="{x:Static res:Strings.DetailsResume}" Opacity="0.65" />
+            <TextBlock Grid.Row="8" Grid.Column="1" Text="{x:Static res:Strings.DetailsResumeUnknown}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="9" Text="{x:Static res:Strings.DetailsLastError}" Opacity="0.65" />
+            <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding LastError}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="10" Text="{x:Static res:Strings.DetailsConnections}" Opacity="0.65" />
+            <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding Row.Connections}" />
+          </Grid>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsPieces}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsPieces}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <ScrollViewer><StackPanel Spacing="8" Margin="4">
+          <TextBlock Text="{Binding PieceSummary}" TextWrapping="Wrap" />
+          <controls:SegmentBar x:Name="SegmentBar" Height="24" Bitfield="{Binding Row.Bitfield}" PieceCount="{Binding Row.NumPieces}"
+                               Fill="{DynamicResource SystemControlHighlightAccentBrush}" Track="{DynamicResource DividerBrush}" />
+          <TextBlock Text="{x:Static res:Strings.DetailsPieceLegend}" TextWrapping="Wrap" />
+        </StackPanel></ScrollViewer>
+      </TabItem>
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsConnections}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsConnections}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <Grid RowDefinitions="Auto,*" Margin="4">
+          <TextBlock Text="{x:Static res:Strings.DetailsServerNote}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <DataGrid Grid.Row="1" ItemsSource="{Binding Servers}" AutoGenerateColumns="False" IsReadOnly="True" RowHeight="28" MinHeight="65">
+            <DataGrid.Columns>
+              <DataGridTextColumn x:DataType="vm:ServerRow" Header="{x:Static res:Strings.DetailsFileIndex}" Binding="{Binding FileIndex}" Width="60" />
+              <DataGridTextColumn x:DataType="vm:ServerRow" Header="{x:Static res:Strings.ColumnHost}" Binding="{Binding Host}" Width="*" />
+              <DataGridTextColumn x:DataType="vm:ServerRow" Header="{x:Static res:Strings.DetailsSpeed}" Binding="{Binding Speed}" Width="120" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </Grid>
+      </TabItem>
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsSpeed}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsSpeed}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <ScrollViewer x:Name="SpeedScroll">
+          <StackPanel Margin="4" Spacing="6">
+            <TextBlock Text="{Binding GraphMaximum}" />
+            <controls:SpeedGraph x:Name="DetailsSpeedGraph" Samples="{Binding SpeedHistory}" Height="90" MinHeight="70" />
+            <TextBlock x:Name="SpeedNote" Text="{x:Static res:Strings.DetailsGraphNote}" TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsLog}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsLog}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <Grid RowDefinitions="Auto,*" Margin="4">
+          <TextBlock x:Name="LogNote" Text="{x:Static res:Strings.DetailsHistoryNote}" TextWrapping="Wrap" Margin="0,0,0,4" />
+          <ListBox x:Name="DetailsEventList" Grid.Row="1" ItemsSource="{Binding Events}" MinHeight="0" />
+        </Grid>
+      </TabItem>
+      <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsOptions}">
+        <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsOptions}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
+        <ScrollViewer><StackPanel Spacing="6" Margin="4">
+          <TextBlock Text="{x:Static res:Strings.DetailsOptionsNote}" TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="Auto,130" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="6" IsEnabled="{Binding CanEditOptions}">
+            <TextBlock Text="{x:Static res:Strings.DetailsSpeedLimit}" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Column="1" Value="{Binding SpeedLimitKiB}" Minimum="0" Maximum="10000000" FormatString="0.###" />
+            <TextBlock Grid.Row="1" Text="{x:Static res:Strings.DetailsConnectionLimit}" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding ConnectionLimit}" Minimum="1" Maximum="16" FormatString="0" />
+          </Grid>
+          <Button Content="{x:Static res:Strings.DetailsApplyOptions}" Command="{Binding ApplyOptionsCommand}" IsEnabled="{Binding CanEditOptions}" />
+        </StackPanel></ScrollViewer>
+      </TabItem>
+    </TabControl>
+    <TextBlock Grid.Row="2" Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource SystemControlHighlightAccentBrush}" />
+  </Grid>
+</UserControl>

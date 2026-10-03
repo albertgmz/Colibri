@@ -56,6 +56,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedDetailChanged(DownloadItemViewModel? value)
     {
+        DetailViewModel = value is null ? null : CreateDetails(value);
         _nextVolumeCheck = DateTimeOffset.MinValue;
         _ = RefreshDestinationAsync();
     }
@@ -100,6 +101,12 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>The download the details pane shows: the first selected one.</summary>
     [ObservableProperty]
     private DownloadItemViewModel? _selectedDetail;
+
+    [ObservableProperty]
+    private DownloadDetailsViewModel? _detailViewModel;
+
+    public event EventHandler<DownloadDetailsViewModel>? DetailsWindowRequested;
+    public DownloadDetailsViewModel CreateDetails(DownloadItemViewModel row) => new(_manager, row);
 
     [ObservableProperty]
     private bool _isDetailsVisible;
@@ -248,6 +255,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public AddUrlViewModel CreateAddUrl(LinkContext context, string? url) => new(_manager, context, url, _logger);
 
+    public BulkAddViewModel CreateBulkAdd(IReadOnlyList<Colibri.Core.Ipc.AddRequest> links, CaptureSession capture) => new(_manager, links, capture);
+
     public bool ShowAddUrlForText(string? text)
     {
         var url = text?.Trim();
@@ -387,6 +396,8 @@ public partial class MainWindowViewModel : ObservableObject
                 var oldState = row.State;
                 var oldCategory = row.Category;
                 row.Update(snapshot);
+                if (_settings.AutoOpenDetailsWindow && oldState != DownloadState.Active && row.State == DownloadState.Active)
+                    DetailsWindowRequested?.Invoke(this, CreateDetails(row));
                 countsChanged |= row.State != oldState || row.Category != oldCategory;
                 refilter |= IsVisible(row) != wasVisible;
             }
@@ -396,6 +407,8 @@ public partial class MainWindowViewModel : ObservableObject
                 row = new DownloadItemViewModel(snapshot);
                 _byId[row.Id] = row;
                 _items.Add(row); // The collection view filters and sorts the new row by itself.
+                if (_loaded && _settings.AutoOpenDetailsWindow && row.State == DownloadState.Active)
+                    DetailsWindowRequested?.Invoke(this, CreateDetails(row));
                 countsChanged = true;
             }
         }

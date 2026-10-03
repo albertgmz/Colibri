@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Security.Cryptography;
 using Colibri.Core.Abstractions;
 using Colibri.Core.Models;
+using Colibri.Core.Platform;
 using Microsoft.Data.Sqlite;
 
 namespace Colibri.App.Services;
@@ -14,21 +16,23 @@ namespace Colibri.App.Services;
 /// Microsoft.Data.Sqlite's async methods actually run synchronously, so every call is moved to the
 /// thread pool to keep disk work off the UI thread.
 /// </remarks>
-public sealed class SqliteDownloadRepository : IDownloadRepository
+public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCredentialRepository
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 3;
 
     private const string Columns =
         "id, url, final_url, file_name, save_folder, category, state, total_bytes, completed_bytes, download_speed, " +
-        "connections, engine_id, engine_handle, referrer, user_agent, headers, added_at, completed_at, error_message";
+        "connections, engine_id, engine_handle, referrer, user_agent, headers, added_at, completed_at, error_message, speed_limit, connection_limit, protected_headers";
 
     private readonly string _connectionString;
+    private readonly ICredentialProtector _credentialProtector;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
-    public SqliteDownloadRepository(string databasePath)
+    public SqliteDownloadRepository(string databasePath, ICredentialProtector credentialProtector)
     {
         _connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
+        _credentialProtector = credentialProtector;
     }
 
     public Task<IReadOnlyList<DownloadItem>> GetAllAsync(CancellationToken ct) =>
@@ -64,7 +68,7 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
                 INSERT INTO downloads ({Columns})
                 VALUES ($id, $url, $final_url, $file_name, $save_folder, $category, $state, $total_bytes, $completed_bytes,
                         $download_speed, $connections, $engine_id, $engine_handle, $referrer, $user_agent, $headers,
-                        $added_at, $completed_at, $error_message)
+                        $added_at, $completed_at, $error_message, $speed_limit, $connection_limit, $protected_headers)
                 """;
             Bind(command, item);
             return command.ExecuteNonQuery();
@@ -80,7 +84,8 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
                     category = $category, state = $state, total_bytes = $total_bytes, completed_bytes = $completed_bytes,
                     download_speed = $download_speed, connections = $connections, engine_id = $engine_id,
                     engine_handle = $engine_handle, referrer = $referrer, user_agent = $user_agent, headers = $headers,
-                    added_at = $added_at, completed_at = $completed_at, error_message = $error_message
+                    added_at = $added_at, completed_at = $completed_at, error_message = $error_message,
+                    speed_limit = $speed_limit, connection_limit = $connection_limit, protected_headers = $protected_headers
                 WHERE id = $id
                 """;
             Bind(command, item);
@@ -93,6 +98,15 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
             using var command = connection.CreateCommand();
             command.CommandText = "DELETE FROM downloads WHERE id = $id";
             command.Parameters.AddWithValue("$id", id.ToString());
+            return command.ExecuteNonQuery();
+        }, ct);
+
+    public Task ClearCredentialsAsync(Guid downloadId, CancellationToken ct) =>
+        RunAsync(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE downloads SET headers = '{}', protected_headers = NULL WHERE id = $id";
+            command.Parameters.AddWithValue("$id", downloadId.ToString());
             return command.ExecuteNonQuery();
         }, ct);
 
@@ -110,6 +124,7 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
     {
         var connection = new SqliteConnection(_connectionString);
         connection.Open();
+        Execute(connection, "PRAGMA secure_delete = ON");
         return connection;
     }
 
@@ -150,39 +165,86 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
                 $"The download database was created by a newer Colibri (schema {version}, this version knows {SchemaVersion}).");
         }
 
-        if (version < 1)
+        using (var transaction = connection.BeginTransaction())
         {
-            using var transaction = connection.BeginTransaction();
-            Execute(connection, """
-                CREATE TABLE downloads (
-                    id              TEXT PRIMARY KEY NOT NULL,
-                    url             TEXT NOT NULL,
-                    final_url       TEXT,
-                    file_name       TEXT NOT NULL,
-                    save_folder     TEXT NOT NULL,
-                    category        TEXT NOT NULL,
-                    state           TEXT NOT NULL,
-                    total_bytes     INTEGER,
-                    completed_bytes INTEGER NOT NULL,
-                    download_speed  INTEGER NOT NULL,
-                    connections     INTEGER NOT NULL,
-                    engine_id       TEXT NOT NULL,
-                    engine_handle   TEXT,
-                    referrer        TEXT,
-                    user_agent      TEXT,
-                    headers         TEXT NOT NULL,
-                    added_at        TEXT NOT NULL,
-                    completed_at    TEXT,
-                    error_message   TEXT
-                )
-                """, transaction);
+            if (version < 1)
+            {
+                Execute(connection, """
+                    CREATE TABLE downloads (
+                        id              TEXT PRIMARY KEY NOT NULL,
+                        url             TEXT NOT NULL,
+                        final_url       TEXT,
+                        file_name       TEXT NOT NULL,
+                        save_folder     TEXT NOT NULL,
+                        category        TEXT NOT NULL,
+                        state           TEXT NOT NULL,
+                        total_bytes     INTEGER,
+                        completed_bytes INTEGER NOT NULL,
+                        download_speed  INTEGER NOT NULL,
+                        connections     INTEGER NOT NULL,
+                        engine_id       TEXT NOT NULL,
+                        engine_handle   TEXT,
+                        referrer        TEXT,
+                        user_agent      TEXT,
+                        headers         TEXT NOT NULL,
+                        added_at        TEXT NOT NULL,
+                        completed_at    TEXT,
+                        error_message   TEXT
+                    )
+                    """, transaction);
 
-            // PRAGMA does not accept parameters; the value is our own constant.
-            Execute(connection, $"PRAGMA user_version = {SchemaVersion}", transaction);
+                // PRAGMA does not accept parameters; the value is our own constant.
+                Execute(connection, "PRAGMA user_version = 1", transaction);
+            }
+
+            if (version < 2)
+            {
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN speed_limit INTEGER", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN connection_limit INTEGER", transaction);
+                Execute(connection, "PRAGMA user_version = 2", transaction);
+            }
+
+            if (version < 3)
+            {
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN protected_headers BLOB", transaction);
+                var rows = new List<(Guid Id, string Headers, bool Completed)>();
+                using (var read = connection.CreateCommand())
+                {
+                    read.Transaction = transaction;
+                    read.CommandText = "SELECT id, headers, state FROM downloads";
+                    using var reader = read.ExecuteReader();
+                    while (reader.Read())
+                        rows.Add((Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.GetString(2) == nameof(DownloadState.Completed)));
+                }
+                foreach (var row in rows)
+                {
+                    var headers = row.Completed ? HttpHeaders.Create() : DeserializeHeaders(row.Headers);
+                    using var update = connection.CreateCommand();
+                    update.Transaction = transaction;
+                    update.CommandText = "UPDATE downloads SET headers = '{}', protected_headers = $protected WHERE id = $id";
+                    update.Parameters.AddWithValue("$id", row.Id.ToString());
+                    update.Parameters.AddWithValue("$protected", (object?)ProtectHeaders(headers, row.Id) ?? DBNull.Value);
+                    update.ExecuteNonQuery();
+                }
+                Execute(connection, "PRAGMA user_version = 3", transaction);
+            }
             transaction.Commit();
         }
 
-        // Future schema changes go here: "if (version < 2) { ALTER TABLE ...; PRAGMA user_version = 2 }".
+        // Rebuild pages and truncate the WAL after migration, including a previous interrupted cleanup.
+        // This removes live-file legacy plaintext; backups and filesystem snapshots remain outside our control.
+        Checkpoint(connection);
+        Execute(connection, "VACUUM");
+        Checkpoint(connection);
+    }
+
+    private static void Checkpoint(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+        using var result = command.ExecuteReader();
+        if (!result.Read() || result.GetInt32(0) != 0)
+            throw new InvalidOperationException("Credential migration cleanup could not finish because the download database is in use.");
     }
 
     private static void Execute(SqliteConnection connection, string sql, SqliteTransaction? transaction = null)
@@ -200,7 +262,7 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
         return command.ExecuteScalar();
     }
 
-    private static void Bind(SqliteCommand command, DownloadItem item)
+    private void Bind(SqliteCommand command, DownloadItem item)
     {
         var p = command.Parameters;
         p.AddWithValue("$id", item.Id.ToString());
@@ -220,13 +282,17 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
         p.AddWithValue("$engine_handle", (object?)item.EngineHandle ?? DBNull.Value);
         p.AddWithValue("$referrer", (object?)item.Referrer ?? DBNull.Value);
         p.AddWithValue("$user_agent", (object?)item.UserAgent ?? DBNull.Value);
-        p.AddWithValue("$headers", JsonSerializer.Serialize(item.Headers));
+        p.AddWithValue("$headers", "{}");
+        p.AddWithValue("$protected_headers", item.State == DownloadState.Completed
+            ? DBNull.Value : (object?)ProtectHeaders(item.Headers, item.Id) ?? DBNull.Value);
         p.AddWithValue("$added_at", item.AddedAt.ToString("o", CultureInfo.InvariantCulture));
         p.AddWithValue("$completed_at", (object?)item.CompletedAt?.ToString("o", CultureInfo.InvariantCulture) ?? DBNull.Value);
         p.AddWithValue("$error_message", (object?)item.ErrorMessage ?? DBNull.Value);
+        p.AddWithValue("$speed_limit", (object?)item.TransferOptions?.SpeedLimitBytesPerSecond ?? DBNull.Value);
+        p.AddWithValue("$connection_limit", (object?)item.TransferOptions?.ConnectionsPerServer ?? DBNull.Value);
     }
 
-    private static DownloadItem Read(SqliteDataReader r) => new()
+    private DownloadItem Read(SqliteDataReader r) => new()
     {
         Id = Guid.Parse(r.GetString(0)),
         Url = r.GetString(1),
@@ -243,11 +309,40 @@ public sealed class SqliteDownloadRepository : IDownloadRepository
         EngineHandle = NullableString(r, 12),
         Referrer = NullableString(r, 13),
         UserAgent = NullableString(r, 14),
-        Headers = HttpHeaders.Copy(JsonSerializer.Deserialize<Dictionary<string, string>>(r.GetString(15)) ?? []),
+        Headers = ReadHeaders(r),
         AddedAt = ParseDate(r.GetString(16)),
         CompletedAt = r.IsDBNull(17) ? null : ParseDate(r.GetString(17)),
         ErrorMessage = NullableString(r, 18),
+        TransferOptions = r.IsDBNull(19) || r.IsDBNull(20) ? null : new(r.GetInt64(19), r.GetInt32(20)),
     };
+
+    private byte[]? ProtectHeaders(Dictionary<string, string> headers, Guid id)
+    {
+        if (headers.Count == 0) return null;
+        var plaintext = JsonSerializer.SerializeToUtf8Bytes(headers);
+        try { return _credentialProtector.Protect(plaintext, id); }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
+    }
+
+    private Dictionary<string, string> ReadHeaders(SqliteDataReader reader)
+    {
+        // Never accept a plaintext payload after migration, even if another writer changed the row.
+        if (reader.GetString(15) != "{}") throw new CredentialProtectionException();
+        if (reader.IsDBNull(21)) return HttpHeaders.Create();
+        var plaintext = _credentialProtector.Unprotect((byte[])reader[21], Guid.Parse(reader.GetString(0)));
+        try
+        {
+            return HttpHeaders.Copy(JsonSerializer.Deserialize<Dictionary<string, string>>(plaintext) ?? []);
+        }
+        catch (JsonException) { throw new CredentialProtectionException(); }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
+    }
+
+    private static Dictionary<string, string> DeserializeHeaders(string json)
+    {
+        try { return HttpHeaders.Copy(JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? []); }
+        catch (JsonException) { throw new CredentialProtectionException(); }
+    }
 
     private static string? NullableString(SqliteDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);

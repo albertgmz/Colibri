@@ -22,7 +22,7 @@ internal static class NativeHostManifest
         }
     }
 
-    public static string Build(NativeHostRegistration registration)
+    public static string Build(NativeHostRegistration registration, bool firefox = false)
     {
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
@@ -32,8 +32,8 @@ internal static class NativeHostManifest
             json.WriteString("description", registration.Description);
             json.WriteString("path", registration.HostExecutablePath);
             json.WriteString("type", "stdio");
-            json.WriteStartArray("allowed_origins");
-            foreach (var origin in registration.AllowedOrigins)
+            json.WriteStartArray(firefox ? "allowed_extensions" : "allowed_origins");
+            foreach (var origin in firefox ? new[] { Colibri.Core.Ipc.BrowserProtocol.FirefoxId } : registration.AllowedOrigins)
             {
                 json.WriteStringValue(origin);
             }
@@ -50,7 +50,7 @@ internal static class NativeHostManifest
     /// <paramref name="pathComparer"/>: Windows paths ignore case) and set of origins as <paramref name="expected"/>.
     /// The description does not count. Unreadable JSON does not match.
     /// </summary>
-    public static bool Matches(string json, NativeHostRegistration expected, StringComparer pathComparer)
+    public static bool Matches(string json, NativeHostRegistration expected, StringComparer pathComparer, bool firefox = false)
     {
         try
         {
@@ -60,14 +60,14 @@ internal static class NativeHostManifest
                 || StringProperty(root, "name") != expected.HostName
                 || StringProperty(root, "type") != "stdio"
                 || !pathComparer.Equals(StringProperty(root, "path") ?? string.Empty, expected.HostExecutablePath)
-                || !root.TryGetProperty("allowed_origins", out var origins)
+                || !root.TryGetProperty(firefox ? "allowed_extensions" : "allowed_origins", out var origins)
                 || origins.ValueKind != JsonValueKind.Array)
             {
                 return false;
             }
 
             var found = origins.EnumerateArray().Select(o => o.ValueKind == JsonValueKind.String ? o.GetString() : null).ToHashSet();
-            return found.SetEquals(expected.AllowedOrigins);
+            return found.SetEquals(firefox ? new[] { Colibri.Core.Ipc.BrowserProtocol.FirefoxId } : expected.AllowedOrigins);
         }
         catch (JsonException)
         {

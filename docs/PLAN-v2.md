@@ -35,13 +35,13 @@ Files: `src/Colibri.App/Views/MainWindow.axaml`, `MainWindow.Layout.cs`,
 `src/Colibri.App/Resources/Icons.axaml`, `Strings.resx`, and
 `tests/Colibri.App.Tests/WindowLayoutTests.cs`.
 
-- [ ] Replace the text ellipsis with a suitable existing or original Fluent-style
+- [x] Replace the text ellipsis with a suitable existing or original Fluent-style
   layout icon; use the same button size, background, padding and alignment as the
   neighboring commands. In labels mode show the localized label "Layout".
-- [ ] Retain a tooltip and accessible name in every mode. Icons-only and small-icons
+- [x] Retain a tooltip and accessible name in every mode. Icons-only and small-icons
   modes follow the other toolbar buttons. Keep density, sidebar, toolbar and reset
   choices available in its menu.
-- [ ] Verify at 960 x 600 and 640 x 400 in all three toolbar modes, including keyboard
+- [x] Verify at 960 x 600 and 640 x 400 in all three toolbar modes, including keyboard
   access, and save updated screenshots. Search and commands must not overlap.
 
 ### B. Split Settings into focused pages
@@ -59,16 +59,16 @@ Files: `src/Colibri.App/Views/SettingsView.axaml` and its code-behind,
 settings tests. Page state belongs in the view/view model; persisted preferences
 retain their existing keys and migration behavior.
 
-- [ ] Add pages General (startup/tray), Appearance (theme/accent/layout), Downloads
+- [x] Add pages General (startup/tray), Appearance (theme/accent/layout), Downloads
   (folders/concurrency/connections/speed), Browser Integration (registration and
   capture), and Advanced (engine path/logs). Put upcoming proxy/adapter controls on
   Network and scheduled queue controls on Queues when those goals are implemented.
-- [ ] Show only the selected page, with its own scrolling region and descriptive
+- [x] Show only the selected page, with its own scrolling region and descriptive
   heading. Keep changes saved as they are made. Do not reset fields when switching
   pages or recreate the entire settings view on every switch.
-- [ ] Keep Back/close navigation, accessible page names and keyboard selection.
+- [x] Keep Back/close navigation, accessible page names and keyboard selection.
   Validate every current setting remains reachable and v1 preferences survive.
-- [ ] Test page switching and persistence; run the real Windows app at default and
+- [x] Test page switching and persistence; run the real Windows app at default and
   minimum sizes and save screenshots before committing.
 
 ### C. Investigate apparent download/progress stall
@@ -84,39 +84,39 @@ Files to trace: `Core/Services/DownloadManager.cs` (poll loop, semaphore and eve
 `Views/MainWindow.axaml`. Tests: `tests/Colibri.App.Tests/MainWindowTests.cs`,
 `DetailsPaneTests.cs`, Core manager tests and engine RPC tests.
 
-- [ ] Reproduce with one controlled local download. Compare actual destination
+- [x] Reproduce with one controlled local download. Compare actual destination
   bytes and aria2 completedLength with the displayed bytes/speed once per second,
   before adding any second item. Then add a second item and compare again.
-- [ ] Repeat visible, hidden in tray and restored. Current intended poll intervals
+- [x] Repeat visible, hidden in tray and restored. Current intended poll intervals
   are one second visible and five seconds hidden. Distinguish rounding small
   percentages, DNS/connection delay, actual queue waiting and stale UI updates.
-- [ ] Check that a poll failure cannot silently leave progress frozen, UI work does
+- [x] Check that a poll failure cannot silently leave progress frozen, UI work does
   not block the engine receiver, and a new item is not required to refresh existing
   rows. Use timestamps/IDs and byte counts for diagnostics, never credential values.
-- [ ] Add a regression test for the reproduced cause and fix that cause. If not
+- [x] Add a regression test for the reproduced cause and fix that cause. If not
   reproduced, record evidence and the remaining uncertainty; do not claim a fix or
   add speculative restart/re-download behavior.
 
 ### D. Finish the in-progress integration safely
 
-- [ ] Review Goal 2 and Goal 3 working-tree changes and the ignored agent reports.
+- [x] Review Goal 2 and Goal 3 working-tree changes and the ignored agent reports.
   Goal 2's real aria2 smoke passed, but its real Windows tab/popout evidence and
   independent review are still outstanding.
-- [ ] Fix the known NativeHost test assertion mismatch: unsupported version reports
+- [x] Fix the known NativeHost test assertion mismatch: unsupported version reports
   "Unsupported protocol version." rather than containing "protocol v2". Verify the
   semantic rejection, not a stale message string.
-- [ ] Review native hello launch behavior: extension startup sends hello, while the
+- [x] Review native hello launch behavior: extension startup sends hello, while the
   current ColibriClient may launch the app for hello; its handshake timeout is five
   seconds. Define and test a compatible handshake while the app is closed, followed
   by intentional launch for add/open, without timeout-triggered duplicate offers.
-- [ ] Verify duplicate-resume confirmation: `AddUrlViewModel.ResumeDuplicateAsync`
+- [x] Verify duplicate-resume confirmation: `AddUrlViewModel.ResumeDuplicateAsync`
   currently closes after resume without marking the CaptureSession accepted.
   Cover successful resume, rejection, fallback and cancellation races.
 - [ ] Complete browser runtime checks using throwaway profiles with sync disabled.
   Existing Chrome/Edge/Firefox builds and 51 extension tests passed, but no runtime
   browser check was completed here. The extension README is still only a heading;
   finish permissions, loading and debugging instructions before publishing code.
-- [ ] Both repositories are private. Cross-repo canonical drift CI needs a read-only
+- [x] Both repositories are private. Cross-repo canonical drift CI needs a read-only
   app-repo secret; local sibling-copy drift verification passes. Document CI coverage
   accurately without creating tokens or pretending the conditional check ran.
 - [ ] Keep the old app extension until the new migration and tests are verified.
@@ -165,23 +165,23 @@ which owns asynchronous settings persistence. No database change is needed.
 
 ## 2. Detailed download view
 
-- [ ] Core detail snapshots and bounded speed/event histories; engine RPC tests.
-- [ ] Overview with available facts; record unavailable fields explicitly.
-- [ ] Pieces from bitfield, counts, piece size and legend; real RPC server rows.
-- [ ] Speed graph, event log, per-download limits/connections, tabs and pop-out window.
+- [x] Core detail snapshots and bounded speed/event histories; engine RPC tests.
+- [x] Overview with available facts; record unavailable fields explicitly.
+- [x] Pieces from bitfield, counts, piece size and legend; real RPC server rows.
+- [x] Speed graph, event log, per-download limits/connections, tabs and pop-out window.
 - [ ] Opt-in automatic details window; build/test/run/screenshots/commit/push.
 
 ## 3. Extension migration
 
-- [ ] WXT strict TypeScript and lightweight DOM UI; port all 29 behavioural tests before removal.
-- [ ] Preserve Chromium manifest key; fixed Firefox ID; Firefox registration on all OSes.
-- [ ] Versioned hello/capabilities protocol, docs/schema and checked-copy drift test.
-- [ ] Pause/offer/confirm/cancel; resume on rejection, failure or browser fallback.
-- [ ] Capture real headers/cookies/response metadata/redirects; POST bypass.
-- [ ] Link/media menus and checked/filterable bulk import in app.
-- [ ] App-owned capture settings/cache, site switch, modifier bypass and optional private capture.
-- [ ] Status/recent-captures/open-app popup; onboarding and shared generated design tokens.
-- [ ] Minimum permission justification, no telemetry or credential logging.
+- [x] WXT strict TypeScript and lightweight DOM UI; port all 29 behavioural tests before removal.
+- [x] Preserve Chromium manifest key; fixed Firefox ID; Firefox registration on all OSes.
+- [x] Versioned hello/capabilities protocol, docs/schema and checked-copy drift test.
+- [x] Pause/offer/confirm/cancel; resume on rejection, failure or browser fallback.
+- [x] Capture real headers/cookies/response metadata/redirects; POST bypass.
+- [x] Link/media menus and checked/filterable bulk import in app.
+- [x] App-owned capture settings/cache, site switch, modifier bypass and optional private capture.
+- [x] Status/recent-captures/open-app popup; onboarding and shared generated design tokens.
+- [x] Minimum permission justification, no telemetry or credential logging.
 - [ ] CI typecheck/lint/tests and Chrome/Edge/Firefox zip builds; temporary-profile runtime checks.
 - [ ] Replace app extension folder with README pointer only after migration passes.
 - [ ] Build/test both repos, commit/push both v2 branches and check CI.
@@ -212,9 +212,9 @@ which owns asynchronous settings persistence. No database change is needed.
 ## 7. Carried-over fixes
 
 - [ ] Internet provenance (Windows zone/macOS quarantine).
-- [ ] Secure cookie persistence/migration and completion cleanup.
+- [x] Secure cookie persistence/migration and completion cleanup.
 - [ ] Default eight connections and rejection backoff.
-- [ ] Browser acknowledgment after confirmation and explicit browser fallback.
+- [x] Browser acknowledgment after confirmation and explicit browser fallback.
 - [ ] Resolver deadline and deterministic engine choice.
 - [ ] Remove release debug symbols; build/test/commit/push.
 
@@ -224,3 +224,27 @@ which owns asynchronous settings persistence. No database change is needed.
 - [ ] Record adapter proof limits and actual browser runtime/build coverage.
 - [ ] List Linux/macOS implementations not run and both CI results.
 - [ ] List remaining requirements and known issues by goal; keep this checklist current.
+
+## Verified continuation checkpoint — 2026-10-03
+
+Owner feedback A/B is implemented with real Windows screenshots in all toolbar
+modes and both sizes; automated layout checks use 640 x 400 client bounds. The
+native minimum screenshot includes the Windows frame (approximately 640 x 431).
+Settings page switching, keyboard navigation and folder persistence were checked.
+Feedback C has two controlled observations, including active tray restoration;
+see PROGRESS-v2.md. The intermittent owner report was not reproduced and no fix
+is claimed. Goal 2 details/pop-out UI and real aria2 pieces, servers and options
+were checked; opt-in automatic opening still needs an explicit Windows check.
+
+Release build: zero warnings/errors. Full suite: 884 passed, one Unix-only test
+skipped on Windows (885 total). Scoped details/capture and independent credential
+security reviews approved. Real aria2 crash/restart smoke reconstructed a stable
+paused download from Core state and completed after resume without a session
+file. It does not establish an exact count of reused completed pieces.
+
+The new private extension remote exists. Commit 0e240ce passed CI; follow-up
+346040c has 84 passing tests, typecheck/lint and all three zip builds verified
+locally. Actual browser runtime remains outstanding, so retain the old extension.
+Canonical cross-repo checks are conditional and skipped without COLIBRI_READ_TOKEN;
+no token was created. Linux Secret Service and macOS Keychain runtime remain
+unverified. Goals 4–6 and the unchecked carried-over fixes remain work in progress.

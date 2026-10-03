@@ -38,7 +38,8 @@ public static class AppServices
         // runs on the UI thread.
         services.AddSingleton(sp => sp.GetRequiredService<ISettingsStore>().LoadAsync(CancellationToken.None).GetAwaiter().GetResult());
 
-        services.AddSingleton<IDownloadRepository>(sp => new SqliteDownloadRepository(sp.GetRequiredService<IAppPaths>().DatabasePath));
+        services.AddSingleton<IDownloadRepository>(sp => new SqliteDownloadRepository(
+            sp.GetRequiredService<IAppPaths>().DatabasePath, sp.GetRequiredService<ICredentialProtector>()));
         services.AddSingleton<ILinkResolver, DirectLinkResolver>();
         services.AddSingleton<LinkResolverPipeline>();
 

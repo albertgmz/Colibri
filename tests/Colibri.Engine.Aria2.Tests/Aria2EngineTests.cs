@@ -7,6 +7,67 @@ namespace Colibri.Engine.Aria2.Tests;
 
 public class Aria2EngineTests
 {
+    [Fact]
+    public async Task Paused_download_keeps_options_when_live_servers_are_unavailable()
+    {
+        var (engine, _) = Create(request => Method(request) switch
+        {
+            "aria2.getServers" => FakeTransport.Error(1, "No active download for GID#0123456789abcdef"),
+            "aria2.tellStatus" => FakeTransport.Result(StatusJson("0123456789abcdef", "paused")),
+            _ => FakeTransport.Result(JsonNode.Parse("""{"max-download-limit":"2048","max-connection-per-server":"8"}""")!),
+        });
+        var details = await engine.GetDetailsAsync("0123456789abcdef", Ct);
+        Assert.Empty(details!.Servers);
+        Assert.Equal(new DownloadTransferOptions(2048, 8), details.Options);
+    }
+
+    [Fact]
+    public async Task Details_use_each_reported_server_and_current_redirect_host()
+    {
+        var (engine, transport) = Create(request => FakeTransport.Result(Method(request) == "aria2.getServers"
+            ? JsonNode.Parse("""[{"index":"1","servers":[{"uri":"https://origin.test/f","currentUri":"https://cdn.test/f","downloadSpeed":"123"},{"uri":"https://origin.test/f","currentUri":"https://other.test/f","downloadSpeed":"456"}]}]""")!
+            : JsonNode.Parse("""{"max-download-limit":"2048","max-connection-per-server":"8"}""")!));
+        var details = await engine.GetDetailsAsync("0123456789abcdef", Ct);
+        Assert.NotNull(details);
+        Assert.Equal(2, details.Servers.Count);
+        Assert.Equal("cdn.test", details.Servers[0].Host);
+        Assert.Equal(123, details.Servers[0].BytesPerSecond);
+        Assert.Equal(1, details.Servers[0].FileIndex);
+        Assert.Equal(new DownloadTransferOptions(2048, 8), details.Options);
+        Assert.All(transport.Sent, request => Assert.Equal("0123456789abcdef", Params(request)[1]!.ToString()));
+    }
+
+    [Fact]
+    public async Task Per_download_options_change_speed_split_and_server_limit()
+    {
+        var (engine, transport) = Create(_ => FakeTransport.Result(JsonValue.Create("OK")!));
+        await engine.ApplyDownloadOptionsAsync("0123456789abcdef", new(4096, 4), Ct);
+        var request = Assert.Single(transport.Sent);
+        Assert.Equal("aria2.changeOption", Method(request));
+        Assert.Equal("4096", Params(request)[2]!["max-download-limit"]!.ToString());
+        Assert.Equal("4", Params(request)[2]!["max-connection-per-server"]!.ToString());
+        Assert.Equal("4", Params(request)[2]!["split"]!.ToString());
+    }
+
+    [Fact]
+    public async Task Adding_retry_reuses_saved_transfer_options()
+    {
+        var (_, request) = await AddAsync(new DownloadRequest
+        {
+            Uri = new Uri("https://example.com/f"), TransferOptions = new(8192, 3),
+        });
+        Assert.Equal("8192", AddOptions(request)["max-download-limit"]!.ToString());
+        Assert.Equal("3", AddOptions(request)["max-connection-per-server"]!.ToString());
+    }
+
+    [Fact]
+    public async Task No_reported_servers_means_no_connection_rows()
+    {
+        var (engine, _) = Create(request => FakeTransport.Result(Method(request) == "aria2.getServers"
+            ? new JsonArray() : new JsonObject { ["max-download-limit"] = "0", ["max-connection-per-server"] = "8" }));
+        Assert.Empty((await engine.GetDetailsAsync("0123456789abcdef", Ct))!.Servers);
+    }
+
     private static readonly EngineOptions Options = new(MaxConcurrentDownloads: 3, ConnectionsPerServer: 8, GlobalSpeedLimitBytesPerSecond: 0);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

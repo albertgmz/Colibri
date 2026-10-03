@@ -101,6 +101,12 @@ public partial class DownloadItemViewModel : ObservableObject
     [ObservableProperty]
     private string _completedText = string.Empty;
 
+    [ObservableProperty]
+    private double? _averageSpeed;
+
+    [ObservableProperty]
+    private string _averageSpeedText = string.Empty;
+
     public DownloadItemViewModel(DownloadItem item)
     {
         Id = item.Id;
@@ -130,6 +136,8 @@ public partial class DownloadItemViewModel : ObservableObject
         Host = Uri.TryCreate(item.FinalUrl ?? item.Url, UriKind.Absolute, out var uri) ? uri.Host : string.Empty;
         CompletedAt = item.CompletedAt;
         CompletedText = item.CompletedAt?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? string.Empty;
+        AverageSpeed = item.AverageDownloadSpeed;
+        AverageSpeedText = item.AverageDownloadSpeed is { } average ? DisplayFormat.Speed((long)average) : Strings.DetailsUnknown;
         CategoryText = item.Category switch
         {
             DownloadCategory.Compressed => Strings.CategoryCompressed,

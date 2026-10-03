@@ -525,4 +525,44 @@
   <data name="StatusUnlimited" xml:space="preserve"><value>Limit: unlimited</value></data>
   <data name="StatusLimitFormat" xml:space="preserve"><value>Limit: {0}</value></data>
   <data name="StatusNetworkDefault" xml:space="preserve"><value>Default network</value></data>
+  <data name="DetailsOverview" xml:space="preserve"><value>Overview</value></data>
+  <data name="DetailsPieces" xml:space="preserve"><value>Pieces</value></data>
+  <data name="DetailsLog" xml:space="preserve"><value>Log</value></data>
+  <data name="DetailsOptions" xml:space="preserve"><value>Options</value></data>
+  <data name="DetailsPopOut" xml:space="preserve"><value>Pop out</value></data>
+  <data name="DetailsUnknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="DetailsNone" xml:space="preserve"><value>None</value></data>
+  <data name="DetailsFinalUrl" xml:space="preserve"><value>Final URL</value></data>
+  <data name="DetailsAverageSpeed" xml:space="preserve"><value>Average speed</value></data>
+  <data name="DetailsResume" xml:space="preserve"><value>Server resume support</value></data>
+  <data name="DetailsResumeUnknown" xml:space="preserve"><value>Unknown — aria2 RPC does not report the server&apos;s resume capability.</value></data>
+  <data name="DetailsLastError" xml:space="preserve"><value>Last error</value></data>
+  <data name="DetailsPieceSummary" xml:space="preserve"><value>{0} pieces · {1} complete · {2} missing · {3} per piece</value></data>
+  <data name="DetailsPiecesUnknown" xml:space="preserve"><value>Piece map unknown — waiting for a valid engine bitfield.</value></data>
+  <data name="DetailsPieceLegend" xml:space="preserve"><value>Accent: complete · grey: missing. The map represents every reported piece; narrow displays combine adjacent pieces. The last piece may be smaller.</value></data>
+  <data name="DetailsServerNote" xml:space="preserve"><value>One row per server reported by aria2. Exact byte ranges per connection are unavailable. An empty list means no servers are currently reported.</value></data>
+  <data name="DetailsFileIndex" xml:space="preserve"><value>File</value></data>
+  <data name="DetailsGraphNote" xml:space="preserve"><value>Speed over the last five minutes. Left: 5 minutes ago · right: latest observation. Vertical scale: 0 to the value above.</value></data>
+  <data name="DetailsHistoryNote" xml:space="preserve"><value>Current session observations. Average excludes queued and paused time. Engine-internal retries are not reported; explicit retries are logged.</value></data>
+  <data name="DetailsOptionsNote" xml:space="preserve"><value>Speed limit applies immediately (0 = unlimited). Changing connections may restart the transfer inside aria2. Options are saved with this download and reused when it is retried.</value></data>
+  <data name="DetailsSpeedLimit" xml:space="preserve"><value>Speed limit (KiB/s)</value></data>
+  <data name="DetailsConnectionLimit" xml:space="preserve"><value>Connections per server</value></data>
+  <data name="DetailsApplyOptions" xml:space="preserve"><value>Apply</value></data>
+  <data name="DetailsOptionsInvalid" xml:space="preserve"><value>Enter a speed limit from 0 to 10,000,000 KiB/s and a whole connection count from 1 to 16.</value></data>
+  <data name="DetailsRemoved" xml:space="preserve"><value>This download was removed.</value></data>
+  <data name="DetailLogStarted" xml:space="preserve"><value>Started</value></data>
+  <data name="DetailLogRetried" xml:space="preserve"><value>Retried</value></data>
+  <data name="DetailLogRedirected" xml:space="preserve"><value>Redirected</value></data>
+  <data name="DetailLogObserved" xml:space="preserve"><value>Session observation began</value></data>
+  <data name="SettingsAutoOpenDetails" xml:space="preserve"><value>Open download details in a window when a download starts</value></data>
+  <data name="BrowserFallback" xml:space="preserve"><value>Let the browser download it instead</value></data>
+  <data name="BulkAddTitle" xml:space="preserve"><value>Choose links to download</value></data>
+  <data name="BulkFilter" xml:space="preserve"><value>Filter links</value></data>
+  <data name="BulkSelectVisible" xml:space="preserve"><value>Select visible</value></data>
+  <data name="BulkClearVisible" xml:space="preserve"><value>Clear visible</value></data>
+  <data name="BulkAddFailed" xml:space="preserve"><value>Some links could not be added. Transfers have been paused.</value></data>
+  <data name="SettingsAppearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsBrowserIntegration" xml:space="preserve"><value>Browser Integration</value></data>
+  <data name="SettingsPageNavigation" xml:space="preserve"><value>Settings pages</value></data>
+  <data name="SettingsLayoutHint" xml:space="preserve"><value>Choose row density, toolbar labels and sidebar visibility, or reset the window layout.</value></data>
 </root>

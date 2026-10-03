@@ -34,7 +34,7 @@ internal static class Aria2Status
         var path = (status["files"] as JsonArray)?.FirstOrDefault()?["path"]?.ToString();
         var filePath = string.IsNullOrEmpty(path) ? null : Path.GetFullPath(path);
 
-        // Note: a paused download restored from the session file reports totalLength and
+        // Note: a paused download re-added against a control file reports totalLength and
         // completedLength as 0 until it is resumed; the real numbers come back once aria2 reads its
         // .aria2 control file again.
         return new EngineDownloadStatus(

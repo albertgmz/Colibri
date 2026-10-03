@@ -18,6 +18,7 @@ internal sealed class WindowsBrowserHostRegistrar : IBrowserHostRegistrar
     [
         (BrowserKind.Chrome, @"Google\Chrome\NativeMessagingHosts"),
         (BrowserKind.Edge, @"Microsoft\Edge\NativeMessagingHosts"),
+        (BrowserKind.Firefox, @"Mozilla\NativeMessagingHosts"),
     ];
 
     private readonly string _manifestFolder;
@@ -42,14 +43,19 @@ internal sealed class WindowsBrowserHostRegistrar : IBrowserHostRegistrar
         var manifestMatches = File.Exists(manifestPath)
             && File.Exists(expected.HostExecutablePath)
             && NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.OrdinalIgnoreCase);
+        var firefoxPath = FirefoxManifestPath(expected);
+        var firefoxMatches = File.Exists(firefoxPath) && File.Exists(expected.HostExecutablePath)
+            && NativeHostManifest.Matches(await File.ReadAllTextAsync(firefoxPath).ConfigureAwait(false), expected, StringComparer.OrdinalIgnoreCase, true);
 
         return Browsers.Select(b =>
         {
+            var matches = b.Browser == BrowserKind.Firefox ? firefoxMatches : manifestMatches;
+            var expectedPath = b.Browser == BrowserKind.Firefox ? firefoxPath : manifestPath;
             using var key = Registry.CurrentUser.OpenSubKey(KeyPath(b.KeyPath, expected));
             var status = key?.GetValue(null) switch
             {
                 null => BrowserIntegrationStatus.NotRegistered,
-                string registered when manifestMatches && string.Equals(registered, manifestPath, StringComparison.OrdinalIgnoreCase)
+                string registered when matches && string.Equals(registered, expectedPath, StringComparison.OrdinalIgnoreCase)
                     => BrowserIntegrationStatus.Registered,
                 _ => BrowserIntegrationStatus.Outdated,
             };
@@ -63,16 +69,21 @@ internal sealed class WindowsBrowserHostRegistrar : IBrowserHostRegistrar
         Directory.CreateDirectory(_manifestFolder);
         var manifestPath = ManifestPath(registration);
         await File.WriteAllTextAsync(manifestPath, NativeHostManifest.Build(registration)).ConfigureAwait(false);
+        Directory.CreateDirectory(Path.GetDirectoryName(FirefoxManifestPath(registration))!);
+        await File.WriteAllTextAsync(FirefoxManifestPath(registration), NativeHostManifest.Build(registration, true)).ConfigureAwait(false);
 
-        foreach (var (_, keyPath) in Browsers)
+        foreach (var (browser, keyPath) in Browsers)
         {
             using var key = Registry.CurrentUser.CreateSubKey(KeyPath(keyPath, registration));
-            key.SetValue(null, manifestPath, RegistryValueKind.String);
+            key.SetValue(null, browser == BrowserKind.Firefox ? FirefoxManifestPath(registration) : manifestPath, RegistryValueKind.String);
         }
     }
 
     private string ManifestPath(NativeHostRegistration registration) =>
         Path.Combine(_manifestFolder, NativeHostManifest.FileName(registration));
+
+    private string FirefoxManifestPath(NativeHostRegistration registration) =>
+        Path.Combine(_manifestFolder, "firefox", NativeHostManifest.FileName(registration));
 
     private string KeyPath(string browserKeyPath, NativeHostRegistration registration) =>
         $@"{_softwareKeyPath}\{browserKeyPath}\{registration.HostName}";

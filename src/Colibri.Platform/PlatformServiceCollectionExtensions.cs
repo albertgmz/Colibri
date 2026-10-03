@@ -5,6 +5,7 @@ using Colibri.Platform.BrowserHost;
 using Colibri.Platform.DBus;
 using Colibri.Platform.Notifications;
 using Colibri.Platform.Paths;
+using Colibri.Platform.Security;
 using Colibri.Platform.Shell;
 using Colibri.Platform.Taskbar;
 using Colibri.Platform.Tray;
@@ -29,6 +30,7 @@ public static class PlatformServiceCollectionExtensions
 
         if (OperatingSystem.IsWindows())
         {
+            services.AddSingleton<ICredentialProtector, WindowsCredentialProtector>();
             services.AddSingleton<IDownloadsFolderLocator, WindowsDownloadsFolderLocator>();
             services.AddSingleton<IVolumeInfoService, WindowsVolumeInfoService>();
             services.AddSingleton<IAria2Locator, WindowsAria2Locator>();
@@ -47,6 +49,7 @@ public static class PlatformServiceCollectionExtensions
         }
         else if (OperatingSystem.IsMacOS())
         {
+            services.AddSingleton<ICredentialProtector, MacCredentialProtector>();
             services.AddSingleton<IDownloadsFolderLocator, MacDownloadsFolderLocator>();
             services.AddSingleton<IVolumeInfoService, MacVolumeInfoService>();
 
@@ -62,6 +65,7 @@ public static class PlatformServiceCollectionExtensions
         }
         else
         {
+            services.AddSingleton<ICredentialProtector, LinuxCredentialProtector>();
             services.AddSingleton<IDownloadsFolderLocator, XdgDownloadsFolderLocator>();
             services.AddSingleton<IVolumeInfoService, LinuxVolumeInfoService>();
             services.AddSingleton<IAria2Locator>(new UnixAria2Locator([]));

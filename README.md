@@ -6,8 +6,11 @@ over), with a modern Fluent look. The transfers themselves are done by [aria2](h
 which Colibri runs in the background and controls over JSON-RPC. It is written in C# on .NET 10 with
 Avalonia 12.
 
-**Status: v1.** Windows has been verified by running the app. Linux and macOS build and pass the unit
-tests in CI, but the app has not been run on them yet; expect rough edges there.
+**Status: v2 in development.** Windows layout, settings pages, detailed download views and real
+aria2 transfers have been exercised in isolated profiles. Browser runtime and remaining network,
+queue and performance goals are still in progress; see [the checklist](docs/PLAN-v2.md).
+Linux and macOS build and pass tests at the previous layout checkpoint, but their UI and native
+credential stores have not been run here.
 
 ## Features
 
@@ -15,7 +18,9 @@ tests in CI, but the app has not been run on them yet; expect rough edges there.
   Completed, Failed) and category (Compressed, Documents, Music, Programs, Video, Other). When there are
   no downloads yet, the list shows a hint on how to add the first one.
 - Each category can have its own folder; a download's category comes from its file extension.
-- Details pane under the table, with a segment bar showing which parts of the file are done.
+- Resizable, persistent layout with compact/comfortable density and three toolbar modes.
+- Detail tabs for overview, real aria2 pieces/server rows, speed history, events and per-download
+  options, with a separate details window.
 - Pause, resume, retry, and delete (optionally with the file); downloads survive restarts of the app and
   of aria2.
 - Tray icon: close or minimize to the tray, overall progress in the tooltip (and on the taskbar button
@@ -28,6 +33,14 @@ tests in CI, but the app has not been run on them yet; expect rough edges there.
 - Settings page: start with the system, tray behaviour, theme (system, light, dark), download folders,
   concurrent downloads, connections per server, speed limit, aria2 path, capture rules. Changes save
   immediately.
+- Focused settings pages with a narrow-window page selector. Browser request credentials are
+  encrypted at rest using Windows DPAPI or an OS-keystore key on Linux/macOS and cleared on completion.
+
+The v2 WXT extension is maintained in the private
+[colibri-browser-integration repository](https://github.com/albertgmz/colibri-browser-integration).
+The legacy folder remains until actual browser migration checks pass. See
+[protocol documentation](docs/protocol.md), [performance method](docs/PERFORMANCE.md), and
+[progress investigation](docs/PROGRESS-v2.md) for evidence and limits.
 
 ## Requirements
 

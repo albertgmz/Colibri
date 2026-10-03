@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using System.Text.Json;
+using Colibri.Core.Ipc;
 using Colibri.Core.Platform;
 using Colibri.Platform.BrowserHost;
 using Microsoft.Win32;
@@ -38,6 +39,27 @@ public sealed class BrowserHostRegistrarTests : IDisposable
         Assert.Equal(@"C:\Program Files\Colibri\Colibri.NativeHost.exe", root.GetProperty("path").GetString());
         Assert.Equal("stdio", root.GetProperty("type").GetString());
         Assert.Equal(["chrome-extension://lelenggmjjaffoebgecdpemmjakhofni/"], root.GetProperty("allowed_origins").EnumerateArray().Select(o => o.GetString()));
+        Assert.False(root.TryGetProperty("allowed_extensions", out _));
+    }
+
+    [Fact]
+    public void Firefox_manifest_authorizes_only_the_fixed_addon_id()
+    {
+        var expected = Registration("/opt/colibri/Colibri.NativeHost");
+        var json = NativeHostManifest.Build(expected, firefox: true);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal("com.colibri.host", root.GetProperty("name").GetString());
+        Assert.Equal(expected.HostExecutablePath, root.GetProperty("path").GetString());
+        Assert.Equal("stdio", root.GetProperty("type").GetString());
+        Assert.Equal(["colibri-browser-integration@colibri.download"], root.GetProperty("allowed_extensions").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal("colibri-browser-integration@colibri.download", BrowserProtocol.FirefoxId);
+        Assert.False(root.TryGetProperty("allowed_origins", out _));
+        Assert.True(NativeHostManifest.Matches(json, expected, StringComparer.Ordinal, firefox: true));
+        Assert.False(NativeHostManifest.Matches(json, expected, StringComparer.Ordinal));
+        Assert.False(NativeHostManifest.Matches(NativeHostManifest.Build(expected), expected, StringComparer.Ordinal, firefox: true));
+        Assert.False(NativeHostManifest.Matches(json.Replace(BrowserProtocol.FirefoxId, "other@example.com"), expected, StringComparer.Ordinal, firefox: true));
     }
 
     [Fact]
@@ -74,6 +96,7 @@ public sealed class BrowserHostRegistrarTests : IDisposable
                 (BrowserKind.Chrome, Path.Combine(config, "google-chrome", "NativeMessagingHosts")),
                 (BrowserKind.Chromium, Path.Combine(config, "chromium", "NativeMessagingHosts")),
                 (BrowserKind.Edge, Path.Combine(config, "microsoft-edge", "NativeMessagingHosts")),
+                (BrowserKind.Firefox, Path.Combine("/home/ana", ".mozilla", "native-messaging-hosts")),
             ],
             folders.Select(f => (f.Browser, f.HostsFolder)));
     }
@@ -88,17 +111,21 @@ public sealed class BrowserHostRegistrarTests : IDisposable
                 (BrowserKind.Chrome, Path.Combine(support, "Google", "Chrome", "NativeMessagingHosts")),
                 (BrowserKind.Chromium, Path.Combine(support, "Chromium", "NativeMessagingHosts")),
                 (BrowserKind.Edge, Path.Combine(support, "Microsoft Edge", "NativeMessagingHosts")),
+                (BrowserKind.Firefox, Path.Combine(support, "Mozilla", "NativeMessagingHosts")),
             ],
             UnixBrowserHostRegistrar.MacFolders("/Users/ana").Select(f => (f.Browser, f.HostsFolder)));
     }
 
-    [Fact]
-    public async Task Unix_registration_round_trip_in_a_temp_home()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unix_registration_round_trip_in_a_temp_home(bool mac)
     {
         var home = Path.Combine(_root, "home");
-        var folders = UnixBrowserHostRegistrar.LinuxFolders(home, null);
+        var folders = mac ? UnixBrowserHostRegistrar.MacFolders(home) : UnixBrowserHostRegistrar.LinuxFolders(home, null);
         Directory.CreateDirectory(folders[0].ProfileFolder); // Chrome has been run; Chromium and Edge have not.
         Directory.CreateDirectory(folders[2].ProfileFolder); // Edge too.
+        Directory.CreateDirectory(folders[3].ProfileFolder); // Firefox too.
         var host = Path.Combine(_root, "app", "Colibri.NativeHost");
         Directory.CreateDirectory(Path.GetDirectoryName(host)!);
         await File.WriteAllTextAsync(host, "#!/bin/sh\n", TestContext.Current.CancellationToken);
@@ -106,15 +133,25 @@ public sealed class BrowserHostRegistrarTests : IDisposable
         var expected = Registration(host);
 
         Assert.Equal(
-            [new(BrowserKind.Chrome, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Edge, BrowserIntegrationStatus.NotRegistered)],
+            [new(BrowserKind.Chrome, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Edge, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Firefox, BrowserIntegrationStatus.NotRegistered)],
             await registrar.GetStatusAsync(expected));
 
         await registrar.RegisterAsync(expected);
 
         Assert.Equal(
-            [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Registered)],
+            [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Registered), new(BrowserKind.Firefox, BrowserIntegrationStatus.Registered)],
             await registrar.GetStatusAsync(expected));
         Assert.True(File.Exists(Path.Combine(folders[0].HostsFolder, "com.colibri.host.json")));
+        var chromeManifest = Path.Combine(folders[0].HostsFolder, "com.colibri.host.json");
+        var firefoxManifest = Path.Combine(folders[3].HostsFolder, "com.colibri.host.json");
+        Assert.NotEqual(chromeManifest, firefoxManifest);
+        Assert.True(NativeHostManifest.Matches(await File.ReadAllTextAsync(chromeManifest, TestContext.Current.CancellationToken), expected, StringComparer.Ordinal));
+        Assert.True(NativeHostManifest.Matches(await File.ReadAllTextAsync(firefoxManifest, TestContext.Current.CancellationToken), expected, StringComparer.Ordinal, firefox: true));
+        // A Chromium manifest in Firefox's folder cannot authorize the Firefox add-on.
+        await File.WriteAllTextAsync(firefoxManifest, await File.ReadAllTextAsync(chromeManifest, TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+        Assert.Equal(BrowserIntegrationStatus.Outdated, (await registrar.GetStatusAsync(expected)).Single(s => s.Browser == BrowserKind.Firefox).Status);
+        Assert.Equal(BrowserIntegrationStatus.Registered, (await registrar.GetStatusAsync(expected)).Single(s => s.Browser == BrowserKind.Chrome).Status);
+        await registrar.RegisterAsync(expected);
         Assert.False(Directory.Exists(folders[1].ProfileFolder)); // Chromium was not created.
         if (!OperatingSystem.IsWindows())
         {
@@ -166,10 +203,11 @@ public sealed class BrowserHostRegistrarTests : IDisposable
         var registrar = new WindowsBrowserHostRegistrar(manifestFolder, software);
         var expected = Registration(CreateHost("Apps", "Colibri.NativeHost.exe"));
         var manifestPath = Path.Combine(manifestFolder, "com.colibri.host.json");
+        var firefoxPath = Path.Combine(manifestFolder, "firefox", "com.colibri.host.json");
         try
         {
             Assert.Equal(
-                [new(BrowserKind.Chrome, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Edge, BrowserIntegrationStatus.NotRegistered)],
+                [new(BrowserKind.Chrome, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Edge, BrowserIntegrationStatus.NotRegistered), new(BrowserKind.Firefox, BrowserIntegrationStatus.NotRegistered)],
                 await registrar.GetStatusAsync(expected));
 
             await registrar.RegisterAsync(expected);
@@ -179,6 +217,13 @@ public sealed class BrowserHostRegistrarTests : IDisposable
                 using var opened = Registry.CurrentUser.OpenSubKey($@"{software}\{key}");
                 Assert.Equal(manifestPath, opened!.GetValue(null));
             }
+
+            using (var firefox = Registry.CurrentUser.OpenSubKey($@"{software}\Mozilla\NativeMessagingHosts\com.colibri.host"))
+            {
+                Assert.Equal(firefoxPath, firefox!.GetValue(null));
+                Assert.NotEqual(manifestPath, firefox.GetValue(null));
+            }
+            Assert.True(NativeHostManifest.Matches(await File.ReadAllTextAsync(firefoxPath, TestContext.Current.CancellationToken), expected, StringComparer.OrdinalIgnoreCase, firefox: true));
 
             Assert.True(NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath, TestContext.Current.CancellationToken), expected, StringComparer.Ordinal));
             Assert.All(await registrar.GetStatusAsync(expected), s => Assert.Equal(BrowserIntegrationStatus.Registered, s.Status));
@@ -196,7 +241,7 @@ public sealed class BrowserHostRegistrarTests : IDisposable
             }
 
             Assert.Equal(
-                [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Outdated)],
+                [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Outdated), new(BrowserKind.Firefox, BrowserIntegrationStatus.Registered)],
                 await registrar.GetStatusAsync(expected));
 
             // A deleted host file needs a repair.
@@ -207,7 +252,14 @@ public sealed class BrowserHostRegistrarTests : IDisposable
 
             // A deleted manifest file also needs a repair.
             File.Delete(manifestPath);
-            Assert.All(await registrar.GetStatusAsync(expected), s => Assert.Equal(BrowserIntegrationStatus.Outdated, s.Status));
+            Assert.Equal(
+                [new(BrowserKind.Chrome, BrowserIntegrationStatus.Outdated), new(BrowserKind.Edge, BrowserIntegrationStatus.Outdated), new(BrowserKind.Firefox, BrowserIntegrationStatus.Registered)],
+                await registrar.GetStatusAsync(expected));
+            await registrar.RegisterAsync(expected);
+            File.Delete(firefoxPath);
+            Assert.Equal(
+                [new(BrowserKind.Chrome, BrowserIntegrationStatus.Registered), new(BrowserKind.Edge, BrowserIntegrationStatus.Registered), new(BrowserKind.Firefox, BrowserIntegrationStatus.Outdated)],
+                await registrar.GetStatusAsync(expected));
         }
         finally
         {

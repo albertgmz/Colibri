@@ -188,7 +188,6 @@ internal sealed class Aria2RpcClient : IDisposable
     public Task ChangeGlobalOptionAsync(JsonObject options, CancellationToken ct) =>
         CallAsync("aria2.changeGlobalOption", [options], ct);
 
-    public Task SaveSessionAsync(CancellationToken ct) => CallAsync("aria2.saveSession", [], ct);
 
     public Task ShutdownAsync(CancellationToken ct) => CallAsync("aria2.shutdown", [], ct);
 

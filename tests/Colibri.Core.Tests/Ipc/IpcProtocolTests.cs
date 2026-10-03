@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Colibri.Core.Ipc;
 using Colibri.Core.Models;
 
@@ -103,6 +104,7 @@ public class IpcProtocolTests
     [InlineData("""{"type":"add","url":"https://example.com/a","headers":{"X-A":1}}""")]
     [InlineData("""{"type":"add","url":"https://example.com/a","headers":{"Bad Name":"1"}}""")]
     [InlineData("""{"type":"add","url":"https://example.com/a","headers":{"X-A":"line\nbreak"}}""")]
+    [InlineData("""{"type":"add","url":"https://example.com/a","headers":{"Authorization":"Bearer x\r\nInjected: 1"}}""")]
     public void Malformed_or_unsafe_requests_are_rejected(string line)
     {
         Assert.False(string.IsNullOrWhiteSpace(Reject(line)));
@@ -142,15 +144,33 @@ public class IpcProtocolTests
     [Fact]
     public void Config_response_round_trip()
     {
-        var response = new IpcResponse(true, Config: new CaptureConfig(["zip", "7z"], 512));
+        var response = new IpcResponse(true, Config: new CaptureConfig(["zip", "7z"], 512,
+            Enabled: false, ExcludedSites: ["example.com"], CapturePrivate: true,
+            BypassModifier: "alt", Theme: "dark", Accent: "#123456"));
 
         var line = IpcProtocol.SerializeResponse(response);
         var parsed = IpcProtocol.ParseResponse(line);
 
-        Assert.Equal("""{"ok":true,"captureExtensions":["zip","7z"],"minSizeKiB":512}""", line);
+        using var document = JsonDocument.Parse(line);
+        var json = document.RootElement;
+        Assert.True(json.GetProperty("ok").GetBoolean());
+        Assert.Equal(["zip", "7z"], json.GetProperty("captureExtensions").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(512, json.GetProperty("minSizeKiB").GetInt32());
+        Assert.False(json.GetProperty("enabled").GetBoolean());
+        Assert.Equal(["example.com"], json.GetProperty("excludedSites").EnumerateArray().Select(e => e.GetString()));
+        Assert.True(json.GetProperty("capturePrivate").GetBoolean());
+        Assert.Equal("alt", json.GetProperty("bypassModifier").GetString());
+        Assert.Equal("dark", json.GetProperty("theme").GetString());
+        Assert.Equal("#123456", json.GetProperty("accent").GetString());
         Assert.True(parsed.Ok);
         Assert.Equal(["zip", "7z"], parsed.Config!.Extensions);
         Assert.Equal(512, parsed.Config.MinSizeKiB);
+        Assert.False(parsed.Config.Enabled);
+        Assert.Equal(["example.com"], parsed.Config.ExcludedSites);
+        Assert.True(parsed.Config.CapturePrivate);
+        Assert.Equal("alt", parsed.Config.BypassModifier);
+        Assert.Equal("dark", parsed.Config.Theme);
+        Assert.Equal("#123456", parsed.Config.Accent);
         Assert.Null(IpcProtocol.ParseResponse("""{"ok":true}""").Config);
     }
 

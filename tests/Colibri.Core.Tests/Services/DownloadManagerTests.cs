@@ -1,4 +1,5 @@
 using Colibri.Core.Engine;
+using Colibri.Core.Abstractions;
 using Colibri.Core.Models;
 using Colibri.Core.Services;
 using Colibri.Core.Settings;
@@ -55,6 +56,152 @@ public sealed class DownloadManagerTests : IAsyncDisposable
 
     private static async Task<DownloadItem> ItemAsync(DownloadManager manager, Guid id) =>
         (await manager.GetItemsAsync(Ct)).Single(i => i.Id == id);
+
+    [Fact]
+    public async Task Failed_protected_repository_read_never_cleans_legacy_credentials_or_starts_engine()
+    {
+        var manager = Create();
+        _repository.ReadFailure = new IOException("Protected repository unavailable");
+        await Assert.ThrowsAsync<IOException>(() => manager.InitializeAsync(Ct));
+        Assert.Equal(0, _engine.CredentialCleanupCount);
+        Assert.Equal(0, _engine.StartCount);
+    }
+
+    [Fact]
+    public async Task Failed_legacy_credential_cleanup_never_starts_engine()
+    {
+        var manager = Create();
+        _engine.CredentialCleanupFailure = new IOException("Legacy cleanup unavailable");
+        await Assert.ThrowsAsync<IOException>(() => manager.InitializeAsync(Ct));
+        Assert.Equal(1, _engine.CredentialCleanupCount);
+        Assert.Equal(0, _engine.StartCount);
+    }
+
+    [Fact]
+    public async Task Completion_clears_request_credentials_in_memory_and_repository()
+    {
+        var manager = await StartAsync();
+        var context = new LinkContext { Headers = new Dictionary<string, string> { ["Cookie"] = "secret=value" } };
+        var item = Assert.Single(await manager.AddAsync("https://example.com/file.zip", context, null, null, Ct));
+        _engine.Report(item.EngineHandle!, EngineDownloadState.Complete, total: 1000, completed: 1000);
+        await manager.PollOnceAsync(Ct);
+        Assert.Empty((await ItemAsync(manager, item.Id)).Headers);
+        Assert.Empty(_repository.Stored(item.Id)!.Headers);
+    }
+
+    [Fact]
+    public async Task Canceled_add_with_successful_engine_reply_is_paused()
+    {
+        var manager = await StartAsync();
+        using var cancellation = new CancellationTokenSource();
+        _engine.OnAdd = _ => cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.AddAsync(
+            "https://example.com/a.zip", LinkContext.Empty, null, null, cancellation.Token));
+        var item = Assert.Single(await manager.GetItemsAsync(Ct));
+        Assert.Equal(DownloadState.Paused, item.State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+        Assert.Contains(item.EngineHandle!, _engine.Pauses);
+    }
+
+    [Fact]
+    public async Task Canceled_ambiguous_add_is_paused_in_engine_and_repository()
+    {
+        var manager = await StartAsync();
+        using var cancellation = new CancellationTokenSource();
+        _engine.OnAdd = _ => cancellation.Cancel();
+        _engine.FailureAfterAdding = new OperationCanceledException(cancellation.Token);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.AddAsync(
+            "https://example.com/a.zip", LinkContext.Empty, null, null, cancellation.Token));
+        var item = Assert.Single(await manager.GetItemsAsync(Ct));
+        Assert.Equal(DownloadState.Paused, item.State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+        Assert.Contains(item.EngineHandle!, _engine.Pauses);
+    }
+
+    [Fact]
+    public async Task Canceled_multi_file_offer_pauses_every_created_transfer()
+    {
+        var manager = new DownloadManager([_engine], _repository,
+            new LinkResolverPipeline([new TwoFileResolver()]), _settings, _paths, _logger, _time);
+        manager.SetPollingInterval(Timeout.InfiniteTimeSpan);
+        _managers.Add(manager);
+        await manager.InitializeAsync(Ct);
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        _engine.OnAdd = _ =>
+        {
+            if (++calls != 2) return;
+            cancellation.Cancel();
+            _engine.FailureAfterAdding = new OperationCanceledException(cancellation.Token);
+        };
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.AddAsync(
+            "https://example.com/share", LinkContext.Empty, null, null, cancellation.Token));
+        var items = await manager.GetItemsAsync(Ct);
+        Assert.Equal(2, items.Count);
+        Assert.All(items, item =>
+        {
+            Assert.Equal(DownloadState.Paused, item.State);
+            Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+            Assert.Contains(item.EngineHandle!, _engine.Pauses);
+        });
+    }
+
+    private sealed class TwoFileResolver : ILinkResolver
+    {
+        public string Id => "two-file-test";
+        public int Priority => 1;
+        public Task<IReadOnlyList<DownloadRequest>?> ResolveAsync(Uri url, LinkContext context, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<DownloadRequest>?>([
+                new() { Uri = new Uri("https://example.com/a.zip"), SuggestedFileName = "a.zip" },
+                new() { Uri = new Uri("https://example.com/b.zip"), SuggestedFileName = "b.zip" }]);
+    }
+
+    [Fact]
+    public async Task Details_are_independent_snapshots_and_average_observed_active_bytes()
+    {
+        var item = Seed(DownloadState.Active, "a000000000000009");
+        item.CompletedBytes = 500;
+        _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 10000, completed: 500, speed: 100);
+        var manager = await StartAsync(item);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 10000, completed: 1500, speed: 100);
+        await manager.PollOnceAsync(Ct);
+        await manager.PauseAsync([item.Id], Ct);
+        _time.Advance(TimeSpan.FromMinutes(5));
+        var details = await manager.GetDetailsAsync(item.Id, Ct);
+        Assert.NotNull(details);
+        Assert.Equal(100, details.AverageBytesPerSecond);
+        Assert.Empty(details.Servers);
+        Assert.Contains(details.Events, e => e.Kind == DownloadLogKind.Paused);
+        details.Item.FileName = "mutated";
+        Assert.Equal(item.FileName, (await manager.GetDetailsAsync(item.Id, Ct))!.Item.FileName);
+    }
+
+    [Fact]
+    public async Task Download_options_are_saved_and_reused_when_engine_forgets_download()
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        var options = new DownloadTransferOptions(4096, 3);
+        await manager.ApplyDownloadOptionsAsync(item.Id, options, Ct);
+        Assert.Equal(options, _engine.AppliedDownloadOptions);
+        Assert.Equal(options, (await _repository.GetAsync(item.Id, Ct))!.TransferOptions);
+        _engine.Forget(item.EngineHandle!);
+        await manager.ReconcileAsync(_engine, Ct);
+        Assert.Equal(options, _engine.Adds.Last().Request.TransferOptions);
+    }
+
+    [Fact]
+    public async Task Details_use_only_unique_reported_current_url_and_log_redirect()
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        _engine.DetailsResponse = new([new(1, "cdn.test", "https://cdn.test/file.zip", 123)], new(0, 8));
+        var details = await manager.GetDetailsAsync(item.Id, Ct);
+        Assert.Equal("https://cdn.test/file.zip", details!.Item.FinalUrl);
+        Assert.Equal("https://cdn.test/file.zip", (await _repository.GetAsync(item.Id, Ct))!.FinalUrl);
+        Assert.Contains((await manager.GetDetailsAsync(item.Id, Ct))!.Events, e => e.Kind == DownloadLogKind.Redirected);
+    }
 
     private DownloadItem Seed(DownloadState state, string? handle, string name = "file.zip") => new()
     {
@@ -199,6 +346,242 @@ public sealed class DownloadManagerTests : IAsyncDisposable
     }
 
     // ---- Pause, resume, delete ----
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Lost_resume_response_stops_accepted_transfer_before_returning_failure(bool timeout)
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        await manager.PauseAsync([item.Id], Ct);
+        _engine.FailureAfterResuming = timeout ? new TimeoutException("response lost") : new IOException("response lost");
+
+        await manager.ResumeAsync([item.Id], Ct);
+
+        Assert.Equal(EngineDownloadState.Paused, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Paused, (await ItemAsync(manager, item.Id)).State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Lost_resume_response_with_failed_cleanup_exposes_safe_ownership_failure(bool timeout)
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        await manager.PauseAsync([item.Id], Ct);
+        _engine.FailureAfterResuming = timeout ? new TimeoutException("response lost") : new IOException("response lost");
+        _engine.PauseFailure = new EngineOperationException("refused");
+        _engine.RemoveFailure = new EngineOperationException("refused");
+        _engine.StopFailure = new IOException("refused");
+
+        await Assert.ThrowsAsync<DownloadCleanupException>(() => manager.ResumeAsync([item.Id], Ct));
+
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Queued, (await ItemAsync(manager, item.Id)).State);
+        Assert.Equal(DownloadState.Queued, _repository.Stored(item.Id)!.State);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Canceled_add_or_resume_escalates_pause_refusal_to_remove_or_engine_stop(bool resume, bool removeFails)
+    {
+        var manager = await StartAsync();
+        var other = await AddAsync(manager, "https://example.com/unrelated.zip");
+        DownloadItem? item = null;
+        if (resume)
+        {
+            item = await AddAsync(manager, "https://example.com/canceled.zip");
+            await manager.PauseAsync([item.Id], Ct);
+        }
+        using var cancellation = new CancellationTokenSource();
+        _engine.PauseFailure = new EngineOperationException("pause refused");
+        if (removeFails) _engine.RemoveFailure = new EngineOperationException("remove refused");
+        if (resume)
+        {
+            _engine.OnResume = _ => cancellation.Cancel();
+            _engine.FailureAfterResuming = new OperationCanceledException(cancellation.Token);
+            await Assert.ThrowsAsync<OperationCanceledException>(() => manager.ResumeAsync([item!.Id], cancellation.Token));
+        }
+        else
+        {
+            _engine.OnAdd = _ => cancellation.Cancel();
+            _engine.FailureAfterAdding = new OperationCanceledException(cancellation.Token);
+            await Assert.ThrowsAsync<OperationCanceledException>(() => manager.AddAsync(
+                "https://example.com/canceled.zip", LinkContext.Empty, null, null, cancellation.Token));
+            item = (await manager.GetItemsAsync(Ct)).Single(i => i.Id != other.Id);
+        }
+        Assert.Equal(DownloadState.Paused, (await ItemAsync(manager, item!.Id)).State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+        Assert.DoesNotContain(other.EngineHandle!, _engine.Removes);
+        if (removeFails)
+            Assert.Equal(EngineState.Stopped, _engine.State);
+        else
+        {
+            Assert.Null(_engine.Status(item.EngineHandle!));
+            Assert.Equal(EngineState.Running, _engine.State);
+            Assert.Equal(EngineDownloadState.Waiting, _engine.Status(other.EngineHandle!)!.State);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Canceled_resume_does_not_claim_paused_when_remove_and_stop_cannot_establish_stop(bool stopReturnsWithoutStopping)
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        await manager.PauseAsync([item.Id], Ct);
+        using var cancellation = new CancellationTokenSource();
+        _engine.OnResume = _ => cancellation.Cancel();
+        _engine.FailureAfterResuming = new OperationCanceledException(cancellation.Token);
+        _engine.PauseFailure = new EngineOperationException("pause refused");
+        _engine.RemoveFailure = new EngineOperationException("remove refused");
+        if (stopReturnsWithoutStopping) _engine.IgnoreStop = true;
+        else _engine.StopFailure = new IOException("stop refused with unsafe details");
+
+        var error = await Assert.ThrowsAsync<DownloadCleanupException>(() => manager.ResumeAsync([item.Id], cancellation.Token));
+
+        Assert.DoesNotContain("unsafe details", error.Message);
+        Assert.Equal(EngineState.Running, _engine.State);
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Queued, (await ItemAsync(manager, item.Id)).State);
+        Assert.Equal(DownloadState.Queued, _repository.Stored(item.Id)!.State);
+    }
+
+    [Fact]
+    public async Task Browser_fallback_verifies_pause_acknowledgement_and_removes_when_still_running()
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        var other = await AddAsync(manager, "https://example.com/other.zip");
+        _engine.IgnorePause = true;
+        await manager.StopForBrowserFallbackAsync([item.Id], Ct);
+        Assert.Null(_engine.Status(item.EngineHandle!));
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(other.EngineHandle!)!.State);
+        Assert.Equal(EngineState.Running, _engine.State);
+    }
+
+    [Fact]
+    public async Task Browser_fallback_batch_attempts_every_transfer_even_if_one_cannot_stop()
+    {
+        var manager = await StartAsync();
+        var first = await AddAsync(manager, "https://example.com/first.zip");
+        var second = await AddAsync(manager, "https://example.com/second.zip");
+        _engine.PauseFailure = new EngineOperationException("pause refused");
+        _engine.RemoveFailure = new EngineOperationException("remove refused");
+        _engine.StopFailure = new IOException("stop refused");
+        await Assert.ThrowsAsync<DownloadCleanupException>(() => manager.StopForBrowserFallbackAsync([first.Id, second.Id], Ct));
+        Assert.True(_engine.StopCount >= 2);
+        Assert.Equal(DownloadState.Queued, _repository.Stored(first.Id)!.State);
+        Assert.Equal(DownloadState.Queued, _repository.Stored(second.Id)!.State);
+    }
+
+    [Fact]
+    public async Task Canceled_multi_file_add_cleans_prior_creations_even_when_current_cleanup_fails()
+    {
+        var manager = new DownloadManager([_engine], _repository,
+            new LinkResolverPipeline([new TwoFileResolver()]), _settings, _paths, _logger, _time);
+        manager.SetPollingInterval(Timeout.InfiniteTimeSpan);
+        _managers.Add(manager);
+        await manager.InitializeAsync(Ct);
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        _engine.OnAdd = _ =>
+        {
+            if (++calls != 2) return;
+            cancellation.Cancel();
+            _engine.FailureAfterAdding = new OperationCanceledException(cancellation.Token);
+        };
+        _engine.PauseFailure = new EngineOperationException("pause refused");
+        _engine.RemoveFailure = new EngineOperationException("remove refused");
+        _engine.StopFailure = new IOException("stop refused");
+
+        await Assert.ThrowsAsync<DownloadCleanupException>(() => manager.AddAsync(
+            "https://example.com/share", LinkContext.Empty, null, null, cancellation.Token));
+
+        Assert.True(_engine.StopCount >= 2); // Current uncertain add and the prior successful creation.
+        var items = await manager.GetItemsAsync(Ct);
+        Assert.Equal(2, items.Count);
+        Assert.All(items, item =>
+        {
+            Assert.Equal(DownloadState.Queued, item.State);
+            Assert.Equal(DownloadState.Queued, _repository.Stored(item.Id)!.State);
+            Assert.Equal(EngineDownloadState.Waiting, _engine.Status(item.EngineHandle!)!.State);
+        });
+    }
+
+    [Fact]
+    public async Task Browser_fallback_validates_remove_acknowledgement_before_accepting_stop()
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        _engine.IgnorePause = true;
+        _engine.IgnoreRemove = true;
+        await manager.StopForBrowserFallbackAsync([item.Id], Ct);
+        Assert.Equal(EngineState.Stopped, _engine.State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Canceled_resume_after_engine_acceptance_is_paused_and_saved(bool responseThrows)
+    {
+        var manager = await StartAsync();
+        var item = await AddAsync(manager);
+        await manager.PauseAsync([item.Id], Ct);
+        using var cancellation = new CancellationTokenSource();
+        _engine.OnResume = _ => cancellation.Cancel();
+        if (responseThrows) _engine.FailureAfterResuming = new OperationCanceledException(cancellation.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.ResumeAsync([item.Id], cancellation.Token));
+
+        Assert.Contains(item.EngineHandle!, _engine.Resumes);
+        Assert.Equal(EngineDownloadState.Paused, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Paused, (await ItemAsync(manager, item.Id)).State);
+        Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Canceled_resume_batch_pauses_prior_successes_without_touching_other_transfers(bool responseThrows)
+    {
+        var manager = await StartAsync();
+        var first = await AddAsync(manager, "https://example.com/first.zip");
+        var second = await AddAsync(manager, "https://example.com/second.zip");
+        var last = await AddAsync(manager, "https://example.com/last.zip");
+        var other = await AddAsync(manager, "https://example.com/other.zip");
+        await manager.PauseAsync([first.Id, second.Id, last.Id], Ct);
+        using var cancellation = new CancellationTokenSource();
+        _engine.OnResume = handle =>
+        {
+            if (handle != second.EngineHandle) return;
+            cancellation.Cancel();
+            if (responseThrows) _engine.FailureAfterResuming = new OperationCanceledException(cancellation.Token);
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.ResumeAsync(
+            [first.Id, second.Id, last.Id, other.Id], cancellation.Token));
+
+        Assert.Equal(new[] { first.EngineHandle!, second.EngineHandle! }, _engine.Resumes);
+        foreach (var item in new[] { first, second, last })
+        {
+            Assert.Equal(EngineDownloadState.Paused, _engine.Status(item.EngineHandle!)!.State);
+            Assert.Equal(DownloadState.Paused, (await ItemAsync(manager, item.Id)).State);
+            Assert.Equal(DownloadState.Paused, _repository.Stored(item.Id)!.State);
+        }
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(other.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Queued, (await ItemAsync(manager, other.Id)).State);
+        Assert.DoesNotContain(other.EngineHandle!, _engine.Pauses);
+    }
 
     [Fact]
     public async Task Pause_and_resume_go_through_the_engine_and_are_saved()
@@ -382,7 +765,7 @@ public sealed class DownloadManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task A_timed_out_add_that_reached_the_engine_is_found_again_by_its_handle()
+    public async Task A_timed_out_add_that_reached_the_engine_is_stopped_and_can_retry_by_its_handle()
     {
         var manager = await StartAsync();
         _engine.FailureAfterAdding = new TimeoutException("No answer from aria2.");
@@ -391,14 +774,35 @@ public sealed class DownloadManagerTests : IAsyncDisposable
         Assert.Equal(DownloadState.Failed, item.State);
         Assert.NotNull(item.EngineHandle);
 
-        // aria2 did get it and is downloading.
-        _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 1000, completed: 100, speed: 10);
-        await manager.ReconcileAsync(_engine, Ct);
+        Assert.Equal(EngineDownloadState.Paused, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Equal(DownloadState.Failed, _repository.Stored(item.Id)!.State);
+
+        _engine.FailureAfterAdding = null;
+        await manager.RetryAsync(item.Id, Ct);
 
         Assert.Empty(_engine.Removes); // Not mistaken for a stray download.
         var now = await ItemAsync(manager, item.Id);
-        Assert.Equal(DownloadState.Active, now.State);
-        Assert.Equal(100, now.CompletedBytes);
+        Assert.Equal(DownloadState.Queued, now.State);
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(item.EngineHandle!)!.State);
+        Assert.Single(_engine.Adds); // Retry resumed the known handle rather than creating a second transfer.
+        Assert.Contains(item.EngineHandle!, _engine.Resumes);
+    }
+
+    [Fact]
+    public async Task Ambiguous_add_io_failure_cannot_claim_failed_if_transfer_cleanup_fails()
+    {
+        var manager = await StartAsync();
+        _engine.FailureAfterAdding = new IOException("response lost");
+        _engine.PauseFailure = new EngineOperationException("refused");
+        _engine.RemoveFailure = new EngineOperationException("refused");
+        _engine.StopFailure = new IOException("refused");
+
+        await Assert.ThrowsAsync<DownloadCleanupException>(() => AddAsync(manager));
+
+        var item = Assert.Single(await manager.GetItemsAsync(Ct));
+        Assert.Equal(DownloadState.Queued, item.State);
+        Assert.Equal(DownloadState.Queued, _repository.Stored(item.Id)!.State);
+        Assert.Equal(EngineDownloadState.Waiting, _engine.Status(item.EngineHandle!)!.State);
     }
 
     [Fact]

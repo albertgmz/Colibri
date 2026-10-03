@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Colibri.Core.Ipc;
 using Colibri.Core.Services;
 
@@ -57,7 +59,15 @@ internal sealed class HostSession
                     return 1;
             }
 
-            await ReplyAsync(await HandleAsync(body!, ct), ct);
+            string? requestId = null;
+            try
+            {
+                using var message = JsonDocument.Parse(body!);
+                if (message.RootElement.TryGetProperty("requestId", out var id) && id.ValueKind == JsonValueKind.String && id.GetString()!.Length <= 64)
+                    requestId = id.GetString();
+            }
+            catch (JsonException) { }
+            await ReplyAsync(await HandleAsync(body!, ct), ct, requestId);
         }
     }
 
@@ -81,17 +91,20 @@ internal sealed class HostSession
             return false;
         }
 
-        if (parsed is not (PingRequest or ConfigRequest or AddRequest))
+        if (parsed is ActivateRequest)
         {
             error = "Unknown request type.";
             return false;
         }
 
-        // The extension never sends extra headers; accepting none keeps what a browser can pass on small.
-        if (parsed is AddRequest { Context.Headers.Count: > 0 })
+        if (parsed is AddRequest or BulkAddRequest)
         {
-            error = "Headers are not accepted from the browser.";
-            return false;
+            using var message = JsonDocument.Parse(json);
+            if (!message.RootElement.TryGetProperty("protocolVersion", out var version) || version.GetInt32() != BrowserProtocol.Version)
+            {
+                error = "Update the extension to protocol v2 before capturing downloads.";
+                return false;
+            }
         }
 
         request = parsed;
@@ -122,6 +135,15 @@ internal sealed class HostSession
         return response;
     }
 
-    private Task ReplyAsync(IpcResponse response, CancellationToken ct) =>
-        NativeMessaging.WriteAsync(_output, Encoding.UTF8.GetBytes(IpcProtocol.SerializeResponse(response)), ct);
+    private Task ReplyAsync(IpcResponse response, CancellationToken ct, string? requestId = null)
+    {
+        var json = IpcProtocol.SerializeResponse(response);
+        if (requestId is not null)
+        {
+            var message = JsonNode.Parse(json)!.AsObject();
+            message["requestId"] = requestId;
+            json = message.ToJsonString();
+        }
+        return NativeMessaging.WriteAsync(_output, Encoding.UTF8.GetBytes(json), ct);
+    }
 }

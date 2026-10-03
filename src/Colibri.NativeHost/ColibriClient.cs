@@ -43,7 +43,11 @@ internal sealed class ColibriClient
         var pipe = await TryConnectAsync(_timeouts.Connect, ct);
         if (pipe is null)
         {
-            if (request is PingRequest)
+            // Startup handshakes only discover a running app. Intentional add/open requests launch it.
+            if (request is HelloRequest)
+                return new IpcResponse(false, Error: NotRunningError, ProtocolVersion: BrowserProtocol.Version,
+                    Capabilities: BrowserProtocol.Capabilities);
+            if (request is PingRequest or CaptureStatusRequest or CaptureCancelRequest)
             {
                 return IpcResponse.Failure(NotRunningError);
             }
@@ -65,7 +69,7 @@ internal sealed class ColibriClient
         await using (pipe)
         {
             // An "add" opens Colibri's Add URL window, which must come up in front of the browser.
-            if (request is AddRequest && !_foreground.AllowAppToTakeForeground(pipe))
+            if (request is AddRequest or BulkAddRequest or OpenRequest && !_foreground.AllowAppToTakeForeground(pipe))
             {
                 _log.Info("Could not let Colibri come to the front; its window may open behind the browser");
             }

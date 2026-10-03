@@ -61,14 +61,14 @@ public sealed class Aria2EngineLifecycleTests : IDisposable
     }
 
     [Fact]
-    public async Task Unwritable_session_folder_gives_Failed_and_does_not_block_later_starts()
+    public async Task Unwritable_logs_folder_gives_Failed_and_does_not_block_later_starts()
     {
         Directory.CreateDirectory(_root);
         var notAProgram = Path.Combine(_root, "aria2c.txt");
         await File.WriteAllTextAsync(notAProgram, "not a program", Ct);
 
-        // A file where the session folder should be makes creating the folder fail.
-        var blocker = Path.Combine(_root, "session");
+        // A file where the logs folder should be makes creating the folder fail.
+        var blocker = Path.Combine(_root, "logs");
         await File.WriteAllTextAsync(blocker, "", Ct);
         using var engine = CreateEngine(notAProgram);
 
@@ -79,7 +79,7 @@ public sealed class Aria2EngineLifecycleTests : IDisposable
         await engine.StartAsync(Ct);
 
         Assert.Equal([EngineState.Starting, EngineState.Failed, EngineState.Starting, EngineState.Failed], _states);
-        Assert.True(File.Exists(new TestPaths(_root).Aria2SessionPath));
+        Assert.True(Directory.Exists(new TestPaths(_root).LogsDirectory));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class Aria2EngineLifecycleTests : IDisposable
     }
 
     [Fact]
-    public async Task Start_creates_an_empty_session_file_and_the_logs_folder()
+    public async Task Start_creates_logs_but_no_plaintext_session_file()
     {
         Directory.CreateDirectory(_root);
         var notAProgram = Path.Combine(_root, "aria2c.txt");
@@ -122,9 +122,56 @@ public sealed class Aria2EngineLifecycleTests : IDisposable
 
         await engine.StartAsync(Ct);
 
-        Assert.True(File.Exists(paths.Aria2SessionPath));
-        Assert.Equal(0, new FileInfo(paths.Aria2SessionPath).Length);
+        Assert.False(File.Exists(paths.Aria2SessionPath));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(paths.Aria2SessionPath)));
         Assert.True(Directory.Exists(paths.LogsDirectory));
+    }
+
+    [Fact]
+    public async Task Engine_start_and_stop_preserve_legacy_session_until_explicit_protected_cleanup()
+    {
+        var paths = new TestPaths(_root);
+        Directory.CreateDirectory(Path.GetDirectoryName(paths.Aria2SessionPath)!);
+        await File.WriteAllTextAsync(paths.Aria2SessionPath, "Cookie: legacy-secret", Ct);
+        await File.WriteAllTextAsync(paths.Aria2SessionPath + ".tmp", "Authorization: legacy-secret", Ct);
+        var controlPath = Path.Combine(_root, "download.bin.aria2");
+        await File.WriteAllTextAsync(controlPath, "partial control", Ct);
+        var notAProgram = Path.Combine(_root, "aria2c.txt");
+        await File.WriteAllTextAsync(notAProgram, "not a program", Ct);
+        using var engine = CreateEngine(notAProgram);
+        await engine.StartAsync(Ct);
+        await engine.StopAsync(Ct);
+        Assert.Equal("Cookie: legacy-secret", await File.ReadAllTextAsync(paths.Aria2SessionPath, Ct));
+
+        await ((ILegacyCredentialCleanup)engine).CleanupAsync(Ct);
+        Assert.False(File.Exists(paths.Aria2SessionPath));
+        Assert.False(File.Exists(paths.Aria2SessionPath + ".tmp"));
+        Assert.Equal("partial control", await File.ReadAllTextAsync(controlPath, Ct));
+        await engine.CleanupAsync(Ct); // Missing legacy files are harmless.
+    }
+
+    [Fact]
+    public async Task Canceled_cleanup_preserves_legacy_session()
+    {
+        var paths = new TestPaths(_root);
+        Directory.CreateDirectory(Path.GetDirectoryName(paths.Aria2SessionPath)!);
+        await File.WriteAllTextAsync(paths.Aria2SessionPath, "legacy", Ct);
+        using var engine = CreateEngine(null);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() => engine.CleanupAsync(cancellation.Token));
+        Assert.True(File.Exists(paths.Aria2SessionPath));
+    }
+
+    [Fact]
+    public async Task Cleanup_failure_propagates_to_prevent_starting_with_plaintext_leftovers()
+    {
+        var paths = new TestPaths(_root);
+        Directory.CreateDirectory(paths.Aria2SessionPath); // File.Delete cannot remove a directory.
+        using var engine = CreateEngine(null);
+        await Assert.ThrowsAnyAsync<Exception>(() => engine.CleanupAsync(Ct));
+        Assert.True(Directory.Exists(paths.Aria2SessionPath));
+        Assert.Empty(_states);
     }
 
     [Fact]

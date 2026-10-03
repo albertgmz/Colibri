@@ -26,6 +26,20 @@ public partial class SettingsViewModel : ObservableObject
     public const int MaxConnectionsPerServer = 16;
     public const int MaxSpeedLimitKiB = 10_000_000;
 
+    public IReadOnlyList<string> PageNames { get; } =
+        [Strings.SettingsGeneral, Strings.SettingsAppearance, Strings.SettingsDownloads, Strings.SettingsBrowserIntegration, Strings.SettingsAdvanced];
+
+    // Navigation is view state, not a persisted preference. Switching pages must not reload fields.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneralPage), nameof(IsAppearancePage), nameof(IsDownloadsPage), nameof(IsBrowserPage), nameof(IsAdvancedPage))]
+    private int _selectedPageIndex;
+
+    public bool IsGeneralPage => SelectedPageIndex == 0;
+    public bool IsAppearancePage => SelectedPageIndex == 1;
+    public bool IsDownloadsPage => SelectedPageIndex == 2;
+    public bool IsBrowserPage => SelectedPageIndex == 3;
+    public bool IsAdvancedPage => SelectedPageIndex == 4;
+
     private readonly AppSettings _settings;
     private readonly ISettingsStore _store;
     private readonly DownloadManager _manager;
@@ -64,6 +78,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _minimizeToTray;
+
+    [ObservableProperty]
+    private bool _autoOpenDetailsWindow;
 
     [ObservableProperty]
     private bool _isTrayAvailable = true;
@@ -158,6 +175,7 @@ public partial class SettingsViewModel : ObservableObject
             StartWithSystem = _settings.StartWithSystem;
             CloseToTray = _settings.CloseToTray;
             MinimizeToTray = _settings.MinimizeToTray;
+            AutoOpenDetailsWindow = _settings.AutoOpenDetailsWindow;
             ThemeIndex = (int)_settings.Theme;
             AccentIndex = Math.Max(0, Array.FindIndex(AccentColors, c => c.Equals(_settings.AccentColor, StringComparison.OrdinalIgnoreCase)));
             DefaultFolder = _settings.DefaultDownloadFolder;
@@ -211,6 +229,8 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnCloseToTrayChanged(bool value) => Change(() => _settings.CloseToTray = value);
 
     partial void OnMinimizeToTrayChanged(bool value) => Change(() => _settings.MinimizeToTray = value);
+
+    partial void OnAutoOpenDetailsWindowChanged(bool value) => Change(() => _settings.AutoOpenDetailsWindow = value);
 
     partial void OnThemeIndexChanged(int value)
     {

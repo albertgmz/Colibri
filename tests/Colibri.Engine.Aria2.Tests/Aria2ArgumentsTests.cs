@@ -6,13 +6,11 @@ public class Aria2ArgumentsTests
 {
     private static readonly EngineOptions Options = new(MaxConcurrentDownloads: 5, ConnectionsPerServer: 8, GlobalSpeedLimitBytesPerSecond: 512_000);
 
-    private static List<string> Build(bool sessionExists = true, EngineOptions? options = null) =>
+    private static List<string> Build(EngineOptions? options = null) =>
         Aria2Arguments.Build(
             port: 51234,
             configPath: "/data/My Folder/aria2-rpc.conf",
             parentProcessId: 4242,
-            sessionPath: "/data/My Folder/aria2.session",
-            sessionExists: sessionExists,
             logPath: "/data/My Folder/logs/aria2.log",
             options: options ?? Options);
 
@@ -42,15 +40,11 @@ public class Aria2ArgumentsTests
     }
 
     [Fact]
-    public void Session_is_read_only_when_the_file_exists_but_always_saved()
+    public void Plaintext_session_load_and_save_are_never_enabled()
     {
-        var withSession = Build(sessionExists: true);
-        var withoutSession = Build(sessionExists: false);
-
-        Assert.Contains("--input-file=/data/My Folder/aria2.session", withSession);
-        Assert.DoesNotContain(withoutSession, a => a.StartsWith("--input-file", StringComparison.Ordinal));
-        Assert.Contains("--save-session=/data/My Folder/aria2.session", withoutSession);
-        Assert.Contains("--save-session-interval=30", withoutSession);
+        var arguments = Build();
+        Assert.DoesNotContain(arguments, a => a.StartsWith("--input-file", StringComparison.Ordinal));
+        Assert.DoesNotContain(arguments, a => a.StartsWith("--save-session", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -25,7 +25,7 @@ namespace Colibri.Core.Ipc;
 /// Unknown request types and fields of the wrong type are rejected; unknown fields are ignored. The
 /// "add" payload comes from a web page through the browser and is treated as untrusted.
 /// </remarks>
-public static class IpcProtocol
+public static partial class IpcProtocol
 {
     /// <summary>Longest message accepted, in bytes (newline excluded).</summary>
     public const int MaxLineBytes = 1024 * 1024;
@@ -67,8 +67,19 @@ public static class IpcProtocol
                 return false;
             }
 
+            if (root.TryGetProperty("protocolVersion", out var protocolVersion) &&
+                (protocolVersion.ValueKind != JsonValueKind.Number || !protocolVersion.TryGetInt32(out var versionNumber) || versionNumber != BrowserProtocol.Version))
+                throw new FieldException("Unsupported protocol version.");
+
             switch (type.GetString())
             {
+                case "hello":
+                case "open":
+                case "capture-status":
+                case "capture-cancel":
+                case "bulk-add":
+                case "settings-update":
+                    return TryParseBrowserV2(root, type.GetString()!, out request, out error);
                 case "activate":
                     return TryParseActivate(root, out request, out error);
                 case "add":
@@ -133,6 +144,10 @@ public static class IpcProtocol
                     }
 
                     WriteOptional(json, "mimeType", context.MimeType);
+                    WriteArray(json, "redirects", context.Redirects);
+                    WriteOptional(json, "contentDisposition", context.ContentDisposition);
+                    if (context.ResponseStatus is { } responseStatus) json.WriteNumber("responseStatus", responseStatus);
+                    json.WriteString("requestMethod", context.RequestMethod);
                     json.WriteStartObject("headers");
                     foreach (var (name, value) in context.Headers)
                     {
@@ -151,7 +166,8 @@ public static class IpcProtocol
                     break;
 
                 default:
-                    throw new ArgumentException($"Unknown request type {request.GetType().Name}.", nameof(request));
+                    WriteBrowserV2Request(json, request);
+                    break;
             }
 
             json.WriteEndObject();
@@ -169,6 +185,7 @@ public static class IpcProtocol
             json.WriteStartObject();
             json.WriteBoolean("ok", response.Ok);
             WriteOptional(json, "error", response.Error);
+            WriteBrowserV2Response(json, response);
             if (response.Config is { } config)
             {
                 json.WriteStartArray("captureExtensions");
@@ -203,11 +220,18 @@ public static class IpcProtocol
             }
 
             var error = root.TryGetProperty("error", out var text) && text.ValueKind == JsonValueKind.String ? text.GetString() : null;
-            return new IpcResponse(ok.GetBoolean(), error, ReadCaptureConfig(root));
+            return new IpcResponse(ok.GetBoolean(), error, ReadCaptureConfig(root),
+                OptionalString(root, "state", 32), OptionalString(root, "captureId", 64),
+                root.TryGetProperty("protocolVersion", out var version) ? version.GetInt32() : null,
+                OptionalString(root, "appVersion", 128), root.TryGetProperty("capabilities", out _) ? ReadStringArray(root, "capabilities", 32, 64) : null);
         }
         catch (JsonException ex)
         {
             throw new InvalidDataException("The response is not valid JSON.", ex);
+        }
+        catch (Exception ex) when (ex is FieldException or InvalidOperationException or FormatException)
+        {
+            throw new InvalidDataException("The response contains invalid fields.", ex);
         }
     }
 
@@ -297,7 +321,10 @@ public static class IpcProtocol
             extensions.Add(extension.ToLowerInvariant());
         }
 
-        return new CaptureConfig(extensions, minSizeKiB);
+        return new CaptureConfig(extensions, minSizeKiB,
+            OptionalBool(root, "enabled") ?? true, ReadStringArray(root, "excludedSites", 256, 253),
+            OptionalBool(root, "capturePrivate") ?? false, OptionalString(root, "bypassModifier", 16) ?? "none",
+            OptionalString(root, "theme", 16) ?? "system", OptionalString(root, "accent", 32) ?? "#C42B1C");
     }
 
     private static bool TryParseActivate(JsonElement root, out IpcRequest? request, out string? error)
@@ -376,6 +403,10 @@ public static class IpcProtocol
             MimeType = OptionalHeaderValue(root, "mimeType", MaxMimeTypeLength),
             Size = size,
             Headers = ReadHeaders(root),
+            Redirects = ReadRedirects(root),
+            ContentDisposition = OptionalHeaderValue(root, "contentDisposition", 8192),
+            ResponseStatus = ReadResponseStatus(root),
+            RequestMethod = ReadRequestMethod(root),
         };
 
         request = new AddRequest(uri.AbsoluteUri, finalUri?.AbsoluteUri, context);

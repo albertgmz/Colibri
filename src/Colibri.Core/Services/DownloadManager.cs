@@ -34,6 +34,75 @@ public sealed class DownloadManager
     private readonly Dictionary<Guid, DownloadItem> _items = new();
     private readonly Dictionary<Guid, DateTimeOffset> _lastSaved = new();
     private readonly HashSet<Guid> _unsaved = new();
+    private readonly Dictionary<Guid, DownloadTelemetry> _telemetry = new();
+
+    public async Task<DownloadDetails?> GetDetailsAsync(Guid id, CancellationToken ct)
+    {
+        DownloadDetails? result = await RunLockedAsync(changes =>
+        {
+            if (!_items.TryGetValue(id, out var item)) return Task.FromResult<DownloadDetails?>(null);
+            var history = TelemetryOf(item);
+            return Task.FromResult<DownloadDetails?>(new(item.Clone(), history.SpeedHistory, history.Events,
+                history.AverageBytesPerSecond, [], null, null));
+        }, ct);
+        if (result is null) return null;
+        var engine = EngineOf(result.Item);
+        if (result.Item.State == DownloadState.Completed || engine?.State != EngineState.Running || result.Item.EngineHandle is not { } handle)
+            return result with { Options = result.Item.TransferOptions };
+        try
+        {
+            var live = await engine.GetDetailsAsync(handle, ct);
+            if (live is null) return result;
+            var currentUrls = live.Servers.Select(s => s.CurrentUrl).Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToArray();
+            if (currentUrls is [var final] && Uri.TryCreate(final, UriKind.Absolute, out _))
+            {
+                await RunLockedAsync(async changes =>
+                {
+                    if (_items.TryGetValue(id, out var current) && current.EngineHandle == handle && current.FinalUrl != final)
+                    {
+                        current.FinalUrl = final;
+                        TelemetryOf(current).Observe(current, _time.GetUtcNow());
+                        changes.Update(current);
+                        await SaveAsync(current);
+                    }
+                    return true;
+                }, ct);
+                result.Item.FinalUrl = final;
+            }
+            return result with { Servers = live.Servers, Options = live.Options };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return result with { EngineDetailsError = ex.Message };
+        }
+    }
+
+    public Task ApplyDownloadOptionsAsync(Guid id, DownloadTransferOptions options, CancellationToken ct)
+    {
+        if (options.SpeedLimitBytesPerSecond < 0 || options.ConnectionsPerServer is < 1 or > 16)
+            throw new ArgumentOutOfRangeException(nameof(options));
+        return RunLockedAsync(async changes =>
+        {
+            if (!_items.TryGetValue(id, out var item) || EngineOf(item) is not { } engine || item.EngineHandle is not { } handle)
+                throw new EngineOperationException("The download is unavailable.");
+            await engine.ApplyDownloadOptionsAsync(handle, options, ct);
+            item.TransferOptions = options;
+            await SaveAsync(item);
+            changes.Update(item);
+            return true;
+        }, ct);
+    }
+
+    private DownloadTelemetry TelemetryOf(DownloadItem item)
+    {
+        if (!_telemetry.TryGetValue(item.Id, out var history))
+        {
+            history = new DownloadTelemetry();
+            _telemetry[item.Id] = history;
+            history.Observe(item, _time.GetUtcNow());
+        }
+        return history;
+    }
 
     private readonly object _intervalLock = new();
     private TimeSpan _pollInterval = TimeSpan.FromSeconds(1);
@@ -86,6 +155,10 @@ public sealed class DownloadManager
     public async Task InitializeAsync(CancellationToken ct)
     {
         var stored = await _repository.GetAllAsync(ct);
+        // Reading the repository completes credential migration before any legacy session is removed.
+        // A cleanup failure must prevent engine startup rather than retaining a plaintext fallback.
+        foreach (var cleanup in _engines.OfType<ILegacyCredentialCleanup>())
+            await cleanup.CleanupAsync(ct);
         await _gate.WaitAsync(ct);
         try
         {
@@ -140,8 +213,8 @@ public sealed class DownloadManager
     }
 
     /// <summary>
-    /// Stops polling, writes progress that was not saved yet and stops the engines (aria2 saves its
-    /// session, so unfinished downloads continue on the next start).
+    /// Stops polling, saves progress and stops the engines. Unfinished downloads are reconstructed
+    /// from the protected repository and engine control files on the next start.
     /// </summary>
     public async Task StopAsync()
     {
@@ -320,11 +393,20 @@ public sealed class DownloadManager
         return await RunLockedAsync<IReadOnlyList<DownloadItem>>(async changes =>
         {
             var created = new List<DownloadItem>();
-            foreach (var request in requests)
+            try
             {
-                var nameOverride = requests.Count == 1 ? fileNameOverride : null;
-                var item = await AddOneAsync(request, nameOverride, folderOverride, changes, ct);
-                created.Add(item.Clone());
+                foreach (var request in requests)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var nameOverride = requests.Count == 1 ? fileNameOverride : null;
+                    var item = await AddOneAsync(request, nameOverride, folderOverride, changes, ct);
+                    created.Add(item.Clone());
+                }
+            }
+            catch (Exception ex) when (ex is DownloadCleanupException || ex is OperationCanceledException && ct.IsCancellationRequested)
+            {
+                await StopTransfersForCancellationAsync(Find(created.Select(item => item.Id)), changes);
+                throw;
             }
 
             return created;
@@ -334,6 +416,11 @@ public sealed class DownloadManager
     /// <summary>Pauses the given downloads that are queued or active.</summary>
     public Task PauseAsync(IEnumerable<Guid> ids, CancellationToken ct) =>
         RunLockedAsync(changes => PauseItemsAsync(Find(ids), changes, ct), ct);
+
+    /// <summary>Establishes that browser-capture transfers stopped before releasing browser ownership.
+    /// Unlike ordinary Pause, refusal escalates to removal and finally engine shutdown.</summary>
+    public Task StopForBrowserFallbackAsync(IEnumerable<Guid> ids, CancellationToken ct) =>
+        RunLockedAsync(changes => StopTransfersForCancellationAsync(Find(ids), changes), ct);
 
     /// <summary>
     /// Resumes paused downloads and retries failed ones. A download the engine no longer knows is added
@@ -583,9 +670,22 @@ public sealed class DownloadManager
 
     private async Task<bool> ResumeItemsAsync(List<DownloadItem> items, Changes changes, CancellationToken ct)
     {
-        foreach (var item in items.Where(i => i.State is DownloadState.Paused or DownloadState.Failed))
+        var attempted = new List<DownloadItem>();
+        try
         {
-            await ResumeOneAsync(item, changes, ct);
+            foreach (var item in items.Where(i => i.State is DownloadState.Paused or DownloadState.Failed))
+            {
+                ct.ThrowIfCancellationRequested();
+                attempted.Add(item);
+                await ResumeOneAsync(item, changes, ct);
+                ct.ThrowIfCancellationRequested();
+            }
+        }
+        catch (Exception ex) when (ex is DownloadCleanupException || ex is OperationCanceledException && ct.IsCancellationRequested)
+        {
+            // Roll back earlier resumes in this request, not unrelated active downloads.
+            await StopTransfersForCancellationAsync(attempted, changes);
+            throw;
         }
 
         return true;
@@ -707,10 +807,26 @@ public sealed class DownloadManager
             switch (status?.State)
             {
                 case EngineDownloadState.Paused:
-                    if (await TryEngineAsync(() => engine.ResumeAsync(handle, ct), "resume", item) && TrySetState(item, DownloadState.Queued))
+                    try
                     {
-                        changes.Update(item);
-                        await SaveAsync(item);
+                        var resumed = await TryEngineAsync(() => engine.ResumeAsync(handle, ct), "resume", item);
+                        ct.ThrowIfCancellationRequested();
+                        // A refused/lost response may follow an accepted unpause. Establish stop
+                        // before returning a failed resume outcome to the capture confirmation UI.
+                        if (!resumed) await StopTransferForCancellationAsync(item, changes);
+                        if (resumed && TrySetState(item, DownloadState.Queued))
+                        {
+                            changes.Update(item);
+                            await SaveAsync(item);
+                        }
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        // aria2 may already have resumed even when its response was canceled.
+                        // Pause explicitly: the persisted row may still be Paused, which the
+                        // ordinary PauseItemsAsync filter deliberately skips.
+                        await StopTransferForCancellationAsync(item, changes);
+                        throw;
                     }
 
                     return;
@@ -760,15 +876,26 @@ public sealed class DownloadManager
         try
         {
             item.EngineHandle = await engine.AddAsync(ToRequest(item), item.SaveFolder, item.FileName, item.EngineHandle, startPaused, ct);
+            ct.ThrowIfCancellationRequested();
             item.ErrorMessage = null;
             if (!startPaused)
             {
                 TrySetState(item, DownloadState.Queued);
             }
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Cancellation can arrive after aria2 accepted the known handle. Preserve the row,
+            // but stop that transfer before the browser is allowed to take over.
+            await StopTransferForCancellationAsync(item, changes);
+            throw;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Engine {EngineId} refused download {Id} ({FileName})", engine.Id, item.Id, item.FileName);
+            // A timeout/I/O error does not establish that the known-GID add was rejected.
+            // Even ordinary adds must not report Failed while aria2 keeps writing.
+            await StopTransferForCancellationAsync(item, changes);
             if (TrySetState(item, DownloadState.Failed))
             {
                 item.ErrorMessage = ex.Message;
@@ -793,6 +920,7 @@ public sealed class DownloadManager
         }
 
         var changed = false;
+        var history = TelemetryOf(item);
         var target = ToDownloadState(status.State);
 
         // aria2's forcePause takes a moment; until then it still reports the download as active. The
@@ -809,6 +937,7 @@ public sealed class DownloadManager
             {
                 case DownloadState.Completed:
                     item.CompletedAt = _time.GetUtcNow();
+                    item.Headers.Clear();
                     break;
                 case DownloadState.Failed:
                     item.ErrorMessage = status.ErrorMessage;
@@ -857,6 +986,17 @@ public sealed class DownloadManager
             changed = true;
         }
 
+        if (item.PieceLength != status.PieceLength && status.PieceLength is > 0)
+        {
+            item.PieceLength = status.PieceLength;
+            changed = true;
+        }
+        history.Observe(item, _time.GetUtcNow());
+        if (item.AverageDownloadSpeed != history.AverageBytesPerSecond)
+        {
+            item.AverageDownloadSpeed = history.AverageBytesPerSecond;
+            changed = true;
+        }
         return changed;
     }
 
@@ -1013,6 +1153,87 @@ public sealed class DownloadManager
         }
     }
 
+    private async Task<bool> StopTransfersForCancellationAsync(List<DownloadItem> items, Changes changes)
+    {
+        var failed = false;
+        foreach (var item in items)
+        {
+            try { await StopTransferForCancellationAsync(item, changes); }
+            catch (DownloadCleanupException) { failed = true; }
+        }
+        if (failed) throw new DownloadCleanupException();
+        return true;
+    }
+
+    private async Task StopTransferForCancellationAsync(DownloadItem item, Changes changes)
+    {
+        var engine = EngineOf(item);
+        var stopped = engine is null || engine.State == EngineState.Stopped;
+        if (!stopped && engine is not null)
+        {
+            if (item.EngineHandle is { } handle)
+            {
+                try
+                {
+                    await engine.PauseAsync(handle, CancellationToken.None);
+                    stopped = await ConfirmTransferStoppedAsync(engine, handle);
+                }
+                catch (Exception) { } // No upstream text/credentials are exposed by cleanup failures.
+                if (!stopped)
+                {
+                    try
+                    {
+                        // Removal retains the partial file and its control file for a later retry.
+                        await engine.RemoveAsync(handle, CancellationToken.None);
+                        stopped = await ConfirmTransferStoppedAsync(engine, handle);
+                    }
+                    catch (Exception) { }
+                }
+            }
+            if (!stopped)
+            {
+                // A global stop is the final fail-closed option; it can interrupt unrelated transfers.
+                try
+                {
+                    await engine.StopAsync(CancellationToken.None);
+                    stopped = engine.State == EngineState.Stopped;
+                }
+                catch (Exception) { }
+            }
+        }
+
+        if (!stopped)
+        {
+            // A canceled resume can still have a Paused row while the engine is writing.
+            // Do not hide that uncertainty behind paused/zero-speed state.
+            if (item.State == DownloadState.Paused) TrySetState(item, DownloadState.Queued);
+            changes.Update(item);
+            await SaveAsync(item);
+            throw new DownloadCleanupException();
+        }
+        if (item.State is DownloadState.Queued or DownloadState.Active) TrySetState(item, DownloadState.Paused);
+        item.DownloadSpeed = 0;
+        item.Connections = 0;
+        changes.Update(item);
+        await SaveAsync(item);
+        // Ordinary progress saves may retry later. Browser rollback needs a durable paused row,
+        // otherwise a restart could reconstruct the old queued transfer after browser release.
+        if (_unsaved.Contains(item.Id)) throw new DownloadCleanupException();
+    }
+
+    private static async Task<bool> ConfirmTransferStoppedAsync(IDownloadEngine engine, string handle)
+    {
+        // forcePause acknowledges before aria2 necessarily closes its connections.
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var status = await engine.GetStatusAsync(handle, CancellationToken.None);
+            if (status is null || status.State is EngineDownloadState.Paused or EngineDownloadState.Complete
+                or EngineDownloadState.Error or EngineDownloadState.Removed) return true;
+            await Task.Delay(50);
+        }
+        return false;
+    }
+
     private async Task<bool> TryEngineAsync(Func<Task> call, string action, DownloadItem item)
     {
         try
@@ -1064,6 +1285,7 @@ public sealed class DownloadManager
         Headers = HttpHeaders.Copy(item.Headers),
         Referrer = item.Referrer,
         UserAgent = item.UserAgent,
+        TransferOptions = item.TransferOptions,
     };
 
     private static Dictionary<string, EngineDownloadStatus> ToDictionary(IEnumerable<EngineDownloadStatus> statuses)
@@ -1110,6 +1332,9 @@ public sealed class DownloadManager
 
     private void RaiseChanges(Changes.Snapshot snapshot)
     {
+        foreach (var item in snapshot.Added.Concat(snapshot.Updated))
+            TelemetryOf(item).Observe(item, _time.GetUtcNow());
+        foreach (var id in snapshot.Removed) _telemetry.Remove(id);
         foreach (var item in snapshot.Added)
         {
             Raise(ItemAdded, item);

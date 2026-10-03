@@ -60,6 +60,13 @@ public sealed class DownloadItem
     /// <summary>Number of pieces <see cref="Bitfield"/> describes. Not stored in the database.</summary>
     public int? NumPieces { get; set; }
 
+    public long? PieceLength { get; set; }
+
+    public DownloadTransferOptions? TransferOptions { get; set; }
+
+    /// <summary>Current-session average; null until active transfer time has been observed. Not persisted.</summary>
+    public double? AverageDownloadSpeed { get; set; }
+
     /// <summary>Returns an independent copy (the header dictionary is copied too).</summary>
     public DownloadItem Clone()
     {

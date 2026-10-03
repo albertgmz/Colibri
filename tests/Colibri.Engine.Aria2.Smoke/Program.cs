@@ -1,12 +1,17 @@
 // End-to-end check of Aria2Engine against a real aria2c and a real download:
-// add -> pause -> crash aria2 while paused -> automatic restart restores the download from the session
+// Core add -> pause -> crash aria2 while paused -> automatic restart and Core reconciliation
 // -> resume -> complete -> remove -> graceful shutdown. Prints PASS/FAIL lines; exit code 0 or 1.
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Colibri.Core.Engine;
 using Colibri.Core.Models;
+using Colibri.Core.Services;
+using Colibri.Core.Settings;
 using Colibri.Engine.Aria2;
 using Colibri.Engine.Aria2.Smoke;
+
+if (args is ["--details", var detailsUrl])
+    return await DetailsSmoke.RunAsync(new Uri(detailsUrl));
 
 var url = new Uri(args.Length > 0 ? args[0] : "https://fsn1-speed.hetzner.com/100MB.bin");
 var root = Path.Combine(Path.GetTempPath(), "colibri-smoke-" + Guid.NewGuid().ToString("N")[..8]);
@@ -51,19 +56,6 @@ static bool HasExited(int processId)
     }
 }
 
-static bool FileContains(string path, string text)
-{
-    try
-    {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        return new StreamReader(stream).ReadToEnd().Contains(text, StringComparison.Ordinal);
-    }
-    catch (IOException)
-    {
-        return false;
-    }
-}
-
 Console.WriteLine($"Data folder: {root}");
 Console.WriteLine($"URL:         {url}");
 
@@ -74,11 +66,16 @@ engine.StateChanged += (_, state) => states.Enqueue(state);
 var events = new ConcurrentQueue<EngineDownloadEvent>();
 engine.DownloadEvent += (_, e) => events.Enqueue(e);
 var ct = CancellationToken.None;
+// Real Core reconciliation with a memory-only repository: this smoke verifies engine/control-file
+// recovery, not SQLite persistence or credential protection (covered by repository tests).
+var manager = new DownloadManager([engine], new SmokeDownloadRepository(),
+    new LinkResolverPipeline([new DirectLinkResolver()]), new AppSettings(), paths,
+    new ConsoleLogger<DownloadManager>(), TimeProvider.System);
 
 try
 {
     // 1. Start.
-    await engine.StartAsync(ct);
+    await manager.InitializeAsync(ct);
     Check("engine starts", engine.State == EngineState.Running, $"state {engine.State}");
     if (engine.State != EngineState.Running)
     {
@@ -90,7 +87,8 @@ try
 
     // 2. Add and wait for the first bytes.
     var fileName = Path.GetFileName(url.LocalPath) is { Length: > 0 } name ? name : "download.bin";
-    var gid = await engine.AddAsync(new DownloadRequest { Uri = url }, paths.DefaultDownloadsDirectory, fileName, handle: null, startPaused: false, ct);
+    var item = (await manager.AddAsync(url.AbsoluteUri, LinkContext.Empty, fileName, paths.DefaultDownloadsDirectory, ct)).Single();
+    var gid = item.EngineHandle!;
     Check("download added", gid.Length == 16, $"gid {gid}");
 
     EngineDownloadStatus? status = null;
@@ -102,7 +100,7 @@ try
     Check("bytes are downloading", started, $"{status?.CompletedBytes:N0} of {status?.TotalBytes:N0} bytes");
 
     // 3. Pause; bytes must stop increasing.
-    await engine.PauseAsync(gid, ct);
+    await manager.PauseAsync([item.Id], ct);
     var paused = await WaitUntilAsync(async () => (await engine.GetStatusAsync(gid, ct))?.State == EngineDownloadState.Paused, TimeSpan.FromSeconds(10));
     var before = (await engine.GetStatusAsync(gid, ct))!.CompletedBytes;
     await Task.Delay(TimeSpan.FromSeconds(3));
@@ -111,9 +109,9 @@ try
     Check("paused bytes stay still", before == after && before > 0, $"{before:N0} -> {after:N0}");
     Check("pause notification received", events.Contains(new EngineDownloadEvent(gid, EngineDownloadEventKind.Paused)));
 
-    // 4. Crash aria2 while paused. aria2 saves the session every 30 s, so wait until the download is in it.
-    var inSession = await WaitUntilAsync(() => Task.FromResult(FileContains(paths.Aria2SessionPath, gid)), TimeSpan.FromSeconds(40));
-    Check("download written to the session file", inSession);
+    // 4. Crash aria2 while paused. Core retains the stable GID; aria2's control file retains pieces.
+    Check("partial control file exists before crash", File.Exists(Path.Combine(paths.DefaultDownloadsDirectory, fileName) + ".aria2"));
+    Check("no plaintext session was written", !File.Exists(paths.Aria2SessionPath));
 
     states.Clear();
     using (var child = Process.GetProcessById(firstPid))
@@ -126,15 +124,23 @@ try
         TimeSpan.FromSeconds(30));
     Check("killed aria2 is restarted", restarted, $"states: {string.Join(" -> ", states)}; pid {firstPid} -> {engine.Aria2ProcessId}");
 
-    // A restored paused download reports 0 bytes until it is resumed.
-    var restored = await engine.GetStatusAsync(gid, ct);
-    Check("download restored from the session", restored?.State == EngineDownloadState.Paused,
+    // Core receives Running, finds the engine empty and re-adds the stable GID as paused.
+    EngineDownloadStatus? restored = null;
+    var reconciled = await WaitUntilAsync(async () =>
+    {
+        restored = await engine.GetStatusAsync(gid, ct);
+        return restored?.State == EngineDownloadState.Paused;
+    }, TimeSpan.FromSeconds(10));
+    Check("Core reconciliation restores paused download under stable GID", reconciled,
         $"state {restored?.State}, {restored?.CompletedBytes:N0} bytes");
 
     // 5. Resume and wait for completion.
-    await engine.ResumeAsync(gid, ct);
+    await manager.ResumeAsync([item.Id], ct);
     var resumed = await WaitUntilAsync(async () => (await engine.GetStatusAsync(gid, ct))?.State is EngineDownloadState.Active or EngineDownloadState.Complete, TimeSpan.FromSeconds(10));
     Check("resume -> state Active", resumed);
+    Check("control file restores prior completed pieces", await WaitUntilAsync(async () =>
+        (await engine.GetStatusAsync(gid, ct))?.CompletedBytes >= before, TimeSpan.FromSeconds(10)),
+        $"before crash {before:N0} bytes");
 
     var lastPrint = Stopwatch.StartNew();
     var completed = await WaitUntilAsync(async () =>
@@ -158,22 +164,26 @@ try
         () => Task.FromResult(events.Contains(new EngineDownloadEvent(gid, EngineDownloadEventKind.Completed))), TimeSpan.FromSeconds(5)));
 
     // 6. Remove: aria2 forgets the download, the file stays.
-    await engine.RemoveAsync(gid, ct);
+    await manager.DeleteAsync([item.Id], deleteFiles: false, ct);
     Check("removed download is unknown to aria2", await engine.GetStatusAsync(gid, ct) is null);
     Check("remove keeps the file", filePath is not null && File.Exists(filePath));
 
     // 7. Graceful shutdown.
     var lastPid = engine.Aria2ProcessId!.Value;
-    await engine.StopAsync(ct);
+    await manager.StopAsync();
     Check("engine stops", engine.State == EngineState.Stopped);
     Check("aria2 process exited", await WaitUntilAsync(() => Task.FromResult(HasExited(lastPid)), TimeSpan.FromSeconds(5)), $"pid {lastPid}");
-    Check("session file exists", File.Exists(paths.Aria2SessionPath));
+    Check("shutdown does not write plaintext session", !File.Exists(paths.Aria2SessionPath));
     await engine.StopAsync(ct);
     Check("second stop is harmless", engine.State == EngineState.Stopped);
 }
 catch (Exception ex)
 {
     Check("no unexpected exception", false, ex.ToString());
+}
+finally
+{
+    await manager.StopAsync();
 }
 
 Console.WriteLine(failures == 0 ? "SMOKE TEST PASSED" : $"SMOKE TEST FAILED ({failures} checks)");

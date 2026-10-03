@@ -75,4 +75,11 @@ public interface IDownloadEngine
 
     /// <summary>Returns totals across all downloads.</summary>
     Task<EngineGlobalStats> GetGlobalStatsAsync(CancellationToken ct);
+
+    /// <summary>Optional live server and transfer-option telemetry.</summary>
+    Task<EngineDownloadDetails?> GetDetailsAsync(string handle, CancellationToken ct) =>
+        Task.FromResult<EngineDownloadDetails?>(null);
+
+    Task ApplyDownloadOptionsAsync(string handle, DownloadTransferOptions options, CancellationToken ct) =>
+        throw new EngineOperationException("This engine does not support per-download options.");
 }

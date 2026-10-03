@@ -24,4 +24,6 @@ public sealed record DownloadRequest
     public long? Size { get; init; }
 
     public string? MimeType { get; init; }
+
+    public DownloadTransferOptions? TransferOptions { get; init; }
 }

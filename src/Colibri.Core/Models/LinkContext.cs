@@ -25,4 +25,9 @@ public sealed record LinkContext
     public long? Size { get; init; }
 
     public string? MimeType { get; init; }
+
+    public IReadOnlyList<string> Redirects { get; init; } = [];
+    public string? ContentDisposition { get; init; }
+    public int? ResponseStatus { get; init; }
+    public string RequestMethod { get; init; } = "GET";
 }

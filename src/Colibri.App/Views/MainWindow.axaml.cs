@@ -37,12 +37,14 @@ public partial class MainWindow : Window
         if (_subscribed is not null)
         {
             _subscribed.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribed.DetailsWindowRequested -= OnDetailsWindowRequested;
         }
 
         _subscribed = ViewModel;
         if (_subscribed is not null)
         {
             _subscribed.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribed.DetailsWindowRequested += OnDetailsWindowRequested;
             ApplyLayout(_subscribed.Layout);
             UpdateDetailsRow(_subscribed.IsDetailsVisible);
         }
@@ -60,6 +62,15 @@ public partial class MainWindow : Window
             // Move the focus into the confirmation, so the keyboard does not keep working on the table behind it.
             Avalonia.Threading.Dispatcher.UIThread.Post(() => DeleteCancelButton.Focus());
         }
+    }
+
+    private readonly Dictionary<Guid, Window> _detailWindows = new();
+    private void OnDetailsWindowRequested(object? sender, DownloadDetailsViewModel details)
+    {
+        if (_detailWindows.TryGetValue(details.Row.Id, out var existing)) { existing.Activate(); return; }
+        var window = DownloadDetailsView.ShowWindow(details, this);
+        _detailWindows[details.Row.Id] = window;
+        window.Closed += (_, _) => _detailWindows.Remove(details.Row.Id);
     }
 
     // A row definition cannot be bound, and a hidden pane would still keep its row's height: the row is

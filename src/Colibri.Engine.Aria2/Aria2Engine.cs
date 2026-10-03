@@ -16,7 +16,7 @@ namespace Colibri.Engine.Aria2;
 /// they should be deleted. After aria2 restarts (state goes Restarting -> Running) callers should
 /// re-read all downloads with <see cref="GetAllAsync"/>.
 /// </remarks>
-public sealed class Aria2Engine : IDownloadEngine, IDisposable
+public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDisposable
 {
     // tellWaiting/tellStopped return pages. One page of 1000 covers any realistic queue; downloads beyond
     // it are not reported by GetAllAsync.
@@ -27,12 +27,14 @@ public sealed class Aria2Engine : IDownloadEngine, IDisposable
 
     private readonly Aria2Process? _process;
     private readonly Aria2RpcClient? _testClient;
+    private readonly string? _legacySessionPath;
     private readonly Func<Aria2Settings> _settings;
     private volatile EngineOptions _options;
 
     public Aria2Engine(IAria2Locator locator, IAppPaths paths, ILogger<Aria2Engine> logger, Func<Aria2Settings> settings)
     {
         _settings = settings;
+        _legacySessionPath = paths.Aria2SessionPath;
         _options = settings().Options;
         _process = new Aria2Process(locator, paths, logger, () => _options);
         _process.StateChanged += (_, state) => StateChanged?.Invoke(this, state);
@@ -189,6 +191,77 @@ public sealed class Aria2Engine : IDownloadEngine, IDisposable
     }
 
     public void Dispose() => _process?.Dispose();
+
+    public async Task<EngineDownloadDetails?> GetDetailsAsync(string handle, CancellationToken ct)
+    {
+        JsonArray servers;
+        try
+        {
+            servers = await Client.CallAsync("aria2.getServers", [handle], ct) as JsonArray
+                ?? throw new FormatException("aria2 returned invalid server details.");
+        }
+        catch (Aria2RpcException)
+        {
+            // getServers requires an active transfer. Paused/waiting downloads still have
+            // editable options; verify their actual state before treating servers as absent.
+            var state = await ReadStateAsync(Client, handle, ct);
+            if (state is null or EngineDownloadState.Active) throw;
+            servers = [];
+        }
+        var rows = new List<DownloadServer>();
+        foreach (var file in servers.OfType<JsonObject>())
+        {
+            var index = (int)Aria2Status.ParseLong(file["index"]);
+            if (file["servers"] is not JsonArray list) continue;
+            foreach (var server in list.OfType<JsonObject>())
+            {
+                // currentUri is the URI actually serving bytes, including a reported redirect.
+                var current = server["currentUri"]?.ToString();
+                var uri = current ?? server["uri"]?.ToString();
+                rows.Add(new(index, Uri.TryCreate(uri, UriKind.Absolute, out var parsed) ? parsed.Host : string.Empty,
+                    current, Aria2Status.ParseLong(server["downloadSpeed"])));
+            }
+        }
+        var options = await Client.CallAsync("aria2.getOption", [handle], ct) as JsonObject
+            ?? throw new FormatException("aria2 returned invalid transfer options.");
+        return new(rows, new(Aria2Status.ParseLong(options["max-download-limit"]),
+            (int)Aria2Status.ParseLong(options["max-connection-per-server"])));
+    }
+
+    public Task CleanupAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (_process?.ProcessId is not null)
+            throw new InvalidOperationException("Legacy credentials must be cleaned before aria2 starts.");
+        if (_legacySessionPath is { } path)
+        {
+            // Fixed legacy paths only. Never enumerate or touch download/control files.
+            // The caller establishes that protected DB initialization succeeded first.
+            DeleteLegacyFile(path);
+            ct.ThrowIfCancellationRequested();
+            DeleteLegacyFile(path + ".tmp");
+        }
+        return Task.CompletedTask;
+    }
+
+    private static void DeleteLegacyFile(string path)
+    {
+        try { File.Delete(path); }
+        catch (DirectoryNotFoundException) { } // A missing legacy folder has nothing to clean.
+    }
+
+    public Task ApplyDownloadOptionsAsync(string handle, DownloadTransferOptions options, CancellationToken ct)
+    {
+        if (options.SpeedLimitBytesPerSecond < 0 || options.ConnectionsPerServer is < 1 or > 16)
+            throw new ArgumentOutOfRangeException(nameof(options));
+        var values = new JsonObject
+        {
+            ["max-download-limit"] = options.SpeedLimitBytesPerSecond.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["max-connection-per-server"] = options.ConnectionsPerServer.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["split"] = options.ConnectionsPerServer.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        return Refusable(() => Client.CallAsync("aria2.changeOption", [handle, values], ct), "change download options");
+    }
 
     /// <summary>The download's state, or null when aria2 does not know the GID.</summary>
     private static async Task<EngineDownloadState?> ReadStateAsync(Aria2RpcClient client, string handle, CancellationToken ct)

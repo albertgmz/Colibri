@@ -25,6 +25,8 @@ public sealed class AppSettings
     /// <summary>Whether the details pane under the download table is shown.</summary>
     public bool ShowDetailsPane { get; set; } = true;
 
+    public bool AutoOpenDetailsWindow { get; set; }
+
     /// <summary>Base download folder. Empty means the user's Downloads folder, resolved at runtime.</summary>
     public string DefaultDownloadFolder { get; set; } = string.Empty;
 
@@ -61,4 +63,9 @@ public sealed class AppSettings
     /// 0 captures every matching download, including ones whose size is unknown.
     /// </summary>
     public int BrowserCaptureMinSizeKiB { get; set; }
+
+    public bool BrowserCaptureEnabled { get; set; } = true;
+    public List<string> BrowserExcludedSites { get; set; } = [];
+    public bool BrowserCapturePrivate { get; set; }
+    public string BrowserBypassModifier { get; set; } = "none";
 }

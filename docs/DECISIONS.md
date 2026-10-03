@@ -504,3 +504,61 @@ Duplicate URL confirmation precedes adding another item. Resume uses the existin
 item; re-download and rename retain the manager's unique-path reservation. Average
 speed will use measured active transfer time in goal 2, rather than time since an
 item was added, which would count queues and pauses as transfer time.
+
+## 54. Focused Settings pages and a toolbar Layout command
+
+Settings retains its existing controls and persistence model, grouped into General,
+Appearance, Downloads, Browser integration and Advanced pages. At 760 px and above,
+a compact sidebar chooses the page; below that a keyboard-accessible selector takes
+its place. Each page scrolls independently. Layout uses the same Fluent icon/label
+and density styles as the other toolbar commands. Narrow label mode moves search
+to a separate row without changing stored toolbar preferences.
+
+## 55. Detail views use engine facts and bounded session observations
+
+Core exposes immutable detail snapshots: aria2 piece bitfields, server rows and
+per-download option values, plus observed speed and event history. Missing facts
+remain explicitly unknown; server rows do not fabricate connection byte ranges.
+Speed is sampled at most once per second and bounded to 300 samples/five minutes.
+Average speed excludes paused/queued intervals; these measurements restart with
+the app session. Paused downloads retain options even when getServers reports no
+active download. Other live RPC failures remain errors. Compact tabs and scrollable
+content fit small panes; popouts share Core's selection and platform window chrome.
+
+## 56. Browser confirmation owns transfer rollback
+
+Protocol v2 hello discovers a compatible native host without starting the desktop
+app. Explicit add, bulk-add and open may start it. A pending capture acknowledges
+the dialog, while accepted ownership follows user confirmation and successful
+acquisition. Duplicate resume uses the same acceptance boundary.
+
+An acquisition lease serializes confirmation commands and delays terminal rejection
+until rollback finishes. Rollback verifies pause, then removes the known handle if
+necessary, and finally stops the engine if individual cleanup cannot be established.
+This last resort can pause unrelated transfers. Failure to stop or persist rollback
+keeps the capture pending and shows manual attention in the extension. Cancellation
+returns its current authoritative state promptly rather than waiting past native
+response deadlines. A lost port/reply still cannot establish ownership; browser
+fallback can duplicate an already accepted app transfer in that unavoidable case.
+The protocol does not claim exactly-once delivery.
+
+## 57. Protected request headers replace plaintext aria2 sessions
+
+SQLite schema 3 encrypts the entire request-header dictionary, including cookies
+and unknown custom credential headers. Windows uses current-user DPAPI with the
+download ID as entropy. Linux uses AES-GCM with a key in the user's Secret Service;
+macOS uses AES-GCM with a Keychain key. Unix providers use native OS APIs/existing
+D-Bus support, adding no LGPL dependency. Missing/locked stores fail closed;
+decryption never creates a replacement key. Provider exceptions expose no payload.
+
+V1/v2 migration is transactional. Completed rows discard credentials; secure_delete,
+checkpoint and compaction remove legacy live-page/WAL plaintext. Existing backups,
+filesystem snapshots and managed-memory copies cannot be securely erased by this
+migration. URL query data remains download metadata. Unix providers compile and
+have fake-store crypto coverage; actual OS vault integration must be verified there.
+
+aria2 does not load or save session files because they serialize headers in plaintext.
+Only after protected repository initialization succeeds does Core remove the legacy
+session and its temporary file. Failure prevents startup. Core reconstructs stable
+GIDs and options from its repository, while aria2 control files preserve partial
+pieces. This supersedes the session-based recovery described in earlier decisions.

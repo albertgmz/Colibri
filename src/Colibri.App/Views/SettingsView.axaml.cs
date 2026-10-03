@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Colibri.App.Resources;
@@ -12,6 +13,19 @@ public partial class SettingsView : UserControl
     public SettingsView()
     {
         InitializeComponent();
+        SizeChanged += (_, _) => UpdateNavigation();
+    }
+
+    public event EventHandler<RoutedEventArgs>? LayoutRequested;
+
+    private void OnLayoutClick(object? sender, RoutedEventArgs e) => LayoutRequested?.Invoke(sender, e);
+
+    private void UpdateNavigation()
+    {
+        var compact = Bounds.Width < 760;
+        PageNavigation.IsVisible = !compact;
+        PageSelector.IsVisible = compact;
+        SettingsGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 0 : 170);
     }
 
     private SettingsViewModel? ViewModel => DataContext as SettingsViewModel;

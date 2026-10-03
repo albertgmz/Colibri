@@ -15,4 +15,5 @@ public interface IDialogService
 
     /// <summary>Shows the Add URL window for <paramref name="viewModel"/>.</summary>
     void ShowAddUrl(AddUrlViewModel viewModel);
+    void ShowBulkAdd(BulkAddViewModel viewModel) { }
 }

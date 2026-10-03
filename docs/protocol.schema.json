@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/albertgmz/Colibri/blob/v2/docs/protocol.schema.json",
+  "title": "Colibri browser native protocol v2",
+  "type": "object",
+  "required": [
+    "type",
+    "protocolVersion",
+    "requestId"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": 2
+    },
+    "requestId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "type": {
+      "enum": [
+        "hello",
+        "ping",
+        "config",
+        "open",
+        "add",
+        "bulk-add",
+        "capture-status",
+        "capture-cancel",
+        "settings-update"
+      ]
+    },
+    "extensionVersion": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "url": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "finalUrl": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "fileName": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "referrer": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "cookies": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "userAgent": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mimeType": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "headers": {
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 8192
+      }
+    },
+    "redirects": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "maxLength": 8192
+      }
+    },
+    "contentDisposition": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "responseStatus": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "requestMethod": {
+      "const": "GET"
+    },
+    "captureId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "patch": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "capturePrivate": {
+          "type": "boolean"
+        },
+        "excludedSites": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "maxLength": 253
+          }
+        },
+        "bypassModifier": {
+          "enum": [
+            "none",
+            "alt",
+            "shift",
+            "ctrl"
+          ]
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "extensionVersion": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "capabilities": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "finalUrl": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "referrer": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "cookies": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "userAgent": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mimeType": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "headers": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          },
+          "redirects": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          },
+          "contentDisposition": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "responseStatus": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "requestMethod": {
+            "const": "GET"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "hello"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "extensionVersion",
+          "capabilities"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "add"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "capture-status",
+              "capture-cancel"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "captureId"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "settings-update"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "patch"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "bulk-add"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "links"
+        ]
+      }
+    }
+  ]
+}

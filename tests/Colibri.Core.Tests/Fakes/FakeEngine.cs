@@ -7,7 +7,7 @@ namespace Colibri.Core.Tests.Fakes;
 /// In-memory <see cref="IDownloadEngine"/>: keeps download snapshots in a dictionary and records calls.
 /// Tests change what it reports with <see cref="Report"/>. Also used by the App tests (linked source).
 /// </summary>
-public sealed class FakeEngine : IDownloadEngine
+public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, EngineDownloadStatus> _downloads = new();
@@ -39,6 +39,15 @@ public sealed class FakeEngine : IDownloadEngine
 
     public int StopCount { get; private set; }
 
+    public EngineDownloadDetails? DetailsResponse { get; set; }
+    public DownloadTransferOptions? AppliedDownloadOptions { get; private set; }
+    public Task<EngineDownloadDetails?> GetDetailsAsync(string handle, CancellationToken ct) => Task.FromResult(DetailsResponse);
+    public Task ApplyDownloadOptionsAsync(string handle, DownloadTransferOptions options, CancellationToken ct)
+    {
+        AppliedDownloadOptions = options;
+        return Task.CompletedTask;
+    }
+
     public event EventHandler<EngineDownloadEvent>? DownloadEvent;
 
     public event EventHandler<EngineState>? StateChanged;
@@ -55,6 +64,8 @@ public sealed class FakeEngine : IDownloadEngine
     public Task StopAsync(CancellationToken ct)
     {
         StopCount++;
+        if (StopFailure is { } failure) throw failure;
+        if (IgnoreStop) return Task.CompletedTask;
         SetState(EngineState.Stopped);
         return Task.CompletedTask;
     }
@@ -63,6 +74,14 @@ public sealed class FakeEngine : IDownloadEngine
     public EngineOptions? AppliedOptions { get; private set; }
 
     public int StartCount { get; private set; }
+    public int CredentialCleanupCount { get; private set; }
+    public Exception? CredentialCleanupFailure { get; set; }
+    public Task CleanupAsync(CancellationToken ct)
+    {
+        CredentialCleanupCount++;
+        if (CredentialCleanupFailure is not null) throw CredentialCleanupFailure;
+        return Task.CompletedTask;
+    }
 
     public Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct)
     {
@@ -105,9 +124,30 @@ public sealed class FakeEngine : IDownloadEngine
         }
     }
 
-    public Task PauseAsync(string handle, CancellationToken ct) => Change(handle, EngineDownloadState.Paused, Pauses);
+    public Exception? PauseFailure { get; set; }
+    public Exception? StopFailure { get; set; }
+    public bool IgnoreStop { get; set; }
+    public bool IgnorePause { get; set; }
+    public bool IgnoreRemove { get; set; }
+    public Task PauseAsync(string handle, CancellationToken ct)
+    {
+        if (PauseFailure is { } failure) throw failure;
+        if (IgnorePause) return Task.CompletedTask;
+        return Change(handle, EngineDownloadState.Paused, Pauses);
+    }
 
-    public Task ResumeAsync(string handle, CancellationToken ct) => Change(handle, EngineDownloadState.Waiting, Resumes);
+    /// <summary>Runs immediately before the engine accepts a resume.</summary>
+    public Action<string>? OnResume { get; set; }
+
+    /// <summary>Simulates a lost/canceled response after the engine accepted a resume.</summary>
+    public Exception? FailureAfterResuming { get; set; }
+
+    public async Task ResumeAsync(string handle, CancellationToken ct)
+    {
+        OnResume?.Invoke(handle);
+        await Change(handle, EngineDownloadState.Waiting, Resumes);
+        if (FailureAfterResuming is { } failure) throw failure;
+    }
 
     /// <summary>When set, <see cref="RemoveAsync"/> throws it.</summary>
     public Exception? RemoveFailure { get; set; }
@@ -118,6 +158,8 @@ public sealed class FakeEngine : IDownloadEngine
         {
             throw RemoveFailure;
         }
+
+        if (IgnoreRemove) return Task.CompletedTask;
 
         lock (_gate)
         {

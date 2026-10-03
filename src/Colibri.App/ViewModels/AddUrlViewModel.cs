@@ -1,6 +1,7 @@
 using System.Globalization;
 using Colibri.App.Formatting;
 using Colibri.App.Resources;
+using Colibri.Core.Engine;
 using Colibri.Core.Models;
 using Colibri.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -27,6 +28,22 @@ public partial class AddUrlViewModel : ObservableObject
     private bool _folderEdited;
     private DownloadItem? _duplicate;
     private string? _duplicateApprovedUrl;
+    private CaptureSession? _capture;
+    public bool IsBrowserCapture => _capture is not null;
+
+    public void AttachCapture(CaptureSession capture)
+    {
+        _capture = capture;
+        OnPropertyChanged(nameof(IsBrowserCapture));
+    }
+
+    public void DismissCapture()
+    {
+        _capture?.Reject("browser");
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void WindowClosed() => _capture?.Reject();
 
     [ObservableProperty]
     private bool _isDuplicatePrompt;
@@ -128,6 +145,9 @@ public partial class AddUrlViewModel : ObservableObject
     [RelayCommand]
     private async Task DownloadAsync()
     {
+        if (_capture?.Token.IsCancellationRequested == true) return;
+        using var operation = _capture?.TryBeginOperation();
+        if (_capture is not null && operation is null) return;
         if (!UrlPolicy.TryValidateWithReason(Url, out _, out var reason))
         {
             ErrorText = Describe(reason);
@@ -156,17 +176,35 @@ public partial class AddUrlViewModel : ObservableObject
             // The name and folder shown are only a preview of what the URL suggests; unless the user (or the
             // browser, for the name) chose them, the link resolvers decide (DECISIONS 52).
             var added = await _manager.AddAsync(
-                Url.Trim(), _context, _fileNameEdited ? FileName : null, _folderEdited ? SaveFolder : null, CancellationToken.None);
+                Url.Trim(), _context, _fileNameEdited ? FileName : null, _folderEdited ? SaveFolder : null, _capture?.Token ?? CancellationToken.None);
             if (added.Count == 0)
             {
                 ErrorText = Strings.AddUrlNothingToDownload;
                 return;
             }
 
+            if (_capture is not null && added.Any(item => item.State == DownloadState.Failed))
+            {
+                await _manager.StopForBrowserFallbackAsync(added.Select(item => item.Id), CancellationToken.None);
+                ErrorText = Strings.BulkAddFailed;
+                return;
+            }
+            if (_capture is not null && !_capture.Accept())
+            {
+                await _manager.StopForBrowserFallbackAsync(added.Select(i => i.Id), CancellationToken.None);
+                return;
+            }
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
+            if (ex is DownloadCleanupException) operation?.CleanupFailed();
+            if (_capture is not null)
+            {
+                _logger.LogError("Browser download acquisition failed ({ExceptionType})", ex.GetType().Name);
+                ErrorText = Strings.BulkAddFailed;
+                return;
+            }
             _logger.LogError(ex, "Adding a download failed");
             ErrorText = string.Format(CultureInfo.CurrentCulture, Strings.AddUrlFailedFormat, ex.Message);
         }
@@ -175,14 +213,37 @@ public partial class AddUrlViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanResumeDuplicate))]
     private async Task ResumeDuplicateAsync()
     {
-        if (_duplicate is null) return;
+        if (_duplicate is null || _capture?.Token.IsCancellationRequested == true) return;
+        using var operation = _capture?.TryBeginOperation();
+        if (_capture is not null && operation is null) return;
         try
         {
-            await _manager.ResumeAsync([_duplicate.Id], CancellationToken.None);
+            await _manager.ResumeAsync([_duplicate.Id], _capture?.Token ?? CancellationToken.None);
+            if (_capture is not null)
+            {
+                var resumed = (await _manager.GetItemsAsync(CancellationToken.None)).FirstOrDefault(item => item.Id == _duplicate.Id);
+                if (resumed?.State is not (DownloadState.Queued or DownloadState.Active or DownloadState.Completed))
+                {
+                    ErrorText = Strings.BulkAddFailed;
+                    return;
+                }
+                if (!_capture.Accept())
+                {
+                    await _manager.StopForBrowserFallbackAsync([_duplicate.Id], CancellationToken.None);
+                    return;
+                }
+            }
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
+            if (ex is DownloadCleanupException) operation?.CleanupFailed();
+            if (_capture is not null)
+            {
+                _logger.LogError("Browser duplicate acquisition failed ({ExceptionType})", ex.GetType().Name);
+                ErrorText = Strings.BulkAddFailed;
+                return;
+            }
             _logger.LogError(ex, "Resuming a duplicate download failed");
             ErrorText = string.Format(CultureInfo.CurrentCulture, Strings.AddUrlFailedFormat, ex.Message);
         }
@@ -205,7 +266,14 @@ public partial class AddUrlViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Cancel() => CloseRequested?.Invoke(this, EventArgs.Empty);
+    private void Cancel()
+    {
+        _capture?.Reject();
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void BrowserFallback() => DismissCapture();
 
     private void UpdateFolder()
     {

@@ -15,9 +15,9 @@ namespace Colibri.Engine.Aria2;
 /// failures in a row.
 /// </summary>
 /// <remarks>
-/// After a restart the state goes Restarting -> Running. aria2 reloads its downloads from the session
-/// file, but anything that happened since the last save is gone, so listeners should re-read all
-/// downloads whenever the state becomes Running.
+/// After a restart the state goes Restarting -> Running with an empty transfer list. Core reconciles
+/// its protected repository, re-adding stable GIDs against existing partial/control files.
+/// Legacy plaintext sessions are never read, saved or deleted during engine launch.
 /// </remarks>
 internal sealed class Aria2Process : IDisposable
 {
@@ -117,7 +117,7 @@ internal sealed class Aria2Process : IDisposable
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogError(ex, "Could not create aria2's session file or log folder");
+                _logger.LogError(ex, "Could not create aria2's data or log folder");
                 SetState(EngineState.Failed);
             }
         }
@@ -128,7 +128,7 @@ internal sealed class Aria2Process : IDisposable
     }
 
     /// <summary>
-    /// Saves the session and shuts aria2 down: politely first, then forced, then by killing the
+    /// Shuts aria2 down: politely first, then forced, then by killing the
     /// process. Safe to call more than once. Not cancellable: a half-done stop would leave aria2 running
     /// with crash recovery switched off, and the steps have their own time limits.
     /// </summary>
@@ -181,7 +181,6 @@ internal sealed class Aria2Process : IDisposable
         {
             try
             {
-                await client.SaveSessionAsync(CancellationToken.None);
                 await client.ShutdownAsync(CancellationToken.None);
             }
             catch (Exception ex)
@@ -218,13 +217,6 @@ internal sealed class Aria2Process : IDisposable
     private void PrepareFiles()
     {
         Directory.CreateDirectory(_paths.DataDirectory);
-
-        // An empty session file is valid, so creating one up front means --input-file always has a file to read.
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_paths.Aria2SessionPath))!);
-        if (!File.Exists(_paths.Aria2SessionPath))
-        {
-            File.WriteAllText(_paths.Aria2SessionPath, string.Empty);
-        }
 
         Directory.CreateDirectory(_paths.LogsDirectory);
     }
@@ -335,8 +327,6 @@ internal sealed class Aria2Process : IDisposable
             port,
             ConfigPath,
             Environment.ProcessId,
-            _paths.Aria2SessionPath,
-            File.Exists(_paths.Aria2SessionPath),
             Path.Combine(_paths.LogsDirectory, "aria2.log"),
             _currentOptions());
         foreach (var argument in arguments)

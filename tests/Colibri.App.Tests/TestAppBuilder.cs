@@ -10,5 +10,8 @@ namespace Colibri.App.Tests;
 public static class TestAppBuilder
 {
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-        .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+        // The fake drawing backend gives every glyph the same width, which cannot verify real layouts.
+        .UseSkia()
+        .WithInterFont()
+        .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 }

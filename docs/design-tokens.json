@@ -1,0 +1,28 @@
+{
+  "accent": "#C42B1C",
+  "light": {
+    "chrome": "#F3F3F3",
+    "surface": "#FFFFFF",
+    "text": "#1B1B1B",
+    "divider": "#14000000"
+  },
+  "dark": {
+    "chrome": "#202020",
+    "surface": "#272727",
+    "text": "#F2F2F2",
+    "divider": "#19FFFFFF"
+  },
+  "radius": 6,
+  "spacing": {
+    "small": 4,
+    "medium": 8,
+    "large": 16
+  },
+  "type": {
+    "family": "Inter, Segoe UI, sans-serif",
+    "small": 12,
+    "body": 14,
+    "title": 18
+  },
+  "icons": "Fluent System Icons (MIT)"
+}

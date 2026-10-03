@@ -4,7 +4,9 @@ namespace Colibri.Core.Ipc;
 /// <param name="Ok">Whether the request was accepted.</param>
 /// <param name="Error">Why it was not, in English (it is shown in logs, not to the user).</param>
 /// <param name="Config">The capture rules, in the answer to a <see cref="ConfigRequest"/>.</param>
-public sealed record IpcResponse(bool Ok, string? Error = null, CaptureConfig? Config = null)
+public sealed record IpcResponse(bool Ok, string? Error = null, CaptureConfig? Config = null,
+    string? State = null, string? CaptureId = null, int? ProtocolVersion = null,
+    string? AppVersion = null, IReadOnlyList<string>? Capabilities = null)
 {
     public static IpcResponse Success { get; } = new(true);
 
@@ -14,4 +16,6 @@ public sealed record IpcResponse(bool Ok, string? Error = null, CaptureConfig? C
 /// <summary>Which browser downloads the extension hands over to Colibri.</summary>
 /// <param name="Extensions">File extensions, lower case, without the dot.</param>
 /// <param name="MinSizeKiB">Downloads known to be smaller than this stay in the browser; 0 = any size.</param>
-public sealed record CaptureConfig(IReadOnlyList<string> Extensions, int MinSizeKiB);
+public sealed record CaptureConfig(IReadOnlyList<string> Extensions, int MinSizeKiB,
+    bool Enabled = true, IReadOnlyList<string>? ExcludedSites = null,
+    bool CapturePrivate = false, string BypassModifier = "none", string Theme = "system", string Accent = "#C42B1C");

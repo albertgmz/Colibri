@@ -2,14 +2,37 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
+using Colibri.App.Resources;
 using Colibri.App.ViewModels;
 using Colibri.App.Views;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Colibri.App.Services;
 
 /// <summary><see cref="IDialogService"/> for the desktop app; the main window is the owner of dialogs.</summary>
 public sealed class DialogService : IDialogService
 {
+    public static Window ShowDownloadDetails(DownloadDetailsViewModel viewModel, Window? owner)
+    {
+        // Resolve the OS-specific frame at the desktop UI boundary; headless tests/designers use the default.
+        var window = Application.Current is App { Services: { } services }
+            ? ActivatorUtilities.CreateInstance<DownloadDetailsWindow>(services)
+            : new DownloadDetailsWindow();
+        window.DataContext = viewModel;
+        window.Title = $"{Strings.AppName} · {viewModel.Row.FileName}";
+        window.WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner;
+        if (owner is null) window.Show(); else window.Show(owner);
+        return window;
+    }
+
+    public void ShowBulkAdd(BulkAddViewModel viewModel)
+    {
+        var window = new BulkAddWindow { DataContext = viewModel, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+        viewModel.CloseRequested += (_, _) => window.Close();
+        window.Closed += (_, _) => viewModel.WindowClosed();
+        window.Show();
+        window.Activate();
+    }
     private static Window? MainWindow =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
@@ -31,6 +54,7 @@ public sealed class DialogService : IDialogService
     {
         var window = new AddUrlWindow { DataContext = viewModel };
         viewModel.CloseRequested += (_, _) => window.Close();
+        window.Closed += (_, _) => viewModel.WindowClosed();
 
         // A browser capture opens this window while another app has the focus, and the OS does not let a
         // background app take it. Being topmost until it has opened puts it in front of the browser anyway.

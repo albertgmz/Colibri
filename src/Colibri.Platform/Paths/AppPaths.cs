@@ -45,8 +45,8 @@ internal sealed class AppPaths : IAppPaths
     public string DefaultDownloadsDirectory => _downloads.Value;
 
     /// <summary>
-    /// Owner-only (0700): the database and aria2's session file hold the cookies and auth headers of
-    /// downloads, and other local users must not be able to read them. Applied on every start, so a
+    /// Owner-only (0700): download metadata and legacy credential files are private. V2 protects
+    /// request headers and removes the legacy aria2 session after migration. Applied on every start, so a
     /// folder created earlier with the default 0755 is tightened too.
     /// </summary>
     [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]

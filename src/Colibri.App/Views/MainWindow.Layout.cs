@@ -24,6 +24,7 @@ public partial class MainWindow
 
     private void InitializeLayout()
     {
+        SettingsContent.LayoutRequested += OnLayoutMenuClick;
         WorkspaceGrid.ColumnDefinitions[0].MinWidth = 120;
         WorkspaceGrid.ColumnDefinitions[0].MaxWidth = 400;
         foreach (var column in DownloadsGrid.Columns) _defaultColumnWidths[column.SortMemberPath] = column.Width;
@@ -154,6 +155,13 @@ public partial class MainWindow
     private void UpdateResponsiveColumns()
     {
         if (!_layoutReady) return;
+        // Labels need a second row at minimum width; retaining the mode keeps every command reachable.
+        var searchBelow = Bounds.Width < 760 && ViewModel?.Layout.Toolbar == ToolbarMode.Labels;
+        Grid.SetRow(SearchBox, searchBelow ? 1 : 0);
+        Grid.SetColumn(SearchBox, searchBelow ? 0 : 1);
+        Grid.SetColumnSpan(SearchBox, searchBelow ? 2 : 1);
+        SearchBox.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+        SearchBox.Margin = new Thickness(0, searchBelow ? 4 : 0, 0, 0);
         NetworkStatus.IsVisible = Bounds.Width >= 900;
         FreeSpaceStatus.IsVisible = Bounds.Width >= 740;
         var available = Bounds.Width - WorkspaceGrid.ColumnDefinitions[0].Width.Value;
@@ -257,6 +265,7 @@ public partial class MainWindow
             ScheduleLayoutSave();
         };
         menu.Items.Add(reset);
+        button.ContextMenu = menu;
         menu.Open(button);
 
         void AddChoice(string text, bool selected, Action change)

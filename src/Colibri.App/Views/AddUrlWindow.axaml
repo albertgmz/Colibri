@@ -49,6 +49,8 @@
             </StackPanel>
         </Border>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button IsVisible="{Binding IsBrowserCapture}" Content="{x:Static res:Strings.BrowserFallback}"
+                    Command="{Binding BrowserFallbackCommand}" />
             <!-- IsDefault: Enter presses it. IsCancel: Esc presses Cancel. -->
             <Button Classes="accent" MinWidth="110" IsDefault="True"
                     IsVisible="{Binding !IsDuplicatePrompt}"

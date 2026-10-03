@@ -6,6 +6,32 @@ namespace Colibri.App.Tests.Services;
 
 public class IpcRequestHandlerTests
 {
+    [AvaloniaFact]
+    public async Task Cancel_replies_pending_immediately_while_duplicate_rollback_is_in_flight()
+    {
+        await using var ui = await UiHarness.StartAsync(UiHarness.Item("a.zip", Colibri.Core.Models.DownloadState.Paused));
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { }, ui.Settings);
+        var offer = await handler.HandleAsync(new AddRequest("https://example.com/a.zip", null, Colibri.Core.Models.LinkContext.Empty), CancellationToken.None);
+        var add = Assert.IsType<Colibri.App.ViewModels.AddUrlViewModel>(ui.Dialogs.ShownAddUrl);
+        await add.DownloadCommand.ExecuteAsync(null);
+        var repliedImmediately = false;
+        IpcResponse? cancelReply = null;
+        ui.Engine.OnResume = _ =>
+        {
+            var reply = handler.HandleAsync(new CaptureCancelRequest(offer.CaptureId!), CancellationToken.None);
+            repliedImmediately = reply.IsCompletedSuccessfully;
+            if (repliedImmediately) cancelReply = reply.GetAwaiter().GetResult();
+        };
+        await add.ResumeDuplicateCommand.ExecuteAsync(null);
+        Assert.True(repliedImmediately);
+        Assert.Equal("pending", cancelReply!.State);
+        var settled = await handler.HandleAsync(new CaptureStatusRequest(offer.CaptureId!), CancellationToken.None);
+        Assert.Equal("browser", settled.State);
+        var item = Assert.Single(await ui.Manager.GetItemsAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(Colibri.Core.Engine.EngineDownloadState.Paused,
+            (await ui.Engine.GetStatusAsync(item.EngineHandle!, TestContext.Current.CancellationToken))!.State);
+    }
+
     private static IpcRequest Parse(string line)
     {
         Assert.True(IpcProtocol.TryParseRequest(line, out var request, out var error), error);

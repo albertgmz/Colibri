@@ -3,9 +3,9 @@ using Colibri.Core.Platform;
 namespace Colibri.Platform.BrowserHost;
 
 /// <summary>A browser's per-user profile folder; its <c>NativeMessagingHosts</c> subfolder holds host manifests.</summary>
-internal sealed record BrowserProfileFolder(BrowserKind Browser, string ProfileFolder)
+internal sealed record BrowserProfileFolder(BrowserKind Browser, string ProfileFolder, string HostDirectoryName = "NativeMessagingHosts")
 {
-    public string HostsFolder => Path.Combine(ProfileFolder, "NativeMessagingHosts");
+    public string HostsFolder => Path.Combine(ProfileFolder, HostDirectoryName);
 }
 
 /// <summary>
@@ -35,6 +35,7 @@ internal sealed class UnixBrowserHostRegistrar : IBrowserHostRegistrar
             new(BrowserKind.Chrome, Path.Combine(config, "google-chrome")),
             new(BrowserKind.Chromium, Path.Combine(config, "chromium")),
             new(BrowserKind.Edge, Path.Combine(config, "microsoft-edge")),
+            new(BrowserKind.Firefox, Path.Combine(home, ".mozilla"), "native-messaging-hosts"),
         ];
     }
 
@@ -47,6 +48,7 @@ internal sealed class UnixBrowserHostRegistrar : IBrowserHostRegistrar
             new(BrowserKind.Chrome, Path.Combine(support, "Google", "Chrome")),
             new(BrowserKind.Chromium, Path.Combine(support, "Chromium")),
             new(BrowserKind.Edge, Path.Combine(support, "Microsoft Edge")),
+            new(BrowserKind.Firefox, Path.Combine(support, "Mozilla")),
         ];
     }
 
@@ -60,7 +62,7 @@ internal sealed class UnixBrowserHostRegistrar : IBrowserHostRegistrar
             var status = !File.Exists(manifestPath)
                 ? BrowserIntegrationStatus.NotRegistered
                 : File.Exists(expected.HostExecutablePath)
-                  && NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.Ordinal)
+                  && NativeHostManifest.Matches(await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false), expected, StringComparer.Ordinal, browser.Browser == BrowserKind.Firefox)
                     ? BrowserIntegrationStatus.Registered
                     : BrowserIntegrationStatus.Outdated;
             statuses.Add(new BrowserHostStatus(browser.Browser, status));
@@ -85,9 +87,9 @@ internal sealed class UnixBrowserHostRegistrar : IBrowserHostRegistrar
             }
         }
 
-        var manifest = NativeHostManifest.Build(registration);
         foreach (var browser in InstalledBrowsers())
         {
+            var manifest = NativeHostManifest.Build(registration, browser.Browser == BrowserKind.Firefox);
             Directory.CreateDirectory(browser.HostsFolder);
             await File.WriteAllTextAsync(Path.Combine(browser.HostsFolder, NativeHostManifest.FileName(registration)), manifest).ConfigureAwait(false);
         }

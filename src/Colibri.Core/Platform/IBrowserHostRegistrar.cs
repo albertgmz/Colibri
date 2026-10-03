@@ -22,6 +22,7 @@ public enum BrowserKind
     Chrome,
     Edge,
     Chromium,
+    Firefox,
 }
 
 /// <summary>The registration state for one browser.</summary>

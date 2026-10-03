@@ -1,6 +1,12 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Automation;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Colibri.App.Resources;
 using Colibri.Core.Models;
 using Colibri.Core.Settings;
 
@@ -8,6 +14,54 @@ namespace Colibri.App.Tests;
 
 public class WindowLayoutTests
 {
+    [AvaloniaTheory]
+    [InlineData(ToolbarMode.Labels, 960, 600)]
+    [InlineData(ToolbarMode.Labels, 640, 400)]
+    [InlineData(ToolbarMode.Icons, 960, 600)]
+    [InlineData(ToolbarMode.Icons, 640, 400)]
+    [InlineData(ToolbarMode.SmallIcons, 960, 600)]
+    [InlineData(ToolbarMode.SmallIcons, 640, 400)]
+    public async Task Layout_command_keeps_its_icon_name_and_tooltip_without_overlapping_search(
+        ToolbarMode mode, int width, int height)
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Settings.Layout.Toolbar = mode;
+        ui.Settings.Layout.Width = width;
+        ui.Settings.Layout.Height = height;
+        var window = ui.ShowWindow();
+        var layout = window.FindControl<Button>("LayoutButton")!;
+        var search = window.FindControl<TextBox>("SearchBox")!;
+        var commands = window.FindControl<StackPanel>("ToolbarCommands")!;
+        var icon = layout.GetVisualDescendants().OfType<PathIcon>().Single();
+        var label = layout.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == Strings.LayoutMenu);
+
+        Assert.Contains("command", layout.Classes);
+        Assert.Equal(Strings.LayoutMenu, AutomationProperties.GetName(layout));
+        Assert.Equal(Strings.LayoutMenu, ToolTip.GetTip(layout));
+        Assert.NotNull(icon.Data);
+        Assert.Equal(mode == ToolbarMode.Labels, label.IsEffectivelyVisible);
+        Assert.Equal(mode == ToolbarMode.SmallIcons ? 16 : 20, icon.Width);
+        Assert.True(layout.Focus());
+        Assert.True(layout.IsKeyboardFocusWithin);
+        var searchOrigin = search.TranslatePoint(default, window)!.Value;
+        var commandsOrigin = commands.TranslatePoint(default, window)!.Value;
+        Assert.True(commandsOrigin.X + commands.Bounds.Width <= searchOrigin.X ||
+                    commandsOrigin.Y + commands.Bounds.Height <= searchOrigin.Y);
+        window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.None, null);
+        window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.None, null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(layout.ContextMenu!.IsOpen);
+        var choices = layout.ContextMenu.Items.OfType<MenuItem>().Select(item => item.Header).ToArray();
+        Assert.Contains(Strings.LayoutSidebar, choices);
+        Assert.Contains(Strings.LayoutCompact, choices);
+        Assert.Contains(Strings.LayoutComfortable, choices);
+        Assert.Contains(Strings.LayoutLabels, choices);
+        Assert.Contains(Strings.LayoutIcons, choices);
+        Assert.Contains(Strings.LayoutSmallIcons, choices);
+        Assert.Contains(Strings.LayoutReset, choices);
+        layout.ContextMenu.Close();
+    }
+
     [AvaloniaFact]
     public async Task Saved_details_height_is_restored_after_a_new_window_is_created()
     {
