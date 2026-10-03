@@ -1,4 +1,4 @@
-# v1 Windows performance baseline
+# Windows performance measurements
 
 Measured 2026-10-03 on Windows 11 Pro 10.0.26200 x64, AMD Ryzen 7 9800X3D, 33,279,782,912 bytes physical RAM, .NET SDK 10.0.401. Exact source: v1 commit `42d8967`, copied with `git archive`; no tracked app source or owner settings/database was changed. These are instrumented, empty-profile measurements, not a production-profile or browser end-to-end result.
 
@@ -424,3 +424,64 @@ server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 Path(__file__).with_name('server-port.txt').write_text(str(server.server_port))
 server.serve_forever()
 ```
+
+## V2 measured checkpoint and compilation experiments
+
+The instrumented source snapshot includes the implementation checkpoint192d838.
+The later optional TimeProvider correction leaves default runtime behavior unchanged
+but was not copied into this snapshot. Mandatory unique data/IPC keys, disabled
+notifications and the same Stopwatch/dispatcher/payload observers isolate every
+run from the owner's active app. Native requests now include protocolVersion2;
+v1 used legacy framing. Neither native benchmark measures actual browser clicks
+or a completed user offer/confirmation transaction.
+
+| Measurement | V1 | V2 Release build |
+|---|---:|---:|
+| First new-profile dispatcher-ready, not OS-cold |1729.004ms|1252.794ms|
+| Warm dispatcher-ready median (five repeats) |1176.014ms|1269.611ms|
+| Running native host to Add.Opened median (five) |118.778ms|123.747ms|
+| Closed native host to Add.Opened median (five) |2111.402ms|2135.752ms|
+| Confirmation to observed payload median (five) |54.121ms|46.441ms|
+
+V2 Release warm range1265.523–1301.940ms. Controlled first-payload range
+46.304–47.942ms. These samples show no startup improvement in the warm Release
+build; first-profile cache/workload differences cannot establish a cold speedup.
+The native proxy remains below300ms while running. Closed handoff still includes
+the one-second absent-pipe connect wait; its roughly2.1-second result misses the
+one-second target. The payload experiment excludes startup/confirmation waiting.
+
+Matched framework-dependent win-x64 publish experiments used a separately copied,
+hash-checked instrumented source. Only PublishReadyToRun differs between the
+control and R2R; both disable app AOT/trimming. Six fresh process launches per
+variant use one new profile then five repeats. No reboot/cache flush was performed.
+
+| Variant | First dispatcher-ready | Warm median | Warm range | Output bytes |
+|---|---:|---:|---:|---:|
+| Publish control |1331.138ms|1186.607ms|1176.233–1207.749ms|174910690|
+| ReadyToRun |2536.255ms|694.914ms|682.194–716.828ms|194730866|
+
+ReadyToRun improved warm startup in this run but the first sample was slower and
+the output grew about20MB. This does not justify an unqualified cold-start claim.
+The default package remains ordinary managed Release pending the final trade-off.
+Background engine initialization already exists; it was not credited as a new
+optimization. Lazy settings/details, persistent native ports, early transfer and
+immediate-start alternatives still need separate behavior/cost assessment.
+
+A Windows native-host-only AOT publish succeeded without compiler warnings. Its
+unchanged app remains managed and untrimmed. The staged output is190614450bytes;
+The same five-running/five-closed handoff experiment produced these Add.Opened times:
+
+| Native host | Running median / range | Closed median / range |
+|---|---:|---:|
+| Managed publish control |119.740ms /118.323–135.566ms|2097.468ms /2069.101–2112.508ms|
+| Windows AOT host |65.103ms /60.814–92.359ms|2029.977ms /2021.844–2044.689ms|
+
+All twenty real Add windows and native pending responses were observed. AOT reduced
+the running proxy by roughly55ms in this run; the absent-pipe wait still dominates
+closed handoff. This does not establish a complete cookie/cancel/handshake regression
+pass for the AOT binary, prove its protocol correctness on Linux/macOS, or select it
+for shipping. The app itself was not trimmed or AOT compiled.
+
+Raw sample/marker directories: benchmarks/v2-release, benchmarks/v2-publish-control,
+benchmarks/v2-r2r, benchmarks/v2-native-aot. Preserve originals before rerunning any harness. Baseline method
+and full test-only scripts above remain the source of measurement definitions.

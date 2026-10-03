@@ -1,0 +1,72 @@
+[
+  {
+    "State": "running",
+    "Sample": 0,
+    "AddOpenedMs": 135.566,
+    "AddDispatcherReadyMs": 161.741,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"2292c260-be7c-439d-a6fa-d33dd9220b0c\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "running",
+    "Sample": 1,
+    "AddOpenedMs": 118.323,
+    "AddDispatcherReadyMs": 145.971,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"7aa77089-8d83-4345-ba2f-76888af2f1d0\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "running",
+    "Sample": 2,
+    "AddOpenedMs": 119.725,
+    "AddDispatcherReadyMs": 144.906,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"e44bec50-1fa3-4bc0-b7eb-9efa728f9557\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "running",
+    "Sample": 3,
+    "AddOpenedMs": 119.74,
+    "AddDispatcherReadyMs": 144.601,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"e6944a32-dd25-4a84-8594-f582f8e11de3\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "running",
+    "Sample": 4,
+    "AddOpenedMs": 119.832,
+    "AddDispatcherReadyMs": 144.781,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"81bb2cd1-eb23-4756-b165-a4c0c7e01472\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "closed",
+    "Sample": 0,
+    "AddOpenedMs": 2112.508,
+    "AddDispatcherReadyMs": 2230.541,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"0342fabb-69a8-48d3-a227-9ac96808d7b1\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "closed",
+    "Sample": 1,
+    "AddOpenedMs": 2069.101,
+    "AddDispatcherReadyMs": 2195.07,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"42c1b942-c681-4459-9ee1-35a89992a551\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "closed",
+    "Sample": 2,
+    "AddOpenedMs": 2097.468,
+    "AddDispatcherReadyMs": 2213.527,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"5e38d553-f5f8-43ca-9984-bcb3ec80d832\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "closed",
+    "Sample": 3,
+    "AddOpenedMs": 2082.057,
+    "AddDispatcherReadyMs": 2194.126,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"a6cced10-f9f6-44b7-88ce-8e2f502d1140\",\"pending\":true,\"accepted\":false}"
+  },
+  {
+    "State": "closed",
+    "Sample": 4,
+    "AddOpenedMs": 2101.804,
+    "AddDispatcherReadyMs": 2202.082,
+    "Response": "{\"ok\":true,\"state\":\"pending\",\"captureId\":\"e40d9691-651b-419e-986f-3279d0ea04d0\",\"pending\":true,\"accepted\":false}"
+  }
+]

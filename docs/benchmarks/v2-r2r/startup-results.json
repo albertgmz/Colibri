@@ -1,0 +1,44 @@
+[
+  {
+    "Sample": 0,
+    "MainOpenedMs": 2357.501,
+    "DispatcherReadyMs": 2536.255,
+    "ManagerReadyMs": 2991.177,
+    "PipeReadyMs": 2358.393
+  },
+  {
+    "Sample": 1,
+    "MainOpenedMs": 629.657,
+    "DispatcherReadyMs": 716.828,
+    "ManagerReadyMs": 995.36,
+    "PipeReadyMs": 630.398
+  },
+  {
+    "Sample": 2,
+    "MainOpenedMs": 615.462,
+    "DispatcherReadyMs": 693.179,
+    "ManagerReadyMs": 1008.059,
+    "PipeReadyMs": 616.241
+  },
+  {
+    "Sample": 3,
+    "MainOpenedMs": 617.858,
+    "DispatcherReadyMs": 707.994,
+    "ManagerReadyMs": 1005.776,
+    "PipeReadyMs": 618.798
+  },
+  {
+    "Sample": 4,
+    "MainOpenedMs": 609.69,
+    "DispatcherReadyMs": 682.194,
+    "ManagerReadyMs": 992.617,
+    "PipeReadyMs": 610.559
+  },
+  {
+    "Sample": 5,
+    "MainOpenedMs": 615.267,
+    "DispatcherReadyMs": 694.914,
+    "ManagerReadyMs": 1002.636,
+    "PipeReadyMs": 615.979
+  }
+]

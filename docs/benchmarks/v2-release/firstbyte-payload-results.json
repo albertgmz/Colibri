@@ -1,0 +1,27 @@
+[
+  {
+    "Sample": 0,
+    "FirstPayloadByteMs": 46.304,
+    "DownloadCommandCompletedMs": 107.229
+  },
+  {
+    "Sample": 1,
+    "FirstPayloadByteMs": 46.441,
+    "DownloadCommandCompletedMs": 98.499
+  },
+  {
+    "Sample": 2,
+    "FirstPayloadByteMs": 47.942,
+    "DownloadCommandCompletedMs": 96.039
+  },
+  {
+    "Sample": 3,
+    "FirstPayloadByteMs": 46.408,
+    "DownloadCommandCompletedMs": 97.893
+  },
+  {
+    "Sample": 4,
+    "FirstPayloadByteMs": 47.407,
+    "DownloadCommandCompletedMs": 98.63
+  }
+]

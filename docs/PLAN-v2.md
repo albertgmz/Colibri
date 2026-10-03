@@ -139,7 +139,7 @@ profiles with sync disabled. Credentials must never appear in logs.
 - [x] Inspect references: IDM images present; annotated screenshot and extension notes absent.
 - [x] Build v1: zero warnings/errors. Test: 757 pass, one Unix-only skip; extension: 29 pass.
 - [x] Run Windows v1 and save `docs/screenshots/v1-default.png`.
-- [ ] Measure process start to interactive window, native handoff and first written byte;
+- [x] Measure process start to interactive window, native handoff and first written byte;
   document method, sample counts and measurements in PERFORMANCE.md.
 
 ## 1. Layout and customization
@@ -248,3 +248,25 @@ locally. Actual browser runtime remains outstanding, so retain the old extension
 Canonical cross-repo checks are conditional and skipped without COLIBRI_READ_TOKEN;
 no token was created. Linux Secret Service and macOS Keychain runtime remain
 unverified. Goals 4–6 and the unchecked carried-over fixes remain work in progress.
+
+## Additional owner requests during continuation
+
+The owner explicitly requested these additions; Windows packaging supersedes the
+original installer exclusion. Keep them separate from completion of Goals5–7.
+
+- [x] Local fake login site with admin/password and cookie-required ZIP;3 automated
+  tests passed and owner reports browser-to-Colibri cookie capture works.
+- [ ] Git-ignored build.bat produces a portable folder/ZIP and installer/upgrader,
+  then launches the portable executable; preserve existing profiles/downloads.
+- [ ] Selectable Fluent palettes in Appearance; retain current warm default,
+  light/dark/system and separately chosen accent, save selection and update live.
+
+Owner reports extension basic operation and Google Drive succeeded; browser identity
+is being clarified. This is owner-provided runtime evidence on their development
+build, separate from agent-controlled all-browser or native-AOT regression coverage.
+Performance measurements and raw samples now include v2 Release, matched publish
+control/R2R startup and Windows native-host AOT handoff. See PERFORMANCE.md for
+sample counts, first-launch/cache limitations and default-shipping decisions.
+Capture expiry now uses deterministic tests (10a717d); later Ubuntu CI exposed a
+rapid pipe reconnect exchange failure. The listener successor correction passed
+461 Core/44 NativeHost Windows tests and independent review; all-OS rerun pending.
