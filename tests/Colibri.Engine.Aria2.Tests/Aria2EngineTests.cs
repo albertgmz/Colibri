@@ -28,10 +28,11 @@ public class Aria2EngineTests
         new() { ["gid"] = gid, ["status"] = status, ["totalLength"] = "100", ["completedLength"] = "10" };
 
     // Adds a download and returns the aria2.addUri request the engine sent.
-    private static async Task<(string Gid, JsonObject Request)> AddAsync(DownloadRequest request, string folder = "/downloads", string fileName = "file.zip")
+    private static async Task<(string Gid, JsonObject Request)> AddAsync(
+        DownloadRequest request, string folder = "/downloads", string fileName = "file.zip", string? handle = null, bool startPaused = false)
     {
         var (engine, transport) = Create(r => FakeTransport.Result(Params(r)[2]!["gid"]!.DeepClone()));
-        var gid = await engine.AddAsync(request, folder, fileName, Ct);
+        var gid = await engine.AddAsync(request, folder, fileName, handle, startPaused, Ct);
         return (gid, transport.Sent.Single(r => Method(r) == "aria2.addUri"));
     }
 
@@ -71,6 +72,25 @@ public class Aria2EngineTests
         var (second, _) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") });
 
         Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public async Task Add_with_a_handle_reuses_it_as_the_gid()
+    {
+        var (gid, request) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") }, handle: "0123456789abcdef");
+
+        Assert.Equal("0123456789abcdef", gid);
+        Assert.Equal("0123456789abcdef", AddOptions(request)["gid"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Add_paused_sets_the_pause_option_and_a_normal_add_does_not()
+    {
+        var (_, paused) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") }, startPaused: true);
+        var (_, normal) = await AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") });
+
+        Assert.Equal("true", AddOptions(paused)["pause"]!.GetValue<string>());
+        Assert.Null(AddOptions(normal)["pause"]);
     }
 
     [Fact]
@@ -165,7 +185,7 @@ public class Aria2EngineTests
         var (engine, transport) = Create(_ => null);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            engine.AddAsync(new DownloadRequest { Uri = new Uri("file:///tmp/a") }, "/d", "a", Ct));
+            engine.AddAsync(new DownloadRequest { Uri = new Uri("file:///tmp/a") }, "/d", "a", null, false, Ct));
         Assert.Empty(transport.Sent);
     }
 
@@ -276,7 +296,7 @@ public class Aria2EngineTests
             : FakeTransport.Result("OK"));
 
         await engine.ApplyOptionsAsync(new EngineOptions(MaxConcurrentDownloads: 2, ConnectionsPerServer: 4, GlobalSpeedLimitBytesPerSecond: 1_048_576), Ct);
-        await engine.AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") }, "/d", "a", Ct);
+        await engine.AddAsync(new DownloadRequest { Uri = new Uri("https://example.com/a") }, "/d", "a", null, false, Ct);
 
         var change = transport.Sent.Single(r => Method(r) == "aria2.changeGlobalOption");
         Assert.Equal("""{"max-concurrent-downloads":"2","max-overall-download-limit":"1048576"}""", Params(change)[1]!.ToJsonString());

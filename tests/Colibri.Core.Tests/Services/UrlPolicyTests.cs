@@ -96,4 +96,27 @@ public class UrlPolicyTests
         Assert.False(UrlPolicy.TryValidate(url, out _, out var error));
         Assert.NotNull(error);
     }
+
+    [Theory]
+    [InlineData("https://example.com/a", UrlValidationError.None)]
+    [InlineData("   ", UrlValidationError.Empty)]
+    [InlineData("https://example.com/a b", UrlValidationError.InvalidCharacters)]
+    [InlineData("relative/path.zip", UrlValidationError.NotAbsolute)]
+    [InlineData("javascript:alert(1)", UrlValidationError.UnsupportedScheme)]
+    public void Reports_the_reason_for_a_rejection(string url, UrlValidationError expected)
+    {
+        var ok = UrlPolicy.TryValidateWithReason(url, out _, out var reason);
+
+        Assert.Equal(expected == UrlValidationError.None, ok);
+        Assert.Equal(expected, reason);
+    }
+
+    [Fact]
+    public void Reports_too_long_urls()
+    {
+        var url = "https://example.com/" + new string('a', UrlPolicy.MaxLength);
+
+        Assert.False(UrlPolicy.TryValidateWithReason(url, out _, out var reason));
+        Assert.Equal(UrlValidationError.TooLong, reason);
+    }
 }

@@ -11,5 +11,6 @@
     <Project Path="tests/Colibri.Core.Tests/Colibri.Core.Tests.csproj" />
     <Project Path="tests/Colibri.Engine.Aria2.Smoke/Colibri.Engine.Aria2.Smoke.csproj" />
     <Project Path="tests/Colibri.Engine.Aria2.Tests/Colibri.Engine.Aria2.Tests.csproj" />
+    <Project Path="tests/Colibri.Platform.Tests/Colibri.Platform.Tests.csproj" />
   </Folder>
 </Solution>

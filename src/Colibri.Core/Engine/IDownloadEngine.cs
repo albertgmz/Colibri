@@ -41,7 +41,16 @@ public interface IDownloadEngine
     Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct);
 
     /// <summary>Adds a download and returns the engine handle.</summary>
-    Task<string> AddAsync(DownloadRequest request, string saveFolder, string fileName, CancellationToken ct);
+    /// <param name="request">What to download.</param>
+    /// <param name="saveFolder">Folder the file is written to.</param>
+    /// <param name="fileName">Output file name (already sanitized and unique).</param>
+    /// <param name="handle">
+    /// Handle to reuse, or null for a new one. Re-adding a download the engine has forgotten with its old
+    /// handle and the same folder and name keeps the handle stable and resumes the partial file.
+    /// </param>
+    /// <param name="startPaused">Add the download paused instead of queuing it.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<string> AddAsync(DownloadRequest request, string saveFolder, string fileName, string? handle, bool startPaused, CancellationToken ct);
 
     /// <summary>Pauses a download.</summary>
     Task PauseAsync(string handle, CancellationToken ct);

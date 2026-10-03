@@ -8,4 +8,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.Core.Tests" />
+    <InternalsVisibleTo Include="Colibri.App.Tests" />
+  </ItemGroup>
+
 </Project>

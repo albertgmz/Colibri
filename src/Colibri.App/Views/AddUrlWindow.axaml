@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Colibri.App.ViewModels"
+        xmlns:res="using:Colibri.App.Resources"
+        x:Class="Colibri.App.Views.AddUrlWindow"
+        x:DataType="vm:AddUrlViewModel"
+        Title="{x:Static res:Strings.AddUrlTitle}"
+        Width="580" SizeToContent="Height" CanResize="False">
+
+    <StackPanel Margin="24,20" Spacing="18">
+        <Grid ColumnDefinitions="90,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="10">
+            <Grid.Styles>
+                <Style Selector="Label">
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                </Style>
+            </Grid.Styles>
+
+            <Label Grid.Row="0" Content="{x:Static res:Strings.AddUrlUrlLabel}" Target="UrlBox" />
+            <TextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="UrlBox" Text="{Binding Url}"
+                     AutomationProperties.Name="{x:Static res:Strings.AddUrlUrlLabel}" />
+
+            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding ErrorText}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource ErrorTextBrush}" FontSize="12"
+                       IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+            <Label Grid.Row="2" Content="{x:Static res:Strings.AddUrlFileNameLabel}" Target="FileNameBox" />
+            <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" x:Name="FileNameBox" Text="{Binding FileName}"
+                     AutomationProperties.Name="{x:Static res:Strings.AddUrlFileNameLabel}" />
+
+            <Label Grid.Row="3" Content="{x:Static res:Strings.AddUrlFolderLabel}" Target="FolderBox" />
+            <TextBox Grid.Row="3" Grid.Column="1" x:Name="FolderBox" Text="{Binding SaveFolder}"
+                     AutomationProperties.Name="{x:Static res:Strings.AddUrlFolderLabel}" />
+            <Button Grid.Row="3" Grid.Column="2" Content="{x:Static res:Strings.AddUrlBrowse}" Click="OnBrowseClick" />
+
+            <Label Grid.Row="4" Content="{x:Static res:Strings.AddUrlSizeLabel}" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SizeText}" VerticalAlignment="Center" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <!-- IsDefault: Enter presses it. IsCancel: Esc presses Cancel. -->
+            <Button Classes="accent" MinWidth="110" IsDefault="True"
+                    Content="{x:Static res:Strings.AddUrlDownload}" Command="{Binding DownloadCommand}" />
+            <Button MinWidth="110" IsCancel="True"
+                    Content="{x:Static res:Strings.AddUrlCancel}" Command="{Binding CancelCommand}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -13,13 +13,14 @@ public static class DownloadStateMachine
     // - Active -> Queued: the engine puts a download back in its waiting queue (e.g. the concurrency limit dropped).
     // - Paused -> Completed: a pause can race the last bytes; the engine (or startup reconcile) reports Complete.
     // - Failed -> Active: aria2 restores errored downloads from its session file and may restart them itself.
+    // - Failed -> Completed: such a restored download (or a retry racing a stale report) can finish.
     // - Completed is terminal: downloading again creates a new item.
     private static readonly Dictionary<DownloadState, DownloadState[]> Allowed = new()
     {
         [DownloadState.Queued] = [DownloadState.Active, DownloadState.Paused, DownloadState.Failed, DownloadState.Completed],
         [DownloadState.Active] = [DownloadState.Paused, DownloadState.Completed, DownloadState.Failed, DownloadState.Queued],
         [DownloadState.Paused] = [DownloadState.Queued, DownloadState.Active, DownloadState.Failed, DownloadState.Completed],
-        [DownloadState.Failed] = [DownloadState.Queued, DownloadState.Active],
+        [DownloadState.Failed] = [DownloadState.Queued, DownloadState.Active, DownloadState.Completed],
         [DownloadState.Completed] = [],
     };
 

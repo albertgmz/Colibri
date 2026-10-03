@@ -96,15 +96,22 @@ public sealed class Aria2Engine : IDownloadEngine, IDisposable
         await Refusable(() => Client.ChangeGlobalOptionAsync(globalOptions, ct), "change its options");
     }
 
-    public async Task<string> AddAsync(DownloadRequest request, string saveFolder, string fileName, CancellationToken ct)
+    public async Task<string> AddAsync(
+        DownloadRequest request, string saveFolder, string fileName, string? handle, bool startPaused, CancellationToken ct)
     {
         if (!CanHandle(request))
         {
             throw new ArgumentException($"aria2 cannot download '{request.Uri.Scheme}' URLs.", nameof(request));
         }
 
-        var gid = Aria2AddOptions.NewGid();
+        var gid = handle ?? Aria2AddOptions.NewGid();
         var options = Aria2AddOptions.Build(request, saveFolder, fileName, gid, _options.ConnectionsPerServer);
+        if (startPaused)
+        {
+            // aria2's "pause" option adds the download in the paused state.
+            options["pause"] = "true";
+        }
+
         await Refusable(() => Client.AddUriAsync([Aria2AddOptions.ToAria2Url(request.Uri)], options, ct), "add the download");
         return gid;
     }

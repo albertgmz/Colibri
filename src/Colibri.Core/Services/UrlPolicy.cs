@@ -24,51 +24,78 @@ public static class UrlPolicy
     /// </remarks>
     public static bool TryValidate(string? url, [NotNullWhen(true)] out Uri? uri, [NotNullWhen(false)] out string? error)
     {
+        if (TryValidateWithReason(url, out uri, out var reason))
+        {
+            error = null;
+            return true;
+        }
+
+        error = reason switch
+        {
+            UrlValidationError.Empty => "The URL is empty.",
+            UrlValidationError.TooLong => $"The URL is longer than {MaxLength} characters.",
+            UrlValidationError.InvalidCharacters => "The URL contains spaces or control characters.",
+            UrlValidationError.NotAbsolute => "The URL is not a valid absolute URL.",
+            UrlValidationError.UnsupportedScheme => $"The '{SchemeOf(url)}' scheme is not supported. Use http, https or ftp.",
+            _ => "The URL has no host.",
+        };
+        return false;
+    }
+
+    /// <summary>
+    /// Same rules as the other overload, but reports the reason as <see cref="UrlValidationError"/>
+    /// so the UI can show a translated message.
+    /// </summary>
+    public static bool TryValidateWithReason(string? url, [NotNullWhen(true)] out Uri? uri, out UrlValidationError error)
+    {
         uri = null;
         url = url?.Trim();
 
         if (string.IsNullOrEmpty(url))
         {
-            error = "The URL is empty.";
+            error = UrlValidationError.Empty;
             return false;
         }
 
         if (url.Length > MaxLength)
         {
-            error = $"The URL is longer than {MaxLength} characters.";
+            error = UrlValidationError.TooLong;
             return false;
         }
 
         // Uri would quietly escape or strip these; a real link never contains them unescaped.
         if (url.Any(c => c <= 0x20 || c == 0x7F))
         {
-            error = "The URL contains spaces or control characters.";
+            error = UrlValidationError.InvalidCharacters;
             return false;
         }
 
         // Note: on Linux and macOS "/some/path" parses as an absolute file: URI; the scheme check rejects it.
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed))
         {
-            error = "The URL is not a valid absolute URL.";
+            error = UrlValidationError.NotAbsolute;
             return false;
         }
 
         if (!AllowedSchemes.Contains(parsed.Scheme, StringComparer.OrdinalIgnoreCase))
         {
-            error = $"The '{parsed.Scheme}' scheme is not supported. Use http, https or ftp.";
+            error = UrlValidationError.UnsupportedScheme;
             return false;
         }
 
         if (string.IsNullOrEmpty(parsed.Host))
         {
-            error = "The URL has no host.";
+            error = UrlValidationError.NoHost;
             return false;
         }
 
         uri = parsed;
-        error = null;
+        error = UrlValidationError.None;
         return true;
     }
+
+    private static string SchemeOf(string? url) =>
+        Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var parsed) ? parsed.Scheme : string.Empty;
 
     /// <summary>
     /// Returns <c>scheme://host[:port]/path</c> without user info, query or fragment, which may hold

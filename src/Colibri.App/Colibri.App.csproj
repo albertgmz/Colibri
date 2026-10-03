@@ -13,11 +13,43 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
     <ProjectReference Include="..\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
     <ProjectReference Include="..\Colibri.Platform\Colibri.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.App.Tests" />
+  </ItemGroup>
+
+  <!--
+    User-facing strings. The SDK's GenerateResource task writes the strongly typed Strings class during
+    the build (no Visual Studio designer needed); it is compiled with the project and usable from XAML
+    through {x:Static res:Strings.SomeKey}.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>Colibri.App.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedManifestPrefix>Colibri.App.Resources</StronglyTypedManifestPrefix>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Windows builds ship aria2c.exe (and its licence) in an "aria2" folder next to Colibri. -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-windows')) Or $(RuntimeIdentifier.StartsWith('win'))">
+    <None Include="..\..\third_party\aria2\win-x64\aria2c.exe" Link="aria2\aria2c.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\aria2\COPYING" Link="aria2\COPYING" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

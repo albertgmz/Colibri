@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppName" xml:space="preserve">
+    <value>Colibri</value>
+  </data>
+  <data name="CommandAddUrl" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="CommandResume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="CommandPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="CommandPauseAll" xml:space="preserve">
+    <value>Pause all</value>
+  </data>
+  <data name="CommandDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="CommandSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Search downloads</value>
+  </data>
+  <data name="NavAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="NavActive" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="NavCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="NavFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="NavCategories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
+  <data name="CategoryCompressed" xml:space="preserve">
+    <value>Compressed</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>Documents</value>
+  </data>
+  <data name="CategoryMusic" xml:space="preserve">
+    <value>Music</value>
+  </data>
+  <data name="CategoryPrograms" xml:space="preserve">
+    <value>Programs</value>
+  </data>
+  <data name="CategoryVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="ColumnFileName" xml:space="preserve">
+    <value>File name</value>
+  </data>
+  <data name="ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="ColumnProgress" xml:space="preserve">
+    <value>Progress</value>
+  </data>
+  <data name="ColumnSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="ColumnTimeLeft" xml:space="preserve">
+    <value>Time left</value>
+  </data>
+  <data name="ColumnDateAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="MenuOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="MenuShowInFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="MenuCopyUrl" xml:space="preserve">
+    <value>Copy URL</value>
+  </data>
+  <data name="MenuDeleteWithFile" xml:space="preserve">
+    <value>Delete with file</value>
+  </data>
+  <data name="StateQueued" xml:space="preserve">
+    <value>Queued</value>
+  </data>
+  <data name="StatePaused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="StateCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="StateFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="ProgressWithStateFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PercentFormat" xml:space="preserve">
+    <value>{0:0.0} %</value>
+  </data>
+  <data name="SizeUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="SizeBytesFormat" xml:space="preserve">
+    <value>{0} B</value>
+  </data>
+  <data name="SizeKilobytesFormat" xml:space="preserve">
+    <value>{0} KB</value>
+  </data>
+  <data name="SizeMegabytesFormat" xml:space="preserve">
+    <value>{0} MB</value>
+  </data>
+  <data name="SizeGigabytesFormat" xml:space="preserve">
+    <value>{0} GB</value>
+  </data>
+  <data name="SizeTerabytesFormat" xml:space="preserve">
+    <value>{0} TB</value>
+  </data>
+  <data name="SpeedFormat" xml:space="preserve">
+    <value>{0}/s</value>
+  </data>
+  <data name="EtaUnknown" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="EtaSecondsFormat" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="EtaMinutesSecondsFormat" xml:space="preserve">
+    <value>{0} min {1} s</value>
+  </data>
+  <data name="EtaHoursMinutesFormat" xml:space="preserve">
+    <value>{0} h {1} min</value>
+  </data>
+  <data name="EtaDaysHoursFormat" xml:space="preserve">
+    <value>{0} d {1} h</value>
+  </data>
+  <data name="StatusSpeedFormat" xml:space="preserve">
+    <value>Speed: {0}</value>
+  </data>
+  <data name="StatusActiveFormat" xml:space="preserve">
+    <value>Active: {0}</value>
+  </data>
+  <data name="EngineStateRunning" xml:space="preserve">
+    <value>aria2: running</value>
+  </data>
+  <data name="EngineStateStarting" xml:space="preserve">
+    <value>aria2: starting…</value>
+  </data>
+  <data name="EngineStateRestarting" xml:space="preserve">
+    <value>aria2: restarting…</value>
+  </data>
+  <data name="EngineStateStopped" xml:space="preserve">
+    <value>aria2: stopped</value>
+  </data>
+  <data name="EngineStateFailed" xml:space="preserve">
+    <value>aria2: failed</value>
+  </data>
+  <data name="EngineStateNotFound" xml:space="preserve">
+    <value>aria2: not found</value>
+  </data>
+  <data name="EngineMissingTitle" xml:space="preserve">
+    <value>aria2 was not found</value>
+  </data>
+  <data name="EngineMissingBody" xml:space="preserve">
+    <value>Colibri uses aria2 to download files. Install it with one of these commands, or set the path to aria2c in Settings, then select Retry.</value>
+  </data>
+  <data name="EngineMissingDebian" xml:space="preserve">
+    <value>Debian, Ubuntu: sudo apt install aria2</value>
+  </data>
+  <data name="EngineMissingFedora" xml:space="preserve">
+    <value>Fedora: sudo dnf install aria2</value>
+  </data>
+  <data name="EngineMissingArch" xml:space="preserve">
+    <value>Arch Linux: sudo pacman -S aria2</value>
+  </data>
+  <data name="EngineMissingOpenSuse" xml:space="preserve">
+    <value>openSUSE: sudo zypper install aria2</value>
+  </data>
+  <data name="EngineMissingMac" xml:space="preserve">
+    <value>macOS (Homebrew): brew install aria2</value>
+  </data>
+  <data name="EngineRetry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="AddUrlTitle" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="AddUrlUrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="AddUrlFileNameLabel" xml:space="preserve">
+    <value>File name</value>
+  </data>
+  <data name="AddUrlFolderLabel" xml:space="preserve">
+    <value>Save to</value>
+  </data>
+  <data name="AddUrlBrowse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="AddUrlSizeLabel" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="AddUrlDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="AddUrlCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="AddUrlPickFolderTitle" xml:space="preserve">
+    <value>Choose a folder</value>
+  </data>
+  <data name="AddUrlNothingToDownload" xml:space="preserve">
+    <value>There is nothing to download at this address.</value>
+  </data>
+  <data name="AddUrlFailedFormat" xml:space="preserve">
+    <value>Could not add the download: {0}</value>
+  </data>
+  <data name="AddUrlFolderNotFullPath" xml:space="preserve">
+    <value>Choose a full folder path, for example with Browse.</value>
+  </data>
+  <data name="UrlErrorEmpty" xml:space="preserve">
+    <value>Enter a URL.</value>
+  </data>
+  <data name="UrlErrorTooLong" xml:space="preserve">
+    <value>The URL is too long.</value>
+  </data>
+  <data name="UrlErrorInvalidCharacters" xml:space="preserve">
+    <value>The URL contains spaces or invalid characters.</value>
+  </data>
+  <data name="UrlErrorNotAbsolute" xml:space="preserve">
+    <value>Enter a full URL that starts with http://, https:// or ftp://.</value>
+  </data>
+  <data name="UrlErrorUnsupportedScheme" xml:space="preserve">
+    <value>Only http, https and ftp links are supported.</value>
+  </data>
+  <data name="UrlErrorNoHost" xml:space="preserve">
+    <value>The URL has no server name.</value>
+  </data>
+  <data name="SettingsPlaceholderText" xml:space="preserve">
+    <value>Settings will be available in a later version.</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+</root>

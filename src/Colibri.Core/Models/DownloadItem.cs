@@ -50,4 +50,12 @@ public sealed class DownloadItem
     public DateTimeOffset? CompletedAt { get; set; }
 
     public string? ErrorMessage { get; set; }
+
+    /// <summary>Returns an independent copy (the header dictionary is copied too).</summary>
+    public DownloadItem Clone()
+    {
+        var copy = (DownloadItem)MemberwiseClone();
+        copy.Headers = HttpHeaders.Copy(Headers);
+        return copy;
+    }
 }

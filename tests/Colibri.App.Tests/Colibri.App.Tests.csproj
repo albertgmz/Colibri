@@ -19,4 +19,9 @@
     <ProjectReference Include="..\..\src\Colibri.App\Colibri.App.csproj" />
   </ItemGroup>
 
+  <!-- The fake engine and repository are shared with the Core tests as linked source files. -->
+  <ItemGroup>
+    <Compile Include="..\Colibri.Core.Tests\Fakes\*.cs" LinkBase="Fakes" />
+  </ItemGroup>
+
 </Project>

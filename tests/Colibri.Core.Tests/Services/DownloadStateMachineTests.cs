@@ -21,6 +21,7 @@ public class DownloadStateMachineTests
         (DownloadState.Paused, DownloadState.Completed),
         (DownloadState.Failed, DownloadState.Queued),
         (DownloadState.Failed, DownloadState.Active),
+        (DownloadState.Failed, DownloadState.Completed),
     ];
 
     /// <summary>Every (from, to) pair with whether it should be allowed.</summary>
@@ -77,7 +78,7 @@ public class DownloadStateMachineTests
         Assert.True(DownloadStateMachine.CanTransition(DownloadState.Failed, DownloadState.Queued));
         Assert.True(DownloadStateMachine.CanTransition(DownloadState.Failed, DownloadState.Active));
         Assert.False(DownloadStateMachine.CanTransition(DownloadState.Failed, DownloadState.Paused));
-        Assert.False(DownloadStateMachine.CanTransition(DownloadState.Failed, DownloadState.Completed));
+        Assert.True(DownloadStateMachine.CanTransition(DownloadState.Failed, DownloadState.Completed));
     }
 
     [Fact]

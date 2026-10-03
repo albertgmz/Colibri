@@ -90,7 +90,7 @@ try
 
     // 2. Add and wait for the first bytes.
     var fileName = Path.GetFileName(url.LocalPath) is { Length: > 0 } name ? name : "download.bin";
-    var gid = await engine.AddAsync(new DownloadRequest { Uri = url }, paths.DefaultDownloadsDirectory, fileName, ct);
+    var gid = await engine.AddAsync(new DownloadRequest { Uri = url }, paths.DefaultDownloadsDirectory, fileName, handle: null, startPaused: false, ct);
     Check("download added", gid.Length == 16, $"gid {gid}");
 
     EngineDownloadStatus? status = null;
