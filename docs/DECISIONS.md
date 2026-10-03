@@ -143,11 +143,10 @@ The strongly typed `Strings` class is produced by the SDK's `GenerateResource` t
 Studio designer file is checked in. XAML uses it through `{x:Static res:Strings.Key}`. A Spanish
 `Strings.es.resx` can be added next to it later without code changes.
 
-## 21. Temporary `IShellService`
+## 21. Temporary `IShellService` (superseded)
 
-Until the per-OS implementations exist, `ProcessShellService` opens files and folders through
-`Process.Start` with `UseShellExecute`. "Show in folder" opens the containing folder without
-selecting the file.
+Milestone 3 used a temporary `ProcessShellService`. It has been replaced by the per-OS
+implementations described in entry 36.
 
 ## 22. Engine add takes an optional handle and a paused flag
 
@@ -241,3 +240,79 @@ the next poll or reconcile finds the download under the stored handle instead of
 Colibri's aria2 session is private, so a download in it that the database does not know is left over (for
 example deleted while aria2 was not running). Reconcile removes it from aria2 (`forceRemove` and
 `removeDownloadResult`); its files are never deleted.
+||||||| 2e6b6d4
+
+## 33. Platform: Windows toasts through Microsoft.Toolkit.Uwp.Notifications 7.1.3
+
+Toasts use `Microsoft.Toolkit.Uwp.Notifications` 7.1.3 (MIT). `CommunityToolkit.WinUI.Notifications`
+7.1.2 was a short-lived rename of the same code; 7.1.3 of the original package came out later, is what
+Microsoft's toast documentation uses, and both are no longer developed. Its `ToastNotificationManagerCompat`
+makes toasts and their buttons work for an unpackaged exe: on first use it registers, per user and
+permanently, an app id derived from the exe path (`HKCU\Software\Classes\AppUserModelId\<id>`), a COM
+activator (`HKCU\Software\Classes\CLSID\{guid}\LocalServer32` = `"<exe>" -ToastActivated`) and an icon
+under `%LOCALAPPDATA%\ToastNotificationManagerCompat`. `Uninstall()` is not called on exit, because it
+also clears the toasts in Action Center and their buttons would stop working; removing the registration
+is an uninstaller's job. Clicking a toast after Colibri exited starts the exe with
+`-ToastActivated -Embedding` and delivers the click by COM once the notification service is created, so
+the app must create that service at startup and ignore those arguments. Toast and button arguments are
+`<action>;<download id>`. Clicking a "completed" toast opens the file; clicking a "failed" toast only
+dismisses it (retrying needs the button). The package depends on System.Drawing.Common 4.7.0, which has a
+critical advisory (GHSA-rxg9-xrhp-64gj), so `Colibri.Platform` references System.Drawing.Common 10.0.12
+directly. The toast code is compiled only for the Windows target framework (`#if WINDOWS`); the plain
+net10.0 build running on Windows (only tests do that) shows no notifications.
+
+## 34. Platform: Linux desktop integration over D-Bus with Tmds.DBus.Protocol 0.95.1
+
+Notifications (`org.freedesktop.Notifications`), "show in folder" (`org.freedesktop.FileManager1`) and the
+tray check talk to the session bus through `Tmds.DBus.Protocol` (MIT), the library Avalonia itself uses
+for D-Bus. Avalonia 12.1.3 asks for 0.94.1; 0.95.1 only fixes match-rule keys and has the same public API,
+so the app ends up with one copy at 0.95.1. One shared connection is opened on first use. Without a session
+bus or a notification server, notifications do nothing (logged, never thrown); this is checked once per
+run, at the first notification. `ShowItems` is given up on after 5 s (D-Bus calls have no timeout of
+their own) and the folder is opened instead. Notification buttons are
+D-Bus actions; the "default" action (clicking the notification) opens a completed download. Servers that
+announce `body-markup` get the body with `&`, `<` and `>` escaped, so file names show as written.
+
+## 35. Platform: macOS notifications have no buttons
+
+A plain .NET process is not a signed app bundle, and macOS only lets bundles use the notification API
+(UNUserNotificationCenter). Colibri runs `osascript -e 'display notification ...'` instead (the script is
+one argument, with AppleScript string escaping; no shell). These notifications have no buttons, report no
+clicks (`ActionInvoked` never fires on macOS), and appear under "Script Editor" in the notification
+settings.
+
+## 36. Platform: per-OS "open" and "show in folder"
+
+Replaces the temporary service of decision 21. Windows opens files through ShellExecute and selects the
+file with `SHOpenFolderAndSelectItems`, avoiding `explorer.exe /select,` whose parsing breaks on commas
+in paths. Linux uses `xdg-open`, and `FileManager1.ShowItems` to select the file, falling back to opening
+the folder. macOS uses `open` and `open -R`. Helper programs get each path as a separate argument, never
+through a shell. A missing file is logged; "show in folder" then opens its folder if that still exists.
+
+## 37. Platform: autostart entries
+
+Windows: value `Colibri` = `"<exe>" --minimized` under `HKCU\...\CurrentVersion\Run`. Linux:
+`$XDG_CONFIG_HOME/autostart/colibri.desktop` (default `~/.config/autostart`), launching `$APPIMAGE` when
+Colibri runs from an AppImage. macOS: `~/Library/LaunchAgents/com.colibri.app.plist` with RunAtLoad;
+launchctl is not called, so it takes effect at the next login. "Enabled" means the entry starts this
+copy of Colibri: on Linux and macOS the file must match exactly what Colibri writes, on Windows the Run
+value must point at this exe. Turning Colibri off in Windows Task Manager's Startup tab is stored by
+Windows separately and is not detected.
+
+## 38. Platform: taskbar progress on Windows only
+
+Windows shows progress on the taskbar button through `ITaskbarList3` (called on the UI thread). Linux has
+no API every desktop supports (the Unity launcher API works only on some docks), and a Dock badge on
+macOS is out of scope; both get a no-op.
+
+## 39. Platform: Linux tray detection
+
+Avalonia's Linux tray icon uses the StatusNotifierItem D-Bus protocol, which needs a
+`org.kde.StatusNotifierWatcher` on the session bus (KDE, XFCE, Cinnamon and others; GNOME only with the
+AppIndicator extension). The tray counts as available only when that name has an owner; any error
+counts as unavailable. Windows and macOS always have one.
+
+## 40. Platform: notification texts come from the app
+
+`Colibri.Platform` has no resources. The app passes a `NotificationTexts` record built from its
+`Strings.resx` to `AddColibriPlatform(notificationTexts)`; without one, English defaults are used.

@@ -34,6 +34,9 @@ Colibri uses the following third-party software. Each component remains under it
 | Serilog | 4.3.0 | Apache-2.0 |
 | Serilog.Extensions.Hosting, Serilog.Extensions.Logging | 10.0.0 | Apache-2.0 |
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 |
+| Tmds.DBus.Protocol (used directly by Colibri.Platform on Linux; replaces the 0.94.1 that Avalonia asks for) | 0.95.1 | MIT |
+| Microsoft.Toolkit.Uwp.Notifications (Windows builds) | 7.1.3 | MIT |
+| System.Drawing.Common, Microsoft.Win32.SystemEvents (Windows builds) | 10.0.12 | MIT |
 
 ## NuGet packages used only by the tests
 
@@ -41,3 +44,4 @@ Colibri uses the following third-party software. Each component remains under it
 |---|---|---|
 | xunit.v3 | 3.2.2 | Apache-2.0 |
 | Avalonia.Headless.XUnit | 12.1.3 | MIT |
+| Microsoft.Extensions.DependencyInjection | 10.0.12 | MIT |
