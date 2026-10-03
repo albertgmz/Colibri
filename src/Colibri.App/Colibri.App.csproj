@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- See Directory.Build.props: Windows TFM on Windows builds, net10.0 elsewhere. -->
+    <TargetFramework>$(ColibriAppTfm)</TargetFramework>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Already the default since Avalonia 12; set explicitly so the intent is visible. -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
+    <ProjectReference Include="..\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
+    <ProjectReference Include="..\Colibri.Platform\Colibri.Platform.csproj" />
+  </ItemGroup>
+</Project>

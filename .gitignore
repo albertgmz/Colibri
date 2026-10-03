@@ -1,0 +1,29 @@
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+publish/
+TestResults/
+*.user
+*.suo
+*.binlog
+.vs/
+.vscode/
+.idea/
+
+## OS noise
+.DS_Store
+Thumbs.db
+
+## Node (extension tooling, if any)
+node_modules/
+
+## Local agent configuration (never committed)
+CLAUDE.md
+.claude/
+AGENTS.md
+
+## Third-party IDM screenshots used as local design reference only
+references/

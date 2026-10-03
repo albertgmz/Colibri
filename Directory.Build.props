@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- Lets Linux and macOS (CI) build and publish the Windows target frameworks. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <!--
+    Target framework shared by Colibri.App and Colibri.App.Tests.
+    Windows builds use the Windows TFM so the app can reach WinRT APIs (toast
+    notifications) through Colibri.Platform. Linux and macOS builds use plain
+    net10.0, because the Windows TFM pulls in Windows-only assets they cannot use.
+    The Windows TFM is chosen when targeting a win-* runtime, or when no runtime
+    is given and the build itself runs on Windows.
+  -->
+  <PropertyGroup>
+    <ColibriAppTfm>net10.0</ColibriAppTfm>
+    <ColibriAppTfm Condition="'$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows10.0.19041.0</ColibriAppTfm>
+    <ColibriAppTfm Condition="$(RuntimeIdentifier.StartsWith('win'))">net10.0-windows10.0.19041.0</ColibriAppTfm>
+  </PropertyGroup>
+</Project>
