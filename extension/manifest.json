@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Colibri",
+  "version": "1.0.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuywiCytcWjzgmmxtn25LYgdty1uuY6EbUgfIkIVA7ijsyJtRIDrjTY58W8RUjRCNTohI/5N1oBVo7s+PnYv7n8BRLRPzbvieKFYn2/FieAk2Ac3odOYFsaRrzMsbV8X/+UFlIBwQnwWw7dBmy9+iMbtH7ni72oKJJRiTiDRaTfgCbAc/GPMFjgnZM4CGgvcORbXlihFBv3+qIBKONRJKxEyo7c7JA2yMMp8VKfLApzLYZGppIK36euwFJHCgz1+xbAxWBr6ZDGYvkhpckJTPzbwiOBh/F8tNVAnbR7VRgXGI6BfKRS2O+R/Ek83HVxB5DzRJE2GDwxGtuyLA23QNawIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["downloads", "nativeMessaging", "cookies", "contextMenus", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Colibri",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

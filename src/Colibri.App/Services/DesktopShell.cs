@@ -109,7 +109,7 @@ public sealed class DesktopShell
                 break;
         }
 
-        var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow);
+        var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow, _settings);
         _pipeServer = new LocalPipeServer(IpcProtocol.DefaultPipeName, handler.HandleAsync, _logger);
         _pipeServer.Start();
     }

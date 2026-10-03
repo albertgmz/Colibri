@@ -170,7 +170,7 @@ path limit). One request and one response per connection, each a UTF-8 JSON obje
 cookies?, userAgent?, size?, mimeType?, headers?}`; response `{ok, error?}`. Unknown types, wrong field
 types, invalid URLs (`UrlPolicy`), header values with control characters, negative or fractional sizes
 and over-long strings are rejected with an error response; unknown fields are ignored. The same pipe
-will carry the native-messaging host's requests (browser capture). `finalUrl` is validated but not used
+carries the native-messaging host's requests (browser capture), which adds `ping` and `config` (entry 44). `finalUrl` is validated but not used
 yet; Colibri downloads `url` and lets aria2 follow the redirects.
 
 ## 24. App: headers from the browser that are not forwarded
@@ -343,3 +343,87 @@ The app project is still `Colibri.App`, but its assembly is named `Colibri` (`Co
 `AssemblyTitle` and `Product` set to `Colibri`. Windows shows the title as the sender of toasts and in Task
 Manager. Avalonia resource URIs use the assembly name (`avares://Colibri/...`). Toast registration is keyed by
 the exe path (entry 33), so a renamed or moved exe registers again; the old entries stay until removed.
+
+## 43. Browser capture: the download is held in `onDeterminingFilename`
+
+The extension decides in `chrome.downloads.onDeterminingFilename`, not in `onCreated`. The browser does not
+name or finish a download until every such listener has called `suggest()`, and by then it knows the server's
+file name (Content-Disposition) and size, which the capture rules need; `onCreated` usually has neither, and
+pausing from there races with small files that finish first (and with "Ask where to save", whose dialog would
+already be open). This is the plan's "pause it in the browser": the download is held there while the host is
+asked. If Colibri answers `ok`, the browser download is cancelled, `suggest()` releases it, and once it has
+stopped it is erased from the download list (Edge writes a cancelled download to its history only after the
+release, so an earlier erase let it come back after a restart). In every other case (capture switched off,
+rules do not match, private window, a URL that is not http/https/ftp, host not installed, Colibri not
+answering, an error, or no answer within 20 s) `suggest()` is called without a name and the browser carries on
+as if the extension were not there; nothing has to be resumed. A late `ok` after the 20 s timeout can leave the
+file downloading in both places; it cannot lose it. Downloads from private windows are never captured, because
+Colibri would keep them in its history. Colibri downloads the original URL and aria2 sends the cookies on every
+request, redirects included, so cookies (those of the original URL) go along only when the browser's final URL
+is on the same host; after a redirect to another host none are sent, and a download that needs them fails in
+Colibri instead of leaking them. "Download with Colibri" on a link sends the link, its cookies and the page as
+referrer (only the page's origin for a link to another site); when that fails, the toolbar button shows a red
+"!" for 5 s. Only one extension can
+decide a file name; another extension with an `onDeterminingFilename` listener (another download manager)
+competes with this one.
+
+## 44. Browser capture: rules come from Colibri through a `config` request
+
+The capture rules (extensions and minimum size, from the settings page) are asked for with `{"type":"config"}`
+and cached in `chrome.storage.local`; until the first answer the extension uses the defaults of `AppSettings`
+(a Node test compares the two lists). A download of unknown size passes the minimum-size check. The extension
+refreshes the rules when its service worker starts and when the popup opens, but only after a `ping` answered
+`ok`: the host starts Colibri for a `config` request (entry 45), and the service worker starts again whenever an
+event wakes it, so asking for the rules unconditionally would start Colibri on every browser start and on
+unrelated downloads. The on/off switch lives in the extension (`chrome.storage.local`, on by default).
+
+## 45. Browser capture: the native host starts Colibri when it is needed
+
+For `add` and `config` the host first tries the local pipe for 1 s; if nothing listens it starts `Colibri(.exe)`
+from its own folder with `--minimized` and waits up to 12 s for the pipe, then up to 5 s for the answer (Colibri
+answers an `add` once the Add URL window is shown, entry 25). The 18 s in total stay within the extension's 20 s. `ping` never starts Colibri; it answers
+`{"ok":false,"error":"app-not-running"}`, which the popup shows. Colibri is started with fresh pipes for its
+standard streams that the host closes at once, and on Windows the host first makes its own standard handles
+non-inheritable: .NET lets a child inherit every inheritable handle, and a Colibri holding the browser's pipes
+would keep them open after the host exits (on Unix only the standard streams are inherited, and they are
+replaced). On Windows, Colibri started this way keeps running when the browser closes. Referencing the host
+project from `Colibri.App` makes the SDK copy the host's apphost, dll, runtimeconfig and deps files next to
+`Colibri.exe`, in the build output and in `dotnet publish` (built for the same runtime identifier, also
+self-contained); the host references only `Colibri.Core`, never the Windows build of `Colibri.Platform`.
+
+## 46. Browser capture: one message per host process
+
+The extension uses `runtime.sendNativeMessage`, so the browser starts a host process per message and uses its
+first answer. The host still reads messages until stdin closes, so a `connectNative` port also works. Frames are
+a 32-bit length in native byte order plus UTF-8 JSON; a frame over 1 MiB is answered with
+`message-too-large` and ends the host, a stream ending inside a frame ends it without an answer. Only `ping`,
+`config` and `add` (without `headers`, which the extension never sends) are accepted, validated by the same code
+as the local pipe (`IpcProtocol`), and only the validated request is passed on. Colibri trims the rules it sends
+to what the host accepts (letters and digits, at most 256 extensions). stdout carries nothing but frames: `Console.Out` and `Console.Error` are
+replaced with null writers and every failure is caught and logged. The host logs to
+`logs/native-host-yyyyMMdd.log` (14 days) in Colibri's data folder: the calling origin, the request type and,
+for `add`, the URL redacted by `UrlPolicy.Redact`; never cookies or query strings.
+
+## 47. Browser capture: the extension ID comes from a key in the manifest
+
+`extension/manifest.json` carries a public key (`key`), so the unpacked extension has the same ID
+(`lelenggmjjaffoebgecdpemmjakhofni`) in every folder and browser; Core's `BrowserExtension.Id` holds it, and a test
+recomputes it from the manifest. The private key is not in the repository: loading unpacked does not need it. A
+build published in a browser store gets the store's own ID, which then has to be added to the host's allowed
+origins. The host manifest allows only this origin.
+
+## 48. Browser capture: per-user registration on each OS
+
+"Install / repair" on the settings page registers the host next to the running Colibri, for the current user
+only. Windows: the manifest is written to `%LOCALAPPDATA%\Colibri\NativeMessagingHosts\com.colibri.host.json`
+and its path is the default value of `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.colibri.host` and of
+the same key under `Microsoft\Edge` (both always written). Linux: `com.colibri.host.json` in
+`NativeMessagingHosts` under `google-chrome`, `chromium` and `microsoft-edge` in `$XDG_CONFIG_HOME` (default
+`~/.config`). macOS: the same under `~/Library/Application Support/Google/Chrome`, `Chromium` and
+`Microsoft Edge`. On Linux and macOS only browsers whose profile folder exists are listed and set up, and the
+host gets its owner's execute bit. A browser shows "Needs repair" when its entry points to another manifest, the
+manifest is unreadable, or the host path (case-insensitive on Windows) or the origins differ, for example after
+Colibri was moved. Registering fails when the host file is missing. The path registered is wherever Colibri runs
+from, so an AppImage (temporary mount) or a translocated macOS app needs "Install / repair" after each start, and
+Snap or Flatpak browsers cannot start hosts outside their sandbox; packaging is milestone 6. There is no "remove"
+yet.

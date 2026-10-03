@@ -175,6 +175,50 @@ public class SettingsPageTests
     }
 
     [AvaloniaFact]
+    public async Task Install_or_repair_registers_the_host_next_to_the_app_and_shows_each_browser()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        var window = ui.ShowWindow();
+        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+        var page = ui.SettingsPage;
+
+        Assert.True(page.IsBrowserStatusVisible);
+        Assert.Equal(
+            [new(Strings.BrowserChrome, Strings.BrowserStatusNotRegistered), new(Strings.BrowserEdge, Strings.BrowserStatusNotRegistered)],
+            page.BrowserStatuses);
+        var button = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "InstallBrowserButton");
+        Assert.True(button.IsEffectivelyVisible);
+
+        await page.InstallBrowserIntegrationCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+
+        var registered = ui.BrowserRegistrar.Registered!;
+        Assert.Equal(AppContext.BaseDirectory, Path.GetDirectoryName(registered.HostExecutablePath) + Path.DirectorySeparatorChar);
+        Assert.StartsWith("Colibri.NativeHost", Path.GetFileName(registered.HostExecutablePath));
+        Assert.Equal([Colibri.Core.Platform.BrowserExtension.AllowedOrigin], registered.AllowedOrigins);
+        Assert.All(page.BrowserStatuses, row => Assert.Equal(Strings.BrowserStatusRegistered, row.Status));
+        Assert.Null(page.BrowserError);
+
+        // The rows are on screen.
+        var list = window.GetVisualDescendants().OfType<ItemsControl>().Single(c => c.Name == "BrowserStatusList");
+        Assert.Contains(list.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == Strings.BrowserEdge);
+    }
+
+    [AvaloniaFact]
+    public async Task A_failed_registration_shows_an_error_and_keeps_the_old_state()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.BrowserRegistrar.FailWith = new UnauthorizedAccessException("denied");
+        await ui.SettingsPage.LoadAsync();
+
+        await ui.SettingsPage.InstallBrowserIntegrationCommand.ExecuteAsync(null);
+
+        Assert.Equal(Strings.BrowserInstallFailed, ui.SettingsPage.BrowserError);
+        Assert.All(ui.SettingsPage.BrowserStatuses, row => Assert.Equal(Strings.BrowserStatusNotRegistered, row.Status));
+    }
+
+    [AvaloniaFact]
     public async Task Open_logs_folder_opens_the_logs_directory()
     {
         await using var ui = await UiHarness.StartAsync();

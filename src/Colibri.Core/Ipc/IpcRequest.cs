@@ -19,3 +19,12 @@ public sealed record ActivateRequest(IReadOnlyList<string> Args) : IpcRequest;
 /// <param name="FinalUrl">The URL after redirects, when the browser knows it (also accepted by <c>UrlPolicy</c>).</param>
 /// <param name="Context">Referrer, cookies, forwardable headers, user agent, file name, size and MIME type.</param>
 public sealed record AddRequest(string Url, string? FinalUrl, LinkContext Context) : IpcRequest;
+
+/// <summary>Sent by the native-messaging host to check that Colibri is running; always answered "ok".</summary>
+public sealed record PingRequest : IpcRequest;
+
+/// <summary>
+/// Sent by the native-messaging host for the browser extension: which downloads to capture. Answered with
+/// <see cref="IpcResponse.Config"/>.
+/// </summary>
+public sealed record ConfigRequest : IpcRequest;

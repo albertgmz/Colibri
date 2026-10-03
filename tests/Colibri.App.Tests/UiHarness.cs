@@ -31,7 +31,7 @@ internal sealed class UiHarness : IAsyncDisposable
             [Engine], Repository, new LinkResolverPipeline([new DirectLinkResolver()]), Settings, Paths,
             NullLogger<DownloadManager>.Instance, TimeProvider.System);
         SettingsPage = new SettingsViewModel(
-            Settings, SettingsStore, Manager, Autostart, Shell, Paths, NullLogger<SettingsViewModel>.Instance);
+            Settings, SettingsStore, Manager, Autostart, Shell, Paths, NullLogger<SettingsViewModel>.Instance, BrowserRegistrar);
         ViewModel = new MainWindowViewModel(
             Manager, Shell, Dialogs, SettingsPage, Settings, SettingsStore, NullLogger<MainWindowViewModel>.Instance);
     }
@@ -41,6 +41,8 @@ internal sealed class UiHarness : IAsyncDisposable
     public FakeSettingsStore SettingsStore { get; } = new();
 
     public FakeAutostart Autostart { get; } = new();
+
+    public FakeBrowserRegistrar BrowserRegistrar { get; } = new();
 
     public SettingsViewModel SettingsPage { get; }
 
@@ -221,4 +223,31 @@ internal sealed class FakeNotifications : INotificationService
     public void ShowDownloadFailed(DownloadItem item) => Failed.Add(item);
 
     public void Invoke(Guid id, NotificationAction action) => ActionInvoked?.Invoke(this, new NotificationActionInvoked(id, action));
+}
+
+/// <summary>Remembers what was registered; Chrome and Edge report Registered only for exactly that registration.</summary>
+internal sealed class FakeBrowserRegistrar : IBrowserHostRegistrar
+{
+    public NativeHostRegistration? Registered { get; private set; }
+
+    public Exception? FailWith { get; set; }
+
+    public Task<IReadOnlyList<BrowserHostStatus>> GetStatusAsync(NativeHostRegistration expected)
+    {
+        var status = Registered is null ? BrowserIntegrationStatus.NotRegistered
+            : Registered.HostExecutablePath == expected.HostExecutablePath ? BrowserIntegrationStatus.Registered
+            : BrowserIntegrationStatus.Outdated;
+        return Task.FromResult<IReadOnlyList<BrowserHostStatus>>([new(BrowserKind.Chrome, status), new(BrowserKind.Edge, status)]);
+    }
+
+    public Task RegisterAsync(NativeHostRegistration registration)
+    {
+        if (FailWith is not null)
+        {
+            return Task.FromException(FailWith);
+        }
+
+        Registered = registration;
+        return Task.CompletedTask;
+    }
 }

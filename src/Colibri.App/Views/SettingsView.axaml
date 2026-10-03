@@ -105,9 +105,29 @@
             <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsBrowser}" />
             <Border Classes="card">
                 <StackPanel Spacing="10">
-                    <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsBrowserStatusVisible}">
+                    <StackPanel Spacing="8" IsVisible="{Binding IsBrowserStatusVisible}">
                         <TextBlock Text="{x:Static res:Strings.SettingsBrowserStatus}" />
-                        <TextBlock Text="{Binding BrowserStatusText}" FontWeight="SemiBold" />
+                        <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsBrowserHint}" />
+                        <ItemsControl x:Name="BrowserStatusList" ItemsSource="{Binding BrowserStatuses}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BrowserStatusViewModel">
+                                    <Grid ColumnDefinitions="160,*">
+                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Status}" FontWeight="SemiBold" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Classes="note" Text="{x:Static res:Strings.BrowserNoneFound}" IsVisible="{Binding NoBrowserFound}" />
+                        <Button x:Name="InstallBrowserButton" Content="{x:Static res:Strings.SettingsBrowserInstall}"
+                                Command="{Binding InstallBrowserIntegrationCommand}" />
+                        <TextBlock Text="{Binding BrowserError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
+                                   IsVisible="{Binding BrowserError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
                     <TextBlock Text="{x:Static res:Strings.SettingsCaptureExtensions}" />
                     <TextBox Text="{Binding CaptureExtensions, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap"

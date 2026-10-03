@@ -1,12 +1,14 @@
 using Avalonia.Threading;
 using Colibri.App.ViewModels;
 using Colibri.Core.Ipc;
+using Colibri.Core.Settings;
 
 namespace Colibri.App.Services;
 
 /// <summary>
-/// Answers requests from the local pipe: <c>activate</c> from a second Colibri process and <c>add</c> from
-/// the browser. Requests arrive on a background thread; the work is done on the UI thread.
+/// Answers requests from the local pipe: <c>activate</c> from a second Colibri process, and <c>add</c>,
+/// <c>ping</c> and <c>config</c> from the browser's native-messaging host. Requests arrive on a background
+/// thread; window work is done on the UI thread.
 /// </summary>
 /// <remarks>
 /// An <c>add</c> is answered "ok" as soon as the Add URL window is shown, before the user confirms it.
@@ -18,12 +20,14 @@ public sealed class IpcRequestHandler
     private readonly MainWindowViewModel _viewModel;
     private readonly IDialogService _dialogs;
     private readonly Action _showMainWindow;
+    private readonly AppSettings _settings;
 
-    public IpcRequestHandler(MainWindowViewModel viewModel, IDialogService dialogs, Action showMainWindow)
+    public IpcRequestHandler(MainWindowViewModel viewModel, IDialogService dialogs, Action showMainWindow, AppSettings settings)
     {
         _viewModel = viewModel;
         _dialogs = dialogs;
         _showMainWindow = showMainWindow;
+        _settings = settings;
     }
 
     /// <summary>Handles a request that <see cref="IpcProtocol"/> has already validated.</summary>
@@ -55,10 +59,30 @@ public sealed class IpcRequestHandler
                 });
                 return shown ? IpcResponse.Success : IpcResponse.Failure("Colibri is exiting.");
 
+            case PingRequest:
+                return IpcResponse.Success;
+
+            case ConfigRequest:
+                return new IpcResponse(true, Config: CaptureConfigFrom(_settings));
+
             default:
                 return IpcResponse.Failure("Unsupported request.");
         }
     }
+
+    /// <summary>
+    /// The capture rules within the limits the host accepts (a hand-edited settings file can hold anything):
+    /// extensions of letters and digits only, lower case, at most <see cref="IpcProtocol.MaxCaptureExtensions"/>.
+    /// The settings page replaces the list rather than changing it, so reading it here is safe.
+    /// </summary>
+    internal static CaptureConfig CaptureConfigFrom(AppSettings settings) => new(
+        settings.BrowserCaptureExtensions
+            .Where(e => e.Length is > 0 and <= IpcProtocol.MaxCaptureExtensionLength && e.All(char.IsAsciiLetterOrDigit))
+            .Select(e => e.ToLowerInvariant())
+            .Distinct()
+            .Take(IpcProtocol.MaxCaptureExtensions)
+            .ToList(),
+        Math.Max(0, settings.BrowserCaptureMinSizeKiB));
 
     private static async Task OnUiThreadAsync(Action action)
     {

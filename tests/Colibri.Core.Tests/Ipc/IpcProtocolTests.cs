@@ -131,6 +131,45 @@ public class IpcProtocolTests
     }
 
     [Fact]
+    public void Ping_and_config_requests_round_trip()
+    {
+        Assert.IsType<PingRequest>(Parse("""{"type":"ping"}"""));
+        Assert.IsType<ConfigRequest>(Parse("""{"type":"config","extra":1}"""));
+        Assert.IsType<PingRequest>(Parse(IpcProtocol.SerializeRequest(new PingRequest())));
+        Assert.IsType<ConfigRequest>(Parse(IpcProtocol.SerializeRequest(new ConfigRequest())));
+    }
+
+    [Fact]
+    public void Config_response_round_trip()
+    {
+        var response = new IpcResponse(true, Config: new CaptureConfig(["zip", "7z"], 512));
+
+        var line = IpcProtocol.SerializeResponse(response);
+        var parsed = IpcProtocol.ParseResponse(line);
+
+        Assert.Equal("""{"ok":true,"captureExtensions":["zip","7z"],"minSizeKiB":512}""", line);
+        Assert.True(parsed.Ok);
+        Assert.Equal(["zip", "7z"], parsed.Config!.Extensions);
+        Assert.Equal(512, parsed.Config.MinSizeKiB);
+        Assert.Null(IpcProtocol.ParseResponse("""{"ok":true}""").Config);
+    }
+
+    [Theory]
+    [InlineData("""{"ok":true,"captureExtensions":["zip"]}""")]
+    [InlineData("""{"ok":true,"minSizeKiB":1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":"zip","minSizeKiB":1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":[1],"minSizeKiB":1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":["z.ip"],"minSizeKiB":1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":[""],"minSizeKiB":1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":["zip"],"minSizeKiB":-1}""")]
+    [InlineData("""{"ok":true,"captureExtensions":["zip"],"minSizeKiB":1.5}""")]
+    [InlineData("""{"ok":true,"captureExtensions":["abcdefghijklmnopq"],"minSizeKiB":1}""")]
+    public void Malformed_capture_rules_in_a_response_are_rejected(string line)
+    {
+        Assert.Throws<InvalidDataException>(() => IpcProtocol.ParseResponse(line));
+    }
+
+    [Fact]
     public async Task Read_line_stops_at_the_newline_and_at_the_limit()
     {
         var ct = TestContext.Current.CancellationToken;

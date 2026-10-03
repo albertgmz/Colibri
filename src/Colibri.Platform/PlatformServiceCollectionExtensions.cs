@@ -1,6 +1,7 @@
 using Colibri.Core.Platform;
 using Colibri.Platform.Aria2;
 using Colibri.Platform.Autostart;
+using Colibri.Platform.BrowserHost;
 using Colibri.Platform.DBus;
 using Colibri.Platform.Notifications;
 using Colibri.Platform.Paths;
@@ -33,6 +34,7 @@ public static class PlatformServiceCollectionExtensions
             services.AddSingleton<IAutostartService, WindowsAutostartService>();
             services.AddSingleton<ITaskbarProgress, WindowsTaskbarProgress>();
             services.AddSingleton<ITrayAvailability, AlwaysTrayAvailability>();
+            services.AddSingleton<IBrowserHostRegistrar, WindowsBrowserHostRegistrar>();
 #if WINDOWS
             services.AddSingleton<INotificationService, WindowsToastNotificationService>();
 #else
@@ -53,6 +55,7 @@ public static class PlatformServiceCollectionExtensions
             services.AddSingleton<ITaskbarProgress, NoTaskbarProgress>();
             services.AddSingleton<ITrayAvailability, AlwaysTrayAvailability>();
             services.AddSingleton<INotificationService, MacNotificationService>();
+            services.AddSingleton<IBrowserHostRegistrar>(new UnixBrowserHostRegistrar(UnixBrowserHostRegistrar.MacFolders(HomeFolder())));
         }
         else
         {
@@ -64,9 +67,13 @@ public static class PlatformServiceCollectionExtensions
             services.AddSingleton<ITaskbarProgress, NoTaskbarProgress>();
             services.AddSingleton<ITrayAvailability, LinuxTrayAvailability>();
             services.AddSingleton<INotificationService, LinuxNotificationService>();
+            services.AddSingleton<IBrowserHostRegistrar>(new UnixBrowserHostRegistrar(
+                UnixBrowserHostRegistrar.LinuxFolders(HomeFolder(), Environment.GetEnvironmentVariable("XDG_CONFIG_HOME"))));
         }
 
         services.AddSingleton<IAppPaths, AppPaths>();
         return services;
     }
+
+    private static string HomeFolder() => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 }

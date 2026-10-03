@@ -16,7 +16,7 @@ public class IpcRequestHandlerTests
     public async Task Add_request_opens_a_prefilled_add_url_window_and_answers_ok()
     {
         await using var ui = await UiHarness.StartAsync();
-        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { });
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { }, ui.Settings);
         var request = Parse("""
             {"type":"add","url":"https://example.com/get?id=7","fileName":"setup.exe","size":3145728,
              "referrer":"https://example.com/page","cookies":"sid=abc","userAgent":"Browser/1",
@@ -43,11 +43,49 @@ public class IpcRequestHandlerTests
     }
 
     [AvaloniaFact]
+    public async Task Ping_is_answered_ok_and_config_returns_the_capture_rules()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Settings.BrowserCaptureExtensions = ["zip", "iso"];
+        ui.Settings.BrowserCaptureMinSizeKiB = 256;
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { }, ui.Settings);
+
+        Assert.Equal(IpcResponse.Success, await handler.HandleAsync(new PingRequest(), CancellationToken.None));
+
+        var config = await handler.HandleAsync(new ConfigRequest(), CancellationToken.None);
+        Assert.True(config.Ok);
+        Assert.Equal(["zip", "iso"], config.Config!.Extensions);
+        Assert.Equal(256, config.Config.MinSizeKiB);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+    }
+
+    [Fact]
+    public void Config_keeps_the_capture_rules_within_what_the_host_accepts()
+    {
+        var settings = new Colibri.Core.Settings.AppSettings
+        {
+            BrowserCaptureExtensions = ["ZIP", "tar.gz", "", "zip", new string('a', 17), .. Enumerable.Range(0, 300).Select(i => $"e{i}")],
+            BrowserCaptureMinSizeKiB = -5,
+        };
+
+        var config = IpcRequestHandler.CaptureConfigFrom(settings);
+
+        Assert.Equal("zip", config.Extensions[0]);
+        Assert.Equal("e0", config.Extensions[1]);
+        Assert.Equal(IpcProtocol.MaxCaptureExtensions, config.Extensions.Count);
+        Assert.Equal(0, config.MinSizeKiB);
+
+        // What the host reads back is valid.
+        var parsed = IpcProtocol.ParseResponse(IpcProtocol.SerializeResponse(new IpcResponse(true, Config: config)));
+        Assert.Equal(config.Extensions, parsed.Config!.Extensions);
+    }
+
+    [AvaloniaFact]
     public async Task Activate_shows_the_main_window_unless_minimized_is_asked()
     {
         await using var ui = await UiHarness.StartAsync();
         var shown = 0;
-        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++);
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++, ui.Settings);
 
         Assert.True((await handler.HandleAsync(new ActivateRequest([]), CancellationToken.None)).Ok);
         Assert.Equal(1, shown);
@@ -60,7 +98,7 @@ public class IpcRequestHandlerTests
     public async Task Add_request_arriving_while_colibri_exits_is_refused_so_the_browser_keeps_its_download()
     {
         await using var ui = await UiHarness.StartAsync();
-        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { });
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { }, ui.Settings);
         using var stopped = new CancellationTokenSource();
         await stopped.CancelAsync(); // The pipe server stops first when Colibri exits.
 
@@ -75,7 +113,7 @@ public class IpcRequestHandlerTests
     {
         await using var ui = await UiHarness.StartAsync();
         var shown = 0;
-        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++);
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => shown++, ui.Settings);
 
         // The arguments of a COM-activated start (toast clicked) carry no meaning for Colibri.
         var response = await handler.HandleAsync(new ActivateRequest(["-ToastActivated", "-Embedding"]), CancellationToken.None);

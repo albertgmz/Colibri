@@ -33,6 +33,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IShellService _shell;
     private readonly IAppPaths _paths;
     private readonly IBrowserHostRegistrar? _registrar;
+    private readonly NativeHostRegistration _hostRegistration;
     private readonly ILogger<SettingsViewModel> _logger;
 
     // True while the page copies values in, so those assignments are not taken as user changes.
@@ -82,7 +83,11 @@ public partial class SettingsViewModel : ObservableObject
     private string _aria2Path = string.Empty;
 
     [ObservableProperty]
-    private string? _browserStatusText;
+    private string? _browserError;
+
+    /// <summary>True when the browser list was read and is empty (on Linux and macOS: no supported browser was run yet).</summary>
+    [ObservableProperty]
+    private bool _noBrowserFound;
 
     public SettingsViewModel(
         AppSettings settings,
@@ -92,7 +97,8 @@ public partial class SettingsViewModel : ObservableObject
         IShellService shell,
         IAppPaths paths,
         ILogger<SettingsViewModel> logger,
-        IBrowserHostRegistrar? registrar = null)
+        IBrowserHostRegistrar? registrar = null,
+        NativeHostRegistration? hostRegistration = null)
     {
         _settings = settings;
         _store = store;
@@ -102,6 +108,7 @@ public partial class SettingsViewModel : ObservableObject
         _paths = paths;
         _logger = logger;
         _registrar = registrar;
+        _hostRegistration = hostRegistration ?? NativeHostSetup.CreateRegistration();
 
         CategoryFolders =
         [
@@ -117,6 +124,9 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsAutostartSupported => _autostart.IsSupported;
 
     public bool IsBrowserStatusVisible => _registrar is not null;
+
+    /// <summary>One row per browser: its name and whether Colibri's native-messaging host is set up for it.</summary>
+    public ObservableCollection<BrowserStatusViewModel> BrowserStatuses { get; } = [];
 
     /// <summary>Shown as the default folder's placeholder: where downloads go when the box is empty.</summary>
     public string DefaultFolderPlaceholder => _paths.DefaultDownloadsDirectory;
@@ -169,22 +179,7 @@ public partial class SettingsViewModel : ObservableObject
             }
         }
 
-        if (_registrar is not null)
-        {
-            try
-            {
-                BrowserStatusText = await _registrar.GetStatusAsync() switch
-                {
-                    BrowserIntegrationStatus.Registered => Strings.BrowserStatusRegistered,
-                    BrowserIntegrationStatus.Outdated => Strings.BrowserStatusOutdated,
-                    _ => Strings.BrowserStatusNotRegistered,
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not read the browser integration state");
-            }
-        }
+        await RefreshBrowserStatusAsync();
     }
 
     /// <summary>The task of the last save, so tests can wait for it.</summary>
@@ -316,6 +311,71 @@ public partial class SettingsViewModel : ObservableObject
         return _shell.OpenFolderAsync(_paths.LogsDirectory);
     });
 
+    /// <summary>
+    /// Registers the native-messaging host next to this app with the browsers (also repairs a registration
+    /// that points at another copy of Colibri), then shows the new state.
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallBrowserIntegrationAsync()
+    {
+        if (_registrar is null)
+        {
+            return;
+        }
+
+        BrowserError = null;
+        try
+        {
+            await _registrar.RegisterAsync(_hostRegistration);
+            _logger.LogInformation("Registered the browser native-messaging host {Path}", _hostRegistration.HostExecutablePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not register the browser native-messaging host");
+            BrowserError = Strings.BrowserInstallFailed;
+        }
+
+        await RefreshBrowserStatusAsync();
+    }
+
+    private async Task RefreshBrowserStatusAsync()
+    {
+        if (_registrar is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var statuses = await _registrar.GetStatusAsync(_hostRegistration);
+            BrowserStatuses.Clear();
+            foreach (var status in statuses)
+            {
+                BrowserStatuses.Add(new BrowserStatusViewModel(BrowserName(status.Browser), StatusText(status.Status)));
+            }
+
+            NoBrowserFound = statuses.Count == 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the browser integration state");
+        }
+
+        static string BrowserName(BrowserKind browser) => browser switch
+        {
+            BrowserKind.Chrome => Strings.BrowserChrome,
+            BrowserKind.Edge => Strings.BrowserEdge,
+            _ => Strings.BrowserChromium,
+        };
+
+        static string StatusText(BrowserIntegrationStatus status) => status switch
+        {
+            BrowserIntegrationStatus.Registered => Strings.BrowserStatusRegistered,
+            BrowserIntegrationStatus.Outdated => Strings.BrowserStatusOutdated,
+            _ => Strings.BrowserStatusNotRegistered,
+        };
+    }
+
     private async Task ApplyAutostartAsync(bool enabled)
     {
         try
@@ -423,6 +483,9 @@ public partial class SettingsViewModel : ObservableObject
             .Distinct()
             .ToList();
 }
+
+/// <summary>One browser in the browser integration list.</summary>
+public sealed record BrowserStatusViewModel(string Name, string Status);
 
 /// <summary>One row of the per-category folders.</summary>
 public partial class CategoryFolderViewModel : ObservableObject

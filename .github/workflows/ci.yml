@@ -36,3 +36,13 @@ jobs:
       # Avalonia UI tests use the headless platform, so no display server is needed on Linux.
       - name: Test
         run: dotnet test Colibri.slnx -c Release --no-build
+
+      # The extension's pure logic is plain JavaScript tested with Node's built-in runner; once is enough.
+      - uses: actions/setup-node@v7
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          node-version: 24
+
+      - name: Test extension
+        if: matrix.os == 'ubuntu-latest'
+        run: node --test "extension/tests/*.test.js"

@@ -1,0 +1,32 @@
+{
+  "extName": {
+    "message": "Colibri"
+  },
+  "extDescription": {
+    "message": "Hands your downloads over to the Colibri download manager."
+  },
+  "contextMenuDownload": {
+    "message": "Download with Colibri"
+  },
+  "popupCapture": {
+    "message": "Capture downloads"
+  },
+  "popupCaptureHint": {
+    "message": "Downloads of the file types chosen in Colibri open in Colibri instead of the browser."
+  },
+  "popupStatusChecking": {
+    "message": "Checking the connection…"
+  },
+  "popupStatusConnected": {
+    "message": "Connected to Colibri"
+  },
+  "popupStatusNotRunning": {
+    "message": "Colibri is not running. It starts when a download is captured."
+  },
+  "popupStatusHostMissing": {
+    "message": "Native host not installed. In Colibri, open Settings, Browser, and click Install / repair."
+  },
+  "popupStatusError": {
+    "message": "Colibri cannot be reached."
+  }
+}

@@ -30,6 +30,13 @@
     <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
     <ProjectReference Include="..\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
     <ProjectReference Include="..\Colibri.Platform\Colibri.Platform.csproj" />
+    <!--
+      The browser's native-messaging host must sit next to Colibri (it starts Colibri from its own folder,
+      and "Install / repair" registers the copy next to the app). Referencing another executable makes the
+      SDK copy its apphost, runtimeconfig.json and deps.json into this output and publish folder, built for
+      the same runtime identifier.
+    -->
+    <ProjectReference Include="..\Colibri.NativeHost\Colibri.NativeHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>

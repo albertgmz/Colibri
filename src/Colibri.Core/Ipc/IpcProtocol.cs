@@ -8,7 +8,7 @@ using Colibri.Core.Services;
 namespace Colibri.Core.Ipc;
 
 /// <summary>
-/// The local pipe protocol between Colibri processes (a second app instance, and later the browser's
+/// The local pipe protocol between Colibri processes (a second app instance, and the browser's
 /// native-messaging host) and the running app.
 /// </summary>
 /// <remarks>
@@ -18,8 +18,11 @@ namespace Colibri.Core.Ipc;
 /// {"type":"activate","args":["--minimized"]}
 /// {"type":"add","url":"https://...","finalUrl":"...","fileName":"...","referrer":"...","cookies":"...",
 ///  "userAgent":"...","size":123,"mimeType":"...","headers":{"Name":"value"}}
+/// {"type":"ping"}
+/// {"type":"config"}
 /// </code>
-/// Response: <c>{"ok":true}</c> or <c>{"ok":false,"error":"..."}</c>.
+/// Response: <c>{"ok":true}</c> or <c>{"ok":false,"error":"..."}</c>; the answer to "config" also has
+/// <c>"captureExtensions":["zip",...],"minSizeKiB":0</c>.
 /// Unknown request types and fields of the wrong type are rejected; unknown fields are ignored. The
 /// "add" payload comes from a web page through the browser and is treated as untrusted.
 /// </remarks>
@@ -37,6 +40,8 @@ public static class IpcProtocol
     public const int MaxHeaders = 64;
     public const int MaxHeaderNameLength = 256;
     public const int MaxHeaderValueLength = 8192;
+    public const int MaxCaptureExtensions = 256;
+    public const int MaxCaptureExtensionLength = 16;
 
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -83,6 +88,14 @@ public static class IpcProtocol
                     return TryParseActivate(root, out request, out error);
                 case "add":
                     return TryParseAdd(root, out request, out error);
+                case "ping":
+                    request = new PingRequest();
+                    error = null;
+                    return true;
+                case "config":
+                    request = new ConfigRequest();
+                    error = null;
+                    return true;
                 default:
                     error = "Unknown request type.";
                     return false;
@@ -144,6 +157,14 @@ public static class IpcProtocol
                     json.WriteEndObject();
                     break;
 
+                case PingRequest:
+                    json.WriteString("type", "ping");
+                    break;
+
+                case ConfigRequest:
+                    json.WriteString("type", "config");
+                    break;
+
                 default:
                     throw new ArgumentException($"Unknown request type {request.GetType().Name}.", nameof(request));
             }
@@ -163,13 +184,25 @@ public static class IpcProtocol
             json.WriteStartObject();
             json.WriteBoolean("ok", response.Ok);
             WriteOptional(json, "error", response.Error);
+            if (response.Config is { } config)
+            {
+                json.WriteStartArray("captureExtensions");
+                foreach (var extension in config.Extensions)
+                {
+                    json.WriteStringValue(extension);
+                }
+
+                json.WriteEndArray();
+                json.WriteNumber("minSizeKiB", config.MinSizeKiB);
+            }
+
             json.WriteEndObject();
         }
 
         return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
-    /// <summary>Parses a response line.</summary>
+    /// <summary>Parses a response line. Capture rules, when present, must be well formed.</summary>
     /// <exception cref="InvalidDataException">The line is not a valid response.</exception>
     public static IpcResponse ParseResponse(string line)
     {
@@ -185,7 +218,7 @@ public static class IpcProtocol
             }
 
             var error = root.TryGetProperty("error", out var text) && text.ValueKind == JsonValueKind.String ? text.GetString() : null;
-            return new IpcResponse(ok.GetBoolean(), error);
+            return new IpcResponse(ok.GetBoolean(), error, ReadCaptureConfig(root));
         }
         catch (JsonException ex)
         {
@@ -249,6 +282,37 @@ public static class IpcProtocol
         {
             throw new InvalidDataException("The message is not valid UTF-8.", ex);
         }
+    }
+
+    /// <summary>Reads "captureExtensions" and "minSizeKiB"; null when neither is present.</summary>
+    private static CaptureConfig? ReadCaptureConfig(JsonElement root)
+    {
+        var hasExtensions = root.TryGetProperty("captureExtensions", out var array);
+        var hasMinSize = root.TryGetProperty("minSizeKiB", out var minSize);
+        if (!hasExtensions && !hasMinSize)
+        {
+            return null;
+        }
+
+        if (!hasExtensions || array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > MaxCaptureExtensions
+            || !hasMinSize || minSize.ValueKind != JsonValueKind.Number || !minSize.TryGetInt32(out var minSizeKiB) || minSizeKiB < 0)
+        {
+            throw new InvalidDataException("The capture rules in the response are not valid.");
+        }
+
+        var extensions = new List<string>();
+        foreach (var item in array.EnumerateArray())
+        {
+            var extension = item.ValueKind == JsonValueKind.String ? item.GetString()! : string.Empty;
+            if (extension.Length is 0 or > MaxCaptureExtensionLength || !extension.All(char.IsAsciiLetterOrDigit))
+            {
+                throw new InvalidDataException("The capture rules in the response are not valid.");
+            }
+
+            extensions.Add(extension.ToLowerInvariant());
+        }
+
+        return new CaptureConfig(extensions, minSizeKiB);
     }
 
     private static bool TryParseActivate(JsonElement root, out IpcRequest? request, out string? error)

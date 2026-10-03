@@ -25,6 +25,16 @@ public sealed class RegistrationTests
     }
 
     [Fact]
+    public void A_browser_host_registrar_is_registered()
+    {
+        // Not resolved: on Windows it needs IAppPaths, which creates the real data folder.
+        var services = new ServiceCollection();
+        services.AddColibriPlatform();
+
+        Assert.Contains(services, d => d.ServiceType == typeof(IBrowserHostRegistrar));
+    }
+
+    [Fact]
     public void App_supplied_notification_texts_are_used()
     {
         var texts = new NotificationTexts { DownloadCompleteTitle = "Descarga completada" };
