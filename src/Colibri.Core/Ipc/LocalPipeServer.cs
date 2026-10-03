@@ -20,16 +20,27 @@ public sealed class LocalPipeServer : IAsyncDisposable
     private readonly string _pipeName;
     private readonly Func<IpcRequest, CancellationToken, Task<IpcResponse>> _handler;
     private readonly ILogger _logger;
+    private readonly Func<NamedPipeServerStream> _createPipe;
     private readonly CancellationTokenSource _stop = new();
     private readonly object _connectionsLock = new();
     private readonly HashSet<Task> _connections = [];
     private Task? _acceptLoop;
 
     public LocalPipeServer(string pipeName, Func<IpcRequest, CancellationToken, Task<IpcResponse>> handler, ILogger logger)
+        : this(pipeName, handler, logger, () => new NamedPipeServerStream(
+            pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
+            PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly))
+    {
+    }
+
+    // Test seam for checking listener ownership and creation-failure recovery.
+    internal LocalPipeServer(string pipeName, Func<IpcRequest, CancellationToken, Task<IpcResponse>> handler,
+        ILogger logger, Func<NamedPipeServerStream> createPipe)
     {
         _pipeName = pipeName;
         _handler = handler;
         _logger = logger;
+        _createPipe = createPipe;
     }
 
     /// <summary>Starts accepting connections in the background.</summary>
@@ -59,48 +70,67 @@ public sealed class LocalPipeServer : IAsyncDisposable
 
     private async Task AcceptLoopAsync(CancellationToken ct)
     {
+        NamedPipeServerStream? listener = null;
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                listener ??= await CreateListenerAsync(ct);
+                if (listener is null) return;
+                try
+                {
+                    await listener.WaitForConnectionAsync(ct);
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    // A failed connection (including a refused Unix peer) must not stop the server.
+                    _logger.LogDebug(ex, "A local pipe connection failed before it started");
+                    await listener.DisposeAsync();
+                    listener = null;
+                    continue;
+                }
+
+                var accepted = listener;
+                listener = null;
+                try
+                {
+                    // Unix streams share a listener that closes when its last stream is disposed.
+                    // Retain its successor before the client handler can close the accepted stream.
+                    // This successor is the next real accept instance on Windows as well.
+                    listener = await CreateListenerAsync(ct);
+                }
+                catch
+                {
+                    await accepted.DisposeAsync();
+                    throw;
+                }
+                if (listener is null)
+                {
+                    await accepted.DisposeAsync();
+                    return;
+                }
+                Track(HandleConnectionAsync(accepted, ct));
+            }
+        }
+        finally
+        {
+            if (listener is not null) await listener.DisposeAsync();
+        }
+    }
+
+    private async Task<NamedPipeServerStream?> CreateListenerAsync(CancellationToken ct)
+    {
         while (!ct.IsCancellationRequested)
         {
-            NamedPipeServerStream pipe;
-            try
-            {
-                // CurrentUserOnly: on Windows the pipe gets an ACL for the current user only; on Unix the
-                // socket file is owner-only and the peer's user id is checked.
-                pipe = new NamedPipeServerStream(
-                    _pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-            }
+            try { return _createPipe(); }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Could not create the local pipe {PipeName}", _pipeName);
-                if (!await DelayAsync(TimeSpan.FromSeconds(1), ct))
-                {
-                    return;
-                }
-
-                continue;
+                if (!await DelayAsync(TimeSpan.FromSeconds(1), ct)) return null;
             }
-
-            try
-            {
-                await pipe.WaitForConnectionAsync(ct);
-            }
-            catch (OperationCanceledException)
-            {
-                await pipe.DisposeAsync();
-                return;
-            }
-            catch (Exception ex)
-            {
-                // Any failure of one connection (on Unix also a peer of another user being refused) must
-                // not stop the server.
-                _logger.LogDebug(ex, "A local pipe connection failed before it started");
-                await pipe.DisposeAsync();
-                continue;
-            }
-
-            Track(HandleConnectionAsync(pipe, ct));
         }
+        return null;
     }
 
     private void Track(Task connection)
