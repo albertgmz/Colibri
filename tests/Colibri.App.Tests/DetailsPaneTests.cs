@@ -81,7 +81,7 @@ public class DetailsPaneTests
         Assert.False(ui.SettingsStore.Saved!.ShowDetailsPane);
 
         ui.ViewModel.IsDetailsVisible = true;
-        Assert.Equal(200, grid.RowDefinitions[2].Height.Value);
+        Assert.Equal(24, grid.RowDefinitions[2].Height.Value);
     }
 
     [AvaloniaFact]

@@ -10,11 +10,12 @@ public partial class MainWindow : Window
 {
     private const int DetailsRow = 2;
     private MainWindowViewModel? _subscribed;
-    private GridLength _detailsHeight = new(200);
+    private GridLength _detailsHeight = new(180);
 
     public MainWindow()
     {
         InitializeComponent();
+        InitializeLayout();
     }
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
@@ -42,13 +43,15 @@ public partial class MainWindow : Window
         if (_subscribed is not null)
         {
             _subscribed.PropertyChanged += OnViewModelPropertyChanged;
+            ApplyLayout(_subscribed.Layout);
             UpdateDetailsRow(_subscribed.IsDetailsVisible);
         }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.IsDetailsVisible) && ViewModel is { } viewModel)
+        if (e.PropertyName is nameof(MainWindowViewModel.IsDetailsVisible) or nameof(MainWindowViewModel.SelectedDetail)
+            && ViewModel is { } viewModel)
         {
             UpdateDetailsRow(viewModel.IsDetailsVisible);
         }
@@ -66,11 +69,13 @@ public partial class MainWindow : Window
         var row = ContentGrid.RowDefinitions[DetailsRow];
         if (visible)
         {
-            row.Height = _detailsHeight;
+            if (row.Height.Value > 24) _detailsHeight = row.Height;
+            row.Height = ViewModel?.SelectedDetail is null ? new GridLength(24) : _detailsHeight;
+            DetailsSplitter.IsVisible = ViewModel?.SelectedDetail is not null;
         }
         else
         {
-            if (row.Height.Value > 0)
+            if (row.Height.Value > 24)
             {
                 _detailsHeight = row.Height;
             }

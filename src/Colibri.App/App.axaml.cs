@@ -36,6 +36,7 @@ public partial class App : Application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             ThemeService.Apply(services.GetRequiredService<AppSettings>().Theme);
+            ThemeService.ApplyAccent(services.GetRequiredService<AppSettings>().AccentColor);
 
             var viewModel = services.GetRequiredService<MainWindowViewModel>();
             var shell = ActivatorUtilities.CreateInstance<DesktopShell>(services, desktop);

@@ -8,6 +8,22 @@ namespace Colibri.App.Views;
 
 public partial class AddUrlWindow : Window
 {
+    private AddUrlViewModel? _subscribed;
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (_subscribed is not null) _subscribed.RenameRequested -= OnRenameRequested;
+        _subscribed = DataContext as AddUrlViewModel;
+        if (_subscribed is not null) _subscribed.RenameRequested += OnRenameRequested;
+    }
+
+    private void OnRenameRequested(object? sender, EventArgs e)
+    {
+        FileNameBox.Focus();
+        FileNameBox.SelectAll();
+    }
+
     public AddUrlWindow()
     {
         InitializeComponent();

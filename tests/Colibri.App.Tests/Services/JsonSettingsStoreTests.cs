@@ -18,6 +18,21 @@ public sealed class JsonSettingsStoreTests : IDisposable
     private JsonSettingsStore Create() => new(_paths.SettingsPath, _logger);
 
     [Fact]
+    public async Task V1_file_and_invalid_layout_load_without_losing_download_settings()
+    {
+        await File.WriteAllTextAsync(_paths.SettingsPath,
+            """{"ConnectionsPerServer":16,"CategoryFolders":{"Music":"D:/Music"},"Layout":{"Width":1,"Height":-20,"Columns":null}}""", Ct);
+        var settings = await Create().LoadAsync(Ct);
+        Assert.Equal(16, settings.ConnectionsPerServer);
+        Assert.Equal("D:/Music", settings.CategoryFolders[DownloadCategory.Music]);
+        Assert.Equal(640, settings.Layout.Width);
+        Assert.Equal(400, settings.Layout.Height);
+        Assert.Empty(settings.Layout.Columns);
+        await Create().SaveAsync(settings, Ct);
+        Assert.Equal("D:/Music", (await Create().LoadAsync(Ct)).CategoryFolders[DownloadCategory.Music]);
+    }
+
+    [Fact]
     public async Task A_missing_file_gives_the_defaults_without_a_warning()
     {
         var settings = await Create().LoadAsync(Ct);

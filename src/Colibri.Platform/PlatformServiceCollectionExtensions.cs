@@ -30,6 +30,7 @@ public static class PlatformServiceCollectionExtensions
         if (OperatingSystem.IsWindows())
         {
             services.AddSingleton<IDownloadsFolderLocator, WindowsDownloadsFolderLocator>();
+            services.AddSingleton<IVolumeInfoService, WindowsVolumeInfoService>();
             services.AddSingleton<IAria2Locator, WindowsAria2Locator>();
             services.AddSingleton<IShellService, WindowsShellService>();
             services.AddSingleton<IAutostartService, WindowsAutostartService>();
@@ -47,6 +48,7 @@ public static class PlatformServiceCollectionExtensions
         else if (OperatingSystem.IsMacOS())
         {
             services.AddSingleton<IDownloadsFolderLocator, MacDownloadsFolderLocator>();
+            services.AddSingleton<IVolumeInfoService, MacVolumeInfoService>();
 
             // Apps started from Finder or the Dock do not get the PATH of the user's shell, so Homebrew's
             // folders (Apple silicon, then Intel) are searched explicitly.
@@ -61,6 +63,7 @@ public static class PlatformServiceCollectionExtensions
         else
         {
             services.AddSingleton<IDownloadsFolderLocator, XdgDownloadsFolderLocator>();
+            services.AddSingleton<IVolumeInfoService, LinuxVolumeInfoService>();
             services.AddSingleton<IAria2Locator>(new UnixAria2Locator([]));
             services.AddSingleton<SessionBus>();
             services.AddSingleton<IShellService, LinuxShellService>();

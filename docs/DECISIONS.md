@@ -482,3 +482,25 @@ it with a captured download, and a folder only when the user typed one or picked
 already shown). Otherwise it passes null, and the name the resolver suggests decides the name and, through its
 extension, the category folder. A name or folder box the user clears counts as not chosen again. As before, a file
 name override applies only when the link resolves to a single download.
+
+## 53. Layout preferences are additive and distinct from responsive visibility
+
+V2 adds a bounded layout object to settings without changing v1 folders or download
+data. Stable column keys store order, width, visibility and sort. Responsive hiding
+does not change those preferences. Geometry saves after a 500 ms debounce and is
+flushed before application shutdown; disconnected screens cannot strand the title bar.
+The default is 960 x 600 with a 640 x 400 minimum, compact 28 px rows, a 160 px
+sidebar and a 24 px empty details bar. Splitters and the header grip are draggable.
+The Layout menu supplies density, three toolbar modes, sidebar collapse and reset.
+
+Five accent choices use the Fluent palette's Accent property, following the
+[Avalonia theme API](https://docs.avaloniaui.net/docs/styling/themes). The existing
+system, light and dark choices remain. Free destination space is a Core platform
+contract, queried on a worker because DriveInfo has no asynchronous API, at most
+once per 30 seconds. Unknown space stays unknown. The network status currently
+reports the default route; proxy and adapter policy are implemented in goal 5.
+
+Duplicate URL confirmation precedes adding another item. Resume uses the existing
+item; re-download and rename retain the manager's unique-path reservation. Average
+speed will use measured active transfer time in goal 2, rather than time since an
+item was added, which would count queues and pauses as transfer time.

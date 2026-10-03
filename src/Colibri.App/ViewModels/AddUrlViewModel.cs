@@ -25,6 +25,17 @@ public partial class AddUrlViewModel : ObservableObject
     private int _settingAutomatically;
     private bool _fileNameEdited;
     private bool _folderEdited;
+    private DownloadItem? _duplicate;
+    private string? _duplicateApprovedUrl;
+
+    [ObservableProperty]
+    private bool _isDuplicatePrompt;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ResumeDuplicateCommand))]
+    private bool _canResumeDuplicate;
+
+    public event EventHandler? RenameRequested;
 
     [ObservableProperty]
     private string _url = string.Empty;
@@ -64,6 +75,8 @@ public partial class AddUrlViewModel : ObservableObject
 
     partial void OnUrlChanged(string value)
     {
+        IsDuplicatePrompt = false;
+        _duplicateApprovedUrl = null;
         if (string.IsNullOrWhiteSpace(value))
         {
             ErrorText = null;
@@ -129,6 +142,17 @@ public partial class AddUrlViewModel : ObservableObject
 
         try
         {
+            if (_duplicateApprovedUrl != Url.Trim())
+            {
+                _duplicate = (await _manager.GetItemsAsync(CancellationToken.None))
+                    .OrderByDescending(i => i.AddedAt).FirstOrDefault(i => i.Url == Url.Trim());
+                if (_duplicate is not null)
+                {
+                    CanResumeDuplicate = _duplicate.State is DownloadState.Paused or DownloadState.Failed;
+                    IsDuplicatePrompt = true;
+                    return;
+                }
+            }
             // The name and folder shown are only a preview of what the URL suggests; unless the user (or the
             // browser, for the name) chose them, the link resolvers decide (DECISIONS 52).
             var added = await _manager.AddAsync(
@@ -146,6 +170,38 @@ public partial class AddUrlViewModel : ObservableObject
             _logger.LogError(ex, "Adding a download failed");
             ErrorText = string.Format(CultureInfo.CurrentCulture, Strings.AddUrlFailedFormat, ex.Message);
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanResumeDuplicate))]
+    private async Task ResumeDuplicateAsync()
+    {
+        if (_duplicate is null) return;
+        try
+        {
+            await _manager.ResumeAsync([_duplicate.Id], CancellationToken.None);
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Resuming a duplicate download failed");
+            ErrorText = string.Format(CultureInfo.CurrentCulture, Strings.AddUrlFailedFormat, ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RedownloadDuplicateAsync()
+    {
+        _duplicateApprovedUrl = Url.Trim();
+        IsDuplicatePrompt = false;
+        await DownloadAsync();
+    }
+
+    [RelayCommand]
+    private void RenameDuplicate()
+    {
+        _duplicateApprovedUrl = Url.Trim();
+        IsDuplicatePrompt = false;
+        RenameRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

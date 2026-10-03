@@ -55,6 +55,11 @@
                         <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeNames}" SelectedIndex="{Binding ThemeIndex}" MinWidth="200"
                                   AutomationProperties.Name="{x:Static res:Strings.SettingsTheme}" />
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{x:Static res:Strings.SettingsAccent}" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding AccentNames}" SelectedIndex="{Binding AccentIndex}" MinWidth="200"
+                                  AutomationProperties.Name="{x:Static res:Strings.SettingsAccent}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

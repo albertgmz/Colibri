@@ -42,6 +42,35 @@ public partial class MainWindowViewModel : ObservableObject
     private IReadOnlyList<DownloadItemViewModel> _selectedItems = [];
     private List<Guid> _pendingDelete = [];
     private bool _loaded;
+    private readonly IVolumeInfoService? _volumes;
+    private DateTimeOffset _nextVolumeCheck;
+
+    [ObservableProperty]
+    private string _freeSpaceText = Strings.StatusFreeUnknown;
+
+    [ObservableProperty]
+    private string _speedLimitText = Strings.StatusUnlimited;
+
+    private string DestinationFolder => SelectedDetail?.SaveFolder
+        ?? (string.IsNullOrWhiteSpace(_settings.DefaultDownloadFolder) ? SettingsPage.DefaultFolderPlaceholder : _settings.DefaultDownloadFolder);
+
+    partial void OnSelectedDetailChanged(DownloadItemViewModel? value)
+    {
+        _nextVolumeCheck = DateTimeOffset.MinValue;
+        _ = RefreshDestinationAsync();
+    }
+
+    private Task RefreshDestinationAsync() => RunSafeAsync(async () =>
+    {
+        SpeedLimitText = _settings.GlobalSpeedLimitKiB == 0 ? Strings.StatusUnlimited
+            : Format(Strings.StatusLimitFormat, DisplayFormat.Speed((long)_settings.GlobalSpeedLimitKiB * 1024));
+        if (_volumes is null || DateTimeOffset.UtcNow < _nextVolumeCheck) return;
+        _nextVolumeCheck = DateTimeOffset.UtcNow.AddSeconds(30);
+        var folder = DestinationFolder;
+        var bytes = await _volumes.GetAvailableBytesAsync(folder, CancellationToken.None);
+        if (folder == DestinationFolder)
+            FreeSpaceText = bytes is { } available ? Format(Strings.StatusFreeFormat, DisplayFormat.Size(available)) : Strings.StatusFreeUnknown;
+    }, "read destination free space");
 
     [ObservableProperty]
     private NavItemViewModel _selectedNav;
@@ -105,7 +134,8 @@ public partial class MainWindowViewModel : ObservableObject
         SettingsViewModel settingsPage,
         AppSettings settings,
         ISettingsStore settingsStore,
-        ILogger<MainWindowViewModel> logger)
+        ILogger<MainWindowViewModel> logger,
+        IVolumeInfoService? volumes = null)
     {
         _manager = manager;
         _shell = shell;
@@ -113,6 +143,7 @@ public partial class MainWindowViewModel : ObservableObject
         _settings = settings;
         _settingsStore = settingsStore;
         _logger = logger;
+        _volumes = volumes;
         SettingsPage = settingsPage;
         _isDetailsVisible = settings.ShowDetailsPane;
         _trayToolTipText = Strings.AppName;
@@ -206,7 +237,27 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>Stops polling and the engine; called when the app exits.</summary>
     public Task ShutdownAsync() => _manager.StopAsync();
 
+    public WindowLayout Layout => _settings.Layout;
+
+    public Task SaveLayoutAsync(WindowLayout layout)
+    {
+        layout.Normalize();
+        _settings.Layout = layout;
+        return RunSafeAsync(() => _settingsStore.SaveAsync(_settings, CancellationToken.None), "save the layout");
+    }
+
     public AddUrlViewModel CreateAddUrl(LinkContext context, string? url) => new(_manager, context, url, _logger);
+
+    public bool ShowAddUrlForText(string? text)
+    {
+        var url = text?.Trim();
+        if (!UrlPolicy.TryValidate(url, out _, out string? _)) return false;
+        _dialogs.ShowAddUrl(CreateAddUrl(LinkContext.Empty, url));
+        return true;
+    }
+
+    public Task PasteUrlAsync() => RunSafeAsync(async () =>
+        ShowAddUrlForText(await _dialogs.ReadClipboardTextAsync()), "paste a URL");
 
     /// <summary>Double-click on a row: opens a completed file.</summary>
     public Task OpenItemAsync(DownloadItemViewModel item) =>
@@ -402,6 +453,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void ShowStats(EngineGlobalStats stats)
     {
+        _ = RefreshDestinationAsync();
         // aria2's total speed is an average that fades out for a few seconds after the last download
         // stops; with nothing active the speed is simply zero.
         var speed = stats.NumActive > 0 ? stats.DownloadSpeed : 0;

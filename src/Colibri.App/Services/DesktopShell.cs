@@ -169,6 +169,13 @@ public sealed class DesktopShell
             _logger.LogError(ex, "Stopping the local pipe failed");
         }
 
+        // Drain the layout debounce before shutdown: an async Closing handler cannot hold the
+        // desktop lifetime open while the settings file is being written.
+        if (_window is not null)
+        {
+            await _window.FlushLayoutAsync();
+        }
+
         // Separately: the downloads must be stopped (aria2 saving its session) whatever happened above.
         try
         {

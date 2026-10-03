@@ -89,6 +89,18 @@ public partial class DownloadItemViewModel : ObservableObject
     [ObservableProperty]
     private string _downloadedText = string.Empty;
 
+    [ObservableProperty]
+    private string _host = string.Empty;
+
+    [ObservableProperty]
+    private string _categoryText = string.Empty;
+
+    [ObservableProperty]
+    private DateTimeOffset? _completedAt;
+
+    [ObservableProperty]
+    private string _completedText = string.Empty;
+
     public DownloadItemViewModel(DownloadItem item)
     {
         Id = item.Id;
@@ -115,6 +127,18 @@ public partial class DownloadItemViewModel : ObservableObject
         Connections = item.Connections;
         Bitfield = item.Bitfield;
         NumPieces = item.NumPieces ?? 0;
+        Host = Uri.TryCreate(item.FinalUrl ?? item.Url, UriKind.Absolute, out var uri) ? uri.Host : string.Empty;
+        CompletedAt = item.CompletedAt;
+        CompletedText = item.CompletedAt?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? string.Empty;
+        CategoryText = item.Category switch
+        {
+            DownloadCategory.Compressed => Strings.CategoryCompressed,
+            DownloadCategory.Documents => Strings.CategoryDocuments,
+            DownloadCategory.Music => Strings.CategoryMusic,
+            DownloadCategory.Programs => Strings.CategoryPrograms,
+            DownloadCategory.Video => Strings.CategoryVideo,
+            _ => Strings.CategoryOther,
+        };
 
         IconKey = "IconCategory" + item.Category;
         SizeText = DisplayFormat.Size(item.TotalBytes);

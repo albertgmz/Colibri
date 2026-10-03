@@ -83,6 +83,8 @@ public sealed class JsonSettingsStore : ISettingsStore
         settings.BrowserCaptureExtensions ??= defaults.BrowserCaptureExtensions;
         settings.DefaultDownloadFolder ??= defaults.DefaultDownloadFolder;
         settings.Aria2Path ??= defaults.Aria2Path;
+        settings.Layout ??= new WindowLayout();
+        settings.Layout.Normalize();
         return settings;
     }
 }

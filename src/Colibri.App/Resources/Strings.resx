@@ -483,4 +483,46 @@
   <data name="SettingsOpenLogs" xml:space="preserve">
     <value>Open logs folder</value>
   </data>
+  <data name="LayoutSidebar" xml:space="preserve">
+    <value>Collapse sidebar</value>
+  </data>
+  <data name="LayoutCompact" xml:space="preserve">
+    <value>Compact rows</value>
+  </data>
+  <data name="LayoutSmallIcons" xml:space="preserve">
+    <value>Small icons only</value>
+  </data>
+  <data name="LayoutIcons" xml:space="preserve">
+    <value>Icons only</value>
+  </data>
+  <data name="LayoutMenu" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="LayoutReset" xml:space="preserve">
+    <value>Reset layout</value>
+  </data>
+  <data name="LayoutComfortable" xml:space="preserve">
+    <value>Comfortable rows</value>
+  </data>
+  <data name="LayoutLabels" xml:space="preserve">
+    <value>Icons with labels</value>
+  </data>
+  <data name="ColumnHost" xml:space="preserve"><value>Host</value></data>
+  <data name="ColumnCategory" xml:space="preserve"><value>Category</value></data>
+  <data name="ColumnCompleted" xml:space="preserve"><value>Completed date</value></data>
+  <data name="LayoutHeaderResize" xml:space="preserve"><value>Drag to resize column header height</value></data>
+  <data name="SettingsAccent" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="AccentRed" xml:space="preserve"><value>Warm red</value></data>
+  <data name="AccentBlue" xml:space="preserve"><value>Blue</value></data>
+  <data name="AccentGreen" xml:space="preserve"><value>Green</value></data>
+  <data name="AccentPurple" xml:space="preserve"><value>Purple</value></data>
+  <data name="AccentAmber" xml:space="preserve"><value>Amber</value></data>
+  <data name="DuplicateUrlPrompt" xml:space="preserve"><value>This URL is already in your downloads. Resume is available for a paused or failed download. Download again creates a separate file.</value></data>
+  <data name="DuplicateRedownload" xml:space="preserve"><value>Download again</value></data>
+  <data name="DuplicateRename" xml:space="preserve"><value>Choose another name</value></data>
+  <data name="StatusFreeUnknown" xml:space="preserve"><value>Free: unknown</value></data>
+  <data name="StatusFreeFormat" xml:space="preserve"><value>Free: {0}</value></data>
+  <data name="StatusUnlimited" xml:space="preserve"><value>Limit: unlimited</value></data>
+  <data name="StatusLimitFormat" xml:space="preserve"><value>Limit: {0}</value></data>
+  <data name="StatusNetworkDefault" xml:space="preserve"><value>Default network</value></data>
 </root>

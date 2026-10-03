@@ -7,6 +7,10 @@ namespace Colibri.Core.Settings;
 /// </summary>
 public sealed class AppSettings
 {
+    public WindowLayout Layout { get; set; } = new();
+
+    public string AccentColor { get; set; } = "#C42B1C";
+
     /// <summary>Closing the main window hides it to the tray instead of exiting.</summary>
     public bool CloseToTray { get; set; } = true;
 

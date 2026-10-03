@@ -30,16 +30,16 @@ descriptors. App `JsonSettingsStore` normalizes old/malformed layout values.
 `MainWindow` maps visual geometry to this model through MainWindowViewModel,
 which owns asynchronous settings persistence. No database change is needed.
 
-- [ ] Test v1 settings migration and layout roundtrip, invalid dimensions and null collections.
-- [ ] Smaller 960 x 600 default, 640 x 400 minimum; 160px draggable sidebar.
-- [ ] Compact 28px rows, tighter navigation/toolbar, comfortable density and three toolbar modes.
-- [ ] Collapse empty details to a thin bar; retain selected details splitter height.
-- [ ] Persist window geometry, both splitters, columns/order/visibility/sort and pane state.
-- [ ] Header column chooser; responsive visibility must not overwrite user preferences.
-- [ ] Icon sidebar with counts, Reset layout, additional real-data columns.
-- [ ] Accent selection; existing system/light/dark theme remains available.
-- [ ] Shortcuts, URL paste/drop and duplicate resume/re-download/rename choice.
-- [ ] Destination free space, speed limit and network mode in status bar.
+- [x] Test v1 settings migration and layout roundtrip, invalid dimensions and null collections.
+- [x] Smaller 960 x 600 default, 640 x 400 minimum; 160px draggable sidebar.
+- [x] Compact 28px rows, tighter navigation/toolbar, comfortable density and three toolbar modes.
+- [x] Collapse empty details to a thin bar; retain selected details splitter height.
+- [x] Persist window geometry, both splitters, columns/order/visibility/sort and pane state.
+- [x] Header column chooser; responsive visibility must not overwrite user preferences.
+- [x] Icon sidebar with counts, Reset layout, additional real-data columns.
+- [x] Accent selection; existing system/light/dark theme remains available.
+- [x] Shortcuts, URL paste/drop and duplicate resume/re-download/rename choice.
+- [x] Destination free space, speed limit and network mode in status bar.
 - [ ] Build/test, run real Windows app, save default/minimum screenshots and commit/push.
 
 ## 2. Detailed download view

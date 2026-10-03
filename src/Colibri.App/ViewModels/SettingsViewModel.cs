@@ -39,6 +39,20 @@ public partial class SettingsViewModel : ObservableObject
     // True while the page copies values in, so those assignments are not taken as user changes.
     private bool _loading;
 
+    [ObservableProperty]
+    private int _accentIndex;
+
+    public IReadOnlyList<string> AccentNames { get; } =
+        [Strings.AccentRed, Strings.AccentBlue, Strings.AccentGreen, Strings.AccentPurple, Strings.AccentAmber];
+    private static readonly string[] AccentColors = ["#C42B1C", "#0078D4", "#10893E", "#8764B8", "#C77800"];
+
+    partial void OnAccentIndexChanged(int value)
+    {
+        if (_loading || value < 0 || value >= AccentColors.Length) return;
+        ThemeService.ApplyAccent(AccentColors[value]);
+        Change(() => _settings.AccentColor = AccentColors[value]);
+    }
+
     // aria2 restarts run one after the other, never two at once.
     private Task _restart = Task.CompletedTask;
 
@@ -145,6 +159,7 @@ public partial class SettingsViewModel : ObservableObject
             CloseToTray = _settings.CloseToTray;
             MinimizeToTray = _settings.MinimizeToTray;
             ThemeIndex = (int)_settings.Theme;
+            AccentIndex = Math.Max(0, Array.FindIndex(AccentColors, c => c.Equals(_settings.AccentColor, StringComparison.OrdinalIgnoreCase)));
             DefaultFolder = _settings.DefaultDownloadFolder;
             FolderError = null;
             foreach (var row in CategoryFolders)
