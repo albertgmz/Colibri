@@ -9,6 +9,8 @@ using Colibri.Platform.Security;
 using Colibri.Platform.Shell;
 using Colibri.Platform.Taskbar;
 using Colibri.Platform.Tray;
+using Colibri.Platform.Updates;
+using Colibri.Core.Updates;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Colibri.Platform;
@@ -80,6 +82,20 @@ public static class PlatformServiceCollectionExtensions
         }
 
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<IReleaseUpdateService>(sp =>
+        {
+            var kind = UpdatePackageKind.None;
+            if (OperatingSystem.IsWindows())
+            {
+                var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Colibri");
+                kind = WindowsUpdateHandoff.IsOwnedInstallation(Environment.ProcessPath ?? "", installed)
+                    ? UpdatePackageKind.Installer : UpdatePackageKind.Portable;
+            }
+            var version = typeof(PlatformServiceCollectionExtensions).Assembly.GetName().Version!.ToString(3);
+            return new GitHubReleaseUpdateService(GitHubReleaseUpdateService.CreateClient(), version, kind,
+                Path.Combine(sp.GetRequiredService<IAppPaths>().DataDirectory, "updates"),
+                installer: kind == UpdatePackageKind.Installer ? WindowsUpdateHandoff.PrepareAsync : null);
+        });
         return services;
     }
 

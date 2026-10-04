@@ -17,6 +17,9 @@ public sealed class AppSettings
     [System.Text.Json.Serialization.JsonConverter(typeof(LanguagePreferenceJsonConverter))]
     public string Language { get; set; } = "system";
 
+    /// <summary>Check public release metadata at startup and hourly; downloads require user action.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+
     /// <summary>Closing the main window hides it to the tray instead of exiting.</summary>
     public bool CloseToTray { get; set; } = true;
 

@@ -280,3 +280,23 @@ rapid pipe reconnect exchange failure. The listener successor correction passed
 461 Core/44 NativeHost Windows tests and independent review; CI37163070161 then
 passed on Windows, Linux and macOS. The later palette/package checkpoint built
 with zero warnings/errors and passed 906 tests with one expected Windows skip.
+
+## Owner additions completed after plan closure — 2026-10-03
+
+- [x] Bundled GitHub-contributed translations, saved UI language, native regional
+  and English fallback, contributor docs and app/extension catalog validation.
+  English is currently the only released application catalog.
+- [x] Root VERSION source and unique increasing version on every new app commit,
+  local hooks, full-history CI validation, app/native-host/setup stamping and
+  versioned portable/installer assets.
+- [x] Streamlined Windows build with pinned NSIS bootstrap, checksum manifests,
+  README/build documentation and CI-gated automatic release publishing.
+  Public publication is skipped until the owner makes the repository public.
+- [x] Automatic startup/hourly release checks plus Settings manual check,
+  cancellation, verified download/reveal and installed Windows exit/setup handoff.
+  Portable updates use a ZIP/new folder. No successful public update installation
+  is claimed from fake HTTP tests or package creation.
+
+The next app/extension feature roadmap (grouped capture/Other, exclusions, bulk
+links, network binding, queues, magnets/torrents and media discovery) is future
+work. The two autonomous-agent prompts keep that separate from shipped behavior.

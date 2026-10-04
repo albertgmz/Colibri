@@ -574,4 +574,29 @@
   <data name="SettingsLanguageSystem" xml:space="preserve"><value>System default</value></data>
   <data name="SettingsLanguageEnglish" xml:space="preserve"><value>English</value></data>
   <data name="SettingsLanguageRestart" xml:space="preserve"><value>Restart Colibri to apply the language change.</value></data>
+  <data name="UpdateHeading" xml:space="preserve"><value>Updates</value></data>
+  <data name="UpdateInstalledVersion" xml:space="preserve"><value>Installed version</value></data>
+  <data name="UpdateAvailableVersion" xml:space="preserve"><value>Available version</value></data>
+  <data name="UpdateAutomaticChecks" xml:space="preserve"><value>Check for updates at startup and every hour</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Check now</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Download update</value></data>
+  <data name="UpdateCancel" xml:space="preserve"><value>Cancel download</value></data>
+  <data name="UpdateReveal" xml:space="preserve"><value>Show package</value></data>
+  <data name="UpdateInstall" xml:space="preserve"><value>Exit and install</value></data>
+  <data name="UpdateNotChecked" xml:space="preserve"><value>Updates have not been checked yet.</value></data>
+  <data name="UpdateChecking" xml:space="preserve"><value>Checking GitHub releases…</value></data>
+  <data name="UpdateCurrent" xml:space="preserve"><value>No newer published release is available.</value></data>
+  <data name="UpdateAvailable" xml:space="preserve"><value>A newer release is available.</value></data>
+  <data name="UpdateFeedUnavailable" xml:space="preserve"><value>The public release feed is unavailable. The repository may be private, no release may be published, or GitHub may have limited requests.</value></data>
+  <data name="UpdateCheckFailed" xml:space="preserve"><value>The update check failed. Check your connection and try again later.</value></data>
+  <data name="UpdateDownloading" xml:space="preserve"><value>Downloading and verifying the update…</value></data>
+  <data name="UpdateReady" xml:space="preserve"><value>The update package is downloaded and verified.</value></data>
+  <data name="UpdateCancelled" xml:space="preserve"><value>The update download was cancelled.</value></data>
+  <data name="UpdateDownloadFailed" xml:space="preserve"><value>The update could not be downloaded or verified. No package will be installed.</value></data>
+  <data name="UpdateRevealFailed" xml:space="preserve"><value>The update folder could not be opened.</value></data>
+  <data name="UpdateInstallFailed" xml:space="preserve"><value>The installer could not be prepared. Colibri will remain open.</value></data>
+  <data name="UpdatePreferenceFailed" xml:space="preserve"><value>The update preference could not be saved.</value></data>
+  <data name="UpdateInstallerInstructions" xml:space="preserve"><value>Exit and install closes Colibri and opens setup after this process exits. Setup refuses to replace files while an installed download process is still running. Your settings and downloads are preserved.</value></data>
+  <data name="UpdatePortableInstructions" xml:space="preserve"><value>Close Colibri, extract the verified ZIP into a new folder, and run the new version. Settings and download history remain in your user data folder.</value></data>
+  <data name="UpdateOtherPlatforms" xml:space="preserve"><value>Release checks are available here. Automatic package installation currently supports Windows only.</value></data>
 </root>

@@ -62,6 +62,7 @@ public static class AppServices
 
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<DownloadNotifier>();
+        services.AddSingleton<UpdatesViewModel>();
 
         // Its IBrowserHostRegistrar parameter is optional (tests leave it out; the page then hides the
         // browser integration status); AddColibriPlatform registers one on every OS.

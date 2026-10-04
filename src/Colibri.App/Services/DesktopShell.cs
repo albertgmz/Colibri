@@ -35,6 +35,7 @@ public sealed class DesktopShell
     private readonly IpcEndpoint _endpoint;
     private readonly ILogger _logger;
     private readonly ISettingsStore? _settingsStore;
+    private readonly UpdatesViewModel? _updates;
 
     private MainWindow? _window;
     private TrayIcon? _trayIcon;
@@ -54,7 +55,7 @@ public sealed class DesktopShell
         ITaskbarProgress taskbar,
         IDialogService dialogs,
         IpcEndpoint endpoint,
-        ILogger<DesktopShell> logger, ISettingsStore? settingsStore = null)
+        ILogger<DesktopShell> logger, ISettingsStore? settingsStore = null, UpdatesViewModel? updates = null)
     {
         _desktop = desktop;
         _viewModel = viewModel;
@@ -66,6 +67,7 @@ public sealed class DesktopShell
         _endpoint = endpoint;
         _logger = logger;
         _settingsStore = settingsStore;
+        _updates = updates;
     }
 
     /// <summary>
@@ -117,6 +119,11 @@ public sealed class DesktopShell
         var handler = new IpcRequestHandler(_viewModel, _dialogs, ShowMainWindow, _settings, _settingsStore);
         _pipeServer = new LocalPipeServer(_endpoint.PipeName, handler.HandleAsync, _logger);
         _pipeServer.Start();
+        if (_updates is not null)
+        {
+            _updates.InstallRequested += OnUpdateInstallRequested;
+            _updates.Start();
+        }
     }
 
     /// <summary>Shows, restores and brings the main window to the front.</summary>
@@ -156,6 +163,11 @@ public sealed class DesktopShell
         }
 
         _exiting = true;
+        if (_updates is not null)
+        {
+            _updates.InstallRequested -= OnUpdateInstallRequested;
+            await _updates.StopAsync();
+        }
         _window?.Hide();
         _trayIcon?.Dispose();
         _trayIcon = null;
@@ -196,6 +208,8 @@ public sealed class DesktopShell
     {
         _window?.Hide();
     }
+
+    private void OnUpdateInstallRequested() => Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ExitAsync());
 
     private void ToggleMainWindow()
     {

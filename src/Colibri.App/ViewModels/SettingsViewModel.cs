@@ -162,9 +162,11 @@ public partial class SettingsViewModel : ObservableObject
         IAppPaths paths,
         ILogger<SettingsViewModel> logger,
         IBrowserHostRegistrar? registrar = null,
-        NativeHostRegistration? hostRegistration = null)
+        NativeHostRegistration? hostRegistration = null,
+        UpdatesViewModel? updates = null)
     {
         _settings = settings;
+        Updates = updates;
         _startupLanguage = LanguagePreference.Normalize(settings.Language);
         _store = store;
         _manager = manager;
@@ -187,6 +189,8 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     public bool IsAutostartSupported => _autostart.IsSupported;
+    public UpdatesViewModel? Updates { get; }
+    public bool HasUpdatesService => Updates is not null;
 
     public bool IsBrowserStatusVisible => _registrar is not null;
 

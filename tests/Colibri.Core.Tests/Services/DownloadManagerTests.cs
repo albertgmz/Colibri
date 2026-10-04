@@ -156,13 +156,49 @@ public sealed class DownloadManagerTests : IAsyncDisposable
                 new() { Uri = new Uri("https://example.com/b.zip"), SuggestedFileName = "b.zip" }]);
     }
 
-    [Fact]
-    public async Task Details_are_independent_snapshots_and_average_observed_active_bytes()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Details_are_independent_snapshots_and_average_observed_active_bytes(bool holdStartupSnapshot)
     {
         var item = Seed(DownloadState.Active, "a000000000000009");
         item.CompletedBytes = 500;
         _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 10000, completed: 500, speed: 100);
-        var manager = await StartAsync(item);
+        var manager = Create(item);
+        var firstPollFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startupSnapshotTaken = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseStartupSnapshot = new ManualResetEventSlim(!holdStartupSnapshot);
+        var snapshotCount = 0;
+        // Reconcile reads first; the immediate startup poll reads second, even with an infinite interval.
+        _engine.AfterGetAll = () =>
+        {
+            if (Interlocked.Increment(ref snapshotCount) != 2) return;
+            startupSnapshotTaken.TrySetResult();
+            releaseStartupSnapshot.Wait(Ct);
+        };
+        EventHandler<EngineGlobalStats> onFirstPoll = (_, _) => firstPollFinished.TrySetResult();
+        manager.GlobalStatsChanged += onFirstPoll;
+        try
+        {
+            await manager.InitializeAsync(Ct);
+            if (holdStartupSnapshot)
+            {
+                await startupSnapshotTaken.Task.WaitAsync(Ct);
+                releaseStartupSnapshot.Set();
+            }
+            // A startup snapshot applied after the clock advances would observe old bytes at t+10.
+            // Establish its completed t=0 baseline before changing either time or engine progress.
+            await firstPollFinished.Task.WaitAsync(Ct);
+        }
+        finally
+        {
+            releaseStartupSnapshot.Set();
+            manager.GlobalStatsChanged -= onFirstPoll;
+            _engine.AfterGetAll = null;
+        }
+        Assert.Equal(2, Volatile.Read(ref snapshotCount));
+        Assert.Equal(500, (await ItemAsync(manager, item.Id)).CompletedBytes);
+        Assert.Null((await manager.GetDetailsAsync(item.Id, Ct))!.AverageBytesPerSecond);
         _time.Advance(TimeSpan.FromSeconds(10));
         _engine.Report(item.EngineHandle!, EngineDownloadState.Active, total: 10000, completed: 1500, speed: 100);
         await manager.PollOnceAsync(Ct);

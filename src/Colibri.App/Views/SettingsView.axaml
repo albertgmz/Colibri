@@ -58,6 +58,27 @@
                 <ScrollViewer x:Name="GeneralPage" IsVisible="{Binding IsGeneralPage}">
                     <StackPanel Spacing="10" Margin="0,0,8,8" MaxWidth="820" HorizontalAlignment="Stretch">
                         <TextBlock Classes="section" Text="{x:Static res:Strings.SettingsGeneral}" />
+                        <Border Classes="card" IsVisible="{Binding HasUpdatesService}">
+                            <StackPanel Spacing="8" DataContext="{Binding Updates}" x:DataType="vm:UpdatesViewModel">
+                                <TextBlock Classes="section" Text="{x:Static res:Strings.UpdateHeading}" />
+                                <TextBlock Text="{x:Static res:Strings.UpdateInstalledVersion}" />
+                                <TextBlock Text="{Binding CurrentVersion}" AutomationProperties.Name="{x:Static res:Strings.UpdateInstalledVersion}" />
+                                <CheckBox IsChecked="{Binding AutoCheckUpdates}">
+                                    <TextBlock Text="{x:Static res:Strings.UpdateAutomaticChecks}" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding AvailableVersion}" IsVisible="{Binding HasUpdate}" AutomationProperties.Name="{x:Static res:Strings.UpdateAvailableVersion}" />
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button x:Name="CheckUpdateButton" Content="{x:Static res:Strings.UpdateCheckNow}" Command="{Binding CheckNowCommand}" Margin="0,0,8,8" />
+                                    <Button Content="{x:Static res:Strings.UpdateDownload}" Command="{Binding DownloadCommand}" IsVisible="{Binding SupportsPackages}" Margin="0,0,8,8" />
+                                    <Button Content="{x:Static res:Strings.UpdateCancel}" Command="{Binding CancelDownloadCommand}" IsVisible="{Binding IsDownloading}" Margin="0,0,8,8" />
+                                    <Button Content="{x:Static res:Strings.UpdateReveal}" Command="{Binding RevealCommand}" Margin="0,0,8,8" />
+                                    <Button x:Name="InstallUpdateButton" Content="{x:Static res:Strings.UpdateInstall}" Command="{Binding InstallCommand}" IsVisible="{Binding IsInstalled}" Margin="0,0,8,8" />
+                                </WrapPanel>
+                                <TextBlock Classes="note" Text="{Binding PackageInstructions}" IsVisible="{Binding SupportsPackages}" />
+                                <TextBlock Classes="note" Text="{x:Static res:Strings.UpdateOtherPlatforms}" IsVisible="{Binding !SupportsPackages}" />
+                            </StackPanel>
+                        </Border>
                         <Border Classes="card">
                             <StackPanel Spacing="10">
                                 <CheckBox IsChecked="{Binding StartWithSystem}" IsEnabled="{Binding IsAutostartSupported}"
