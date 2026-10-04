@@ -1,0 +1,52 @@
+{
+  "accent": "#C42B1C",
+  "light": {
+    "chrome": "#F3F3F3",
+    "surface": "#FFFFFF",
+    "text": "#1B1B1B",
+    "divider": "#14000000",
+    "card": "#FFFFFF",
+    "mica": "#B3FFFFFF",
+    "chromeMica": "#00000000"
+  },
+  "dark": {
+    "chrome": "#202020",
+    "surface": "#272727",
+    "text": "#F2F2F2",
+    "divider": "#19FFFFFF",
+    "card": "#2B2B2B",
+    "mica": "#4D3A3A3A",
+    "chromeMica": "#00000000"
+  },
+  "palettes": {
+    "warm": {
+      "light": { "chrome": "#F3F3F3", "surface": "#FFFFFF", "text": "#1B1B1B", "divider": "#14000000", "card": "#FFFFFF", "mica": "#B3FFFFFF", "chromeMica": "#00000000" },
+      "dark": { "chrome": "#202020", "surface": "#272727", "text": "#F2F2F2", "divider": "#19FFFFFF", "card": "#2B2B2B", "mica": "#4D3A3A3A", "chromeMica": "#00000000" }
+    },
+    "graphite": {
+      "light": { "chrome": "#ECEEF1", "surface": "#F8F9FB", "text": "#1B1B1B", "divider": "#14000000", "card": "#FFFFFF", "mica": "#B3F8F9FB", "chromeMica": "#50ECEEF1" },
+      "dark": { "chrome": "#1C1F24", "surface": "#252A31", "text": "#F2F2F2", "divider": "#19FFFFFF", "card": "#2D333C", "mica": "#4D2D333C", "chromeMica": "#701C1F24" }
+    },
+    "ocean": {
+      "light": { "chrome": "#E8F0F5", "surface": "#F5FAFD", "text": "#1B1B1B", "divider": "#14000000", "card": "#FFFFFF", "mica": "#B3F5FAFD", "chromeMica": "#50E8F0F5" },
+      "dark": { "chrome": "#17232E", "surface": "#20313F", "text": "#F2F2F2", "divider": "#19FFFFFF", "card": "#293C4B", "mica": "#4D293C4B", "chromeMica": "#7017232E" }
+    },
+    "forest": {
+      "light": { "chrome": "#EAF0EA", "surface": "#F6FAF6", "text": "#1B1B1B", "divider": "#14000000", "card": "#FFFFFF", "mica": "#B3F6FAF6", "chromeMica": "#50EAF0EA" },
+      "dark": { "chrome": "#1B271F", "surface": "#26352B", "text": "#F2F2F2", "divider": "#19FFFFFF", "card": "#304235", "mica": "#4D304235", "chromeMica": "#701B271F" }
+    }
+  },
+  "radius": 6,
+  "spacing": {
+    "small": 4,
+    "medium": 8,
+    "large": 16
+  },
+  "type": {
+    "family": "Inter, Segoe UI, sans-serif",
+    "small": 12,
+    "body": 14,
+    "title": 18
+  },
+  "icons": "Fluent System Icons (MIT)"
+}

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The Windows TFM is used for WinRT APIs (toast notifications). -->
+    <TargetFrameworks>net10.0;net10.0-windows10.0.19041.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <!-- Linux: notifications, "show in folder" and tray detection over D-Bus. -->
+    <PackageReference Include="Tmds.DBus.Protocol" />
+  </ItemGroup>
+
+  <!-- Windows TFM only: toast notifications (source guarded by #if WINDOWS). -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" />
+    <!--
+      The toolkit depends on System.Drawing.Common 4.7.0, which has a known vulnerability
+      (GHSA-rxg9-xrhp-64gj). Referencing a current version directly replaces it.
+    -->
+    <PackageReference Include="System.Drawing.Common" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.Platform.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
+  </ItemGroup>
+
+</Project>

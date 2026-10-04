@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Platform code that the app and the browser's native-messaging host both need: the local pipe and mutex
+    names, and handing the foreground over to Colibri. It is a project of its own because the host cannot
+    reference Colibri.Platform, whose Windows build (toasts) differs from the net10.0 build the host would use
+    while both end up in the same folder. This one has a single build for every OS.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.Platform.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
+  </ItemGroup>
+
+</Project>

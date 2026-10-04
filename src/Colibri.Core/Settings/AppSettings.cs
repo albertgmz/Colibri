@@ -1,0 +1,93 @@
+using Colibri.Core.Models;
+using Colibri.Core.Services;
+
+namespace Colibri.Core.Settings;
+
+/// <summary>
+/// User settings. The defaults here are what a fresh install uses.
+/// </summary>
+public sealed class AppSettings
+{
+    public bool MediaEnabled { get; set; }
+    public string YtDlpPath { get; set; } = "";
+    public string FfmpegPath { get; set; } = "";
+    public string YtDlpLicensePath { get; set; } = "";
+
+    public WindowLayout Layout { get; set; } = new();
+
+    public string AccentColor { get; set; } = "#C42B1C";
+
+    [System.Text.Json.Serialization.JsonConverter(typeof(BackgroundPaletteJsonConverter))]
+    public string BackgroundPalette { get; set; } = "warm";
+
+    [System.Text.Json.Serialization.JsonConverter(typeof(LanguagePreferenceJsonConverter))]
+    public string Language { get; set; } = "system";
+
+    /// <summary>Check public release metadata at startup and hourly; downloads require user action.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+
+    /// <summary>Closing the main window hides it to the tray instead of exiting.</summary>
+    public bool CloseToTray { get; set; } = true;
+
+    /// <summary>Minimizing the main window hides it to the tray.</summary>
+    public bool MinimizeToTray { get; set; }
+
+    /// <summary>Start Colibri when the user logs in.</summary>
+    public bool StartWithSystem { get; set; }
+
+    public AppTheme Theme { get; set; } = AppTheme.System;
+
+    /// <summary>Whether the details pane under the download table is shown.</summary>
+    public bool ShowDetailsPane { get; set; } = true;
+
+    public bool AutoOpenDetailsWindow { get; set; }
+
+    /// <summary>Recognize magnets on explicit Paste/Add actions; never monitor the clipboard.</summary>
+    public bool EnableMagnetClipboard { get; set; }
+
+    /// <summary>Base download folder. Empty means the user's Downloads folder, resolved at runtime.</summary>
+    public string DefaultDownloadFolder { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Folder per category. A missing or empty entry means
+    /// <c>DefaultDownloadFolder/&lt;category name&gt;</c>.
+    /// </summary>
+    public Dictionary<DownloadCategory, string> CategoryFolders { get; set; } = new();
+
+    /// <summary>How many downloads may transfer at the same time.</summary>
+    public int MaxConcurrentDownloads { get; set; } = 3;
+
+    /// <summary>Maximum connections to one server per download.</summary>
+    public int ConnectionsPerServer { get; set; } = 16;
+
+    /// <summary>Global download limit in KiB/s; 0 means unlimited.</summary>
+    public int GlobalSpeedLimitKiB { get; set; }
+
+    /// <summary>Path to the aria2c executable. Empty means the platform default.</summary>
+    public string Aria2Path { get; set; } = string.Empty;
+
+    /// <summary>File extensions (lower case, without the dot) that browser capture hands over to Colibri.</summary>
+    public List<string> BrowserCaptureExtensions { get; set; } = [.. CaptureCatalog.LegacyCaptureExtensions];
+
+    /// <summary>
+    /// Browser downloads smaller than this (in KiB) stay in the browser.
+    /// 0 captures every matching download, including ones whose size is unknown.
+    /// </summary>
+    public int BrowserCaptureMinSizeKiB { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? LastBrowserCaptureReason { get; set; }
+
+    public BrowserCapturePolicy? BrowserCapturePolicy { get; set; }
+    public List<string> BrowserExclusionRules { get; set; } = [];
+
+    public bool BrowserCaptureEnabled { get; set; } = true;
+    public List<string> BrowserExcludedSites { get; set; } = [];
+    public bool BrowserCapturePrivate { get; set; }
+    public string BrowserBypassModifier { get; set; } = "none";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Network.DownloadNetworkPolicy? DefaultNetworkPolicy { get; set; }
+
+    public string? ProtectedDefaultNetworkPolicy { get; set; }
+}

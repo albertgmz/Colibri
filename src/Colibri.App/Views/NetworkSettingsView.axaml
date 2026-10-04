@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Colibri.App.ViewModels" xmlns:res="using:Colibri.App.Resources"
+             x:Class="Colibri.App.Views.NetworkSettingsView" x:DataType="vm:NetworkSettingsViewModel">
+    <StackPanel Spacing="12" Margin="12">
+        <TextBlock Text="{x:Static res:Strings.NetworkTitle}" FontSize="20" FontWeight="SemiBold" />
+        <TextBlock Text="{x:Static res:Strings.NetworkInterfaceLimit}" TextWrapping="Wrap" />
+        <TextBlock Text="{x:Static res:Strings.NetworkInterface}" />
+        <ComboBox ItemsSource="{Binding Adapters}" SelectedItem="{Binding SelectedAdapter}" HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="{x:Static res:Strings.NetworkInterface}">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:NetworkAdapterChoice"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Text="{x:Static res:Strings.NetworkProxy}" />
+        <TextBox Text="{Binding ProxyEndpoint}" AutomationProperties.Name="{x:Static res:Strings.NetworkProxy}" />
+        <TextBlock Text="{x:Static res:Strings.NetworkUser}" />
+        <TextBox Text="{Binding ProxyUser}" AutomationProperties.Name="{x:Static res:Strings.NetworkUser}" />
+        <TextBlock Text="{x:Static res:Strings.NetworkPassword}" />
+        <TextBox Text="{Binding ProxyPassword}" PasswordChar="●" AutomationProperties.Name="{x:Static res:Strings.NetworkPassword}" />
+        <Button Content="{x:Static res:Strings.NetworkSave}" Command="{Binding ApplyCommand}" />
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

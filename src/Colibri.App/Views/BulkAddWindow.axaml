@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Colibri.App.ViewModels" xmlns:res="using:Colibri.App.Resources" xmlns:q="using:Colibri.Core.Queues"
+        x:Class="Colibri.App.Views.BulkAddWindow" x:DataType="vm:BulkAddViewModel"
+        Title="{x:Static res:Strings.BulkAddTitle}" Width="740" Height="500" MinWidth="500" MinHeight="300">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10">
+        <TextBox PlaceholderText="{x:Static res:Strings.BulkFilter}" Text="{Binding Filter}" />
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <Button Content="{x:Static res:Strings.BulkSelectVisible}" Command="{Binding SelectVisibleCommand}" />
+            <Button Content="{x:Static res:Strings.BulkClearVisible}" Command="{Binding ClearVisibleCommand}" />
+            <ComboBox ItemsSource="{Binding Queues}" SelectedItem="{Binding SelectedQueue}" MinWidth="140"
+                      AutomationProperties.Name="{x:Static res:Strings.QueuesTitle}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="q:DownloadQueue"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+        <ListBox Grid.Row="2" ItemsSource="{Binding VisibleLinks}">
+            <ListBox.ItemTemplate><DataTemplate x:DataType="vm:BulkLinkViewModel">
+                <CheckBox IsChecked="{Binding Selected}"><StackPanel Spacing="2">
+                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DisplayUrl}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Destination}" TextTrimming="CharacterEllipsis" FontSize="12" />
+                </StackPanel></CheckBox>
+            </DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="3" Text="{Binding Error}" TextWrapping="Wrap" />
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{x:Static res:Strings.BulkReassociate}" Command="{Binding ReassociateCommand}" />
+            <Button Content="{x:Static res:Strings.AddUrlDownload}" Command="{Binding DownloadCommand}" />
+            <Button Content="{x:Static res:Strings.Cancel}" Command="{Binding CancelCommand}" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

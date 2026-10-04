@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Colibri.App.ViewModels"
+        xmlns:media="using:Colibri.Core.Media"
+        xmlns:queues="using:Colibri.Core.Queues"
+        xmlns:res="using:Colibri.App.Resources"
+        x:Class="Colibri.App.Views.MediaWindow" x:DataType="vm:MediaViewModel"
+        Width="720" Height="720" MinWidth="500" MinHeight="500"
+        Title="{x:Static res:Strings.MediaTitle}">
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="10">
+      <TextBlock Text="{x:Static res:Strings.MediaTitle}" FontSize="22" FontWeight="SemiBold" />
+      <TextBlock Text="{x:Static res:Strings.MediaHelp}" TextWrapping="Wrap" />
+      <TextBlock Text="{x:Static res:Strings.MediaUrl}" />
+      <TextBox Text="{Binding Url}" IsEnabled="{Binding !IsBusy}" />
+      <Button Content="{x:Static res:Strings.MediaInspect}" Command="{Binding InspectCommand}" />
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+      <TextBlock Text="{Binding ToolStatus}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" />
+      <TextBlock Text="{x:Static res:Strings.MediaFormat}" />
+      <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat}" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="media:MediaFormat"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <StackPanel IsVisible="{Binding NeedsAudio}" Spacing="6">
+        <TextBlock Text="{x:Static res:Strings.MediaAudio}" />
+        <ComboBox ItemsSource="{Binding AudioFormats}" SelectedItem="{Binding SelectedAudio}" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="media:MediaFormat"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <TextBlock Text="{x:Static res:Strings.MediaFileName}" />
+      <TextBox Text="{Binding FileName}" IsEnabled="{Binding !IsBusy}" />
+      <TextBlock Text="{Binding OutputPreview}" />
+      <TextBlock Text="{x:Static res:Strings.AddUrlFolderLabel}" />
+      <TextBox Text="{Binding Folder}" IsEnabled="{Binding !IsBusy}" />
+      <TextBlock Text="{x:Static res:Strings.QueueName}" />
+      <ComboBox ItemsSource="{Binding Queues}" SelectedItem="{Binding SelectedQueue}" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="queues:DownloadQueue"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding QueueStatus}" />
+      <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ErrorTextBrush}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Content="{x:Static res:Strings.MediaDownload}" Command="{Binding DownloadCommand}" />
+        <Button Content="{x:Static res:Strings.Cancel}" Command="{Binding CancelCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Same TFM as Colibri.App (see Directory.Build.props). -->
+    <TargetFramework>$(ColibriAppTfm)</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Avalonia.Headless.XUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Colibri.App\Colibri.App.csproj" />
+  </ItemGroup>
+
+  <!-- The fake engine and repository are shared with the Core tests as linked source files. -->
+  <ItemGroup>
+    <Compile Include="..\Colibri.Core.Tests\Fakes\*.cs" LinkBase="Fakes" />
+  </ItemGroup>
+
+</Project>

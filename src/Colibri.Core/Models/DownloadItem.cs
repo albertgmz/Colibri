@@ -1,0 +1,89 @@
+namespace Colibri.Core.Models;
+
+/// <summary>
+/// A download as stored in the database. The database row is the source of truth;
+/// <see cref="EngineHandle"/> is only a pointer into the engine that runs it.
+/// </summary>
+public sealed class DownloadItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>The URL the user asked for.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>The URL after redirects, when known.</summary>
+    public string? FinalUrl { get; set; }
+
+    public string FileName { get; set; } = string.Empty;
+
+    public string SaveFolder { get; set; } = string.Empty;
+
+    public DownloadCategory Category { get; set; } = DownloadCategory.Other;
+
+    public DownloadState State { get; set; } = DownloadState.Queued;
+
+    public Guid QueueId { get; set; }
+    public bool QueueHeld { get; set; }
+    public Network.DownloadNetworkPolicy? NetworkPolicy { get; set; }
+    public Torrents.TorrentDownload? Torrent { get; set; }
+    public Media.MediaSelection? MediaSelection { get; set; }
+    public long UploadSpeed { get; set; }
+    public long UploadedBytes { get; set; }
+    public bool IsSeeding { get; set; }
+    public DateTimeOffset? SeedStartedAt { get; set; }
+
+    /// <summary>Total size in bytes; null while unknown.</summary>
+    public long? TotalBytes { get; set; }
+
+    public long CompletedBytes { get; set; }
+
+    /// <summary>Current speed in bytes per second.</summary>
+    public long DownloadSpeed { get; set; }
+
+    public int Connections { get; set; }
+
+    /// <summary>Id of the <see cref="Engine.IDownloadEngine"/> that runs this download.</summary>
+    public string EngineId { get; set; } = string.Empty;
+
+    /// <summary>The engine's own handle for this download (for aria2: the GID).</summary>
+    public string? EngineHandle { get; set; }
+
+    public string? Referrer { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    /// <summary>Extra request headers (case-insensitive names).</summary>
+    public Dictionary<string, string> Headers { get; set; } = HttpHeaders.Create();
+
+    public DateTimeOffset AddedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Which pieces are downloaded, as reported by the engine: a hex string where the highest bit of the
+    /// first byte is piece 0. Not stored in the database; null until the engine reports it.
+    /// </summary>
+    public string? Bitfield { get; set; }
+
+    /// <summary>Number of pieces <see cref="Bitfield"/> describes. Not stored in the database.</summary>
+    public int? NumPieces { get; set; }
+
+    public long? PieceLength { get; set; }
+
+    public DownloadTransferOptions? TransferOptions { get; set; }
+
+    /// <summary>Current-session average; null until active transfer time has been observed. Not persisted.</summary>
+    public double? AverageDownloadSpeed { get; set; }
+
+    /// <summary>Returns an independent copy (the header dictionary is copied too).</summary>
+    public DownloadItem Clone()
+    {
+        var copy = (DownloadItem)MemberwiseClone();
+        copy.Headers = HttpHeaders.Copy(Headers);
+        if (Torrent is { } torrent)
+            copy.Torrent = torrent with { Metainfo = torrent.Metainfo.ToArray(), SelectedFileIndices = torrent.SelectedFileIndices.ToArray() };
+        return copy;
+    }
+}

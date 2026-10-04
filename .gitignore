@@ -1,0 +1,35 @@
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+releases/
+publish/
+/build.bat
+TestResults/
+*.user
+*.suo
+*.binlog
+.vs/
+.vscode/
+.idea/
+
+## OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Script tooling caches
+node_modules/
+__pycache__/
+*.pyc
+
+## Local agent configuration (never committed)
+CLAUDE.md
+.claude/
+AGENTS.md
+.superpowers/
+
+## Local design reference images (never committed)
+references/

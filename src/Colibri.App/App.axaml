@@ -1,0 +1,65 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Colibri.App.App"
+             RequestedThemeVariant="Default">
+    <!-- "Default" follows the system's light or dark setting. -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Colibri/Resources/Icons.axaml" />
+                <ResourceInclude Source="avares://Colibri/Resources/DesignTokens.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Replaces the DataGrid theme's opaque header so the header sits on the pane's background. -->
+            <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="Transparent" />
+
+            <!-- Selected rows get a subtle neutral highlight instead of the accent color, which would hide
+                 the (accent-colored) progress bar. The brushes are set per theme below. -->
+            <!-- The table is read-only, so the per-cell focus rectangle is only noise. -->
+            <SolidColorBrush x:Key="DataGridCellFocusVisualPrimaryBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="DataGridCellFocusVisualSecondaryBrush" Color="Transparent" />
+            <x:Double x:Key="DataGridRowSelectedBackgroundOpacity">1</x:Double>
+            <x:Double x:Key="DataGridRowSelectedHoveredBackgroundOpacity">1</x:Double>
+            <x:Double x:Key="DataGridRowSelectedUnfocusedBackgroundOpacity">1</x:Double>
+            <x:Double x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundOpacity">1</x:Double>
+
+            <!-- Colibri's own surface colors, one set per theme variant. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <!-- Over Mica the content pane is a translucent layer, as in Windows 11's own apps. -->
+                    <SolidColorBrush x:Key="ErrorTextBrush" Color="#C42B1C" />
+                    <SolidColorBrush x:Key="WarningIconBrush" Color="#9D5D00" />
+                    <SolidColorBrush x:Key="NavHoverBrush" Color="#0A000000" />
+                    <SolidColorBrush x:Key="NavSelectedBrush" Color="#12000000" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#1A000000" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="#24000000" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="#14000000" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="#1F000000" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF99A4" />
+                    <SolidColorBrush x:Key="WarningIconBrush" Color="#FCE100" />
+                    <SolidColorBrush x:Key="NavHoverBrush" Color="#0FFFFFFF" />
+                    <SolidColorBrush x:Key="NavSelectedBrush" Color="#17FFFFFF" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#24FFFFFF" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="#2EFFFFFF" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="#1AFFFFFF" />
+                    <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="#24FFFFFF" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <!-- The DataGrid ships its own theme, which must match the app theme (Fluent). -->
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+        <!-- When a window is extended into its title bar (Windows), Avalonia draws the caption buttons
+             itself, including a full-screen button that Windows apps do not have. -->
+        <Style Selector="WindowDrawnDecorations /template/ Button#PART_FullScreenButton">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+    </Application.Styles>
+</Application>

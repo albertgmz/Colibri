@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- See Directory.Build.props: Windows TFM on Windows builds, net10.0 elsewhere. -->
+    <TargetFramework>$(ColibriAppTfm)</TargetFramework>
+    <!-- The executable is Colibri(.exe). The title is the file description Windows shows, for example as
+         the sender of toast notifications. -->
+    <AssemblyName>Colibri</AssemblyName>
+    <AssemblyTitle>Colibri</AssemblyTitle>
+    <Product>Colibri</Product>
+    <NeutralLanguage>en</NeutralLanguage>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Already the default since Avalonia 12; set explicitly so the intent is visible. -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Colibri.Core\Colibri.Core.csproj" />
+    <ProjectReference Include="..\Colibri.Engine.Aria2\Colibri.Engine.Aria2.csproj" />
+    <ProjectReference Include="..\Colibri.Platform\Colibri.Platform.csproj" />
+    <ProjectReference Include="..\Colibri.Platform.Ipc\Colibri.Platform.Ipc.csproj" />
+    <!--
+      The browser's native-messaging host must sit next to Colibri (it starts Colibri from its own folder,
+      and "Install / repair" registers the copy next to the app). Referencing another executable makes the
+      SDK copy its apphost, runtimeconfig.json and deps.json into this output and publish folder, built for
+      the same runtime identifier.
+    -->
+    <ProjectReference Include="..\Colibri.NativeHost\Colibri.NativeHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Colibri.App.Tests" />
+  </ItemGroup>
+
+  <!-- App icon: window and tray icon (loaded through avares://), and the icon of the Windows executable. -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\colibri.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!--
+    User-facing strings. The SDK's GenerateResource task writes the strongly typed Strings class during
+    the build (no Visual Studio designer needed); it is compiled with the project and usable from XAML
+    through {x:Static res:Strings.SomeKey}.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>Colibri.App.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedManifestPrefix>Colibri.App.Resources</StronglyTypedManifestPrefix>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Windows builds ship aria2c.exe (and its licence files) in an "aria2" folder next to Colibri. -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-windows')) Or $(RuntimeIdentifier.StartsWith('win'))">
+    <None Include="..\..\third_party\aria2\win-x64\aria2c.exe" Link="aria2\aria2c.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\aria2\COPYING" Link="aria2\COPYING" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\aria2\LICENSE.OpenSSL" Link="aria2\LICENSE.OpenSSL" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

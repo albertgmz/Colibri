@@ -1,0 +1,710 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppName" xml:space="preserve">
+    <value>Colibri</value>
+  </data>
+  <data name="CommandAddUrl" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="CommandResume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="CommandPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="CommandPauseAll" xml:space="preserve">
+    <value>Pause all</value>
+  </data>
+  <data name="CommandDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="CommandSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Search downloads</value>
+  </data>
+  <data name="NavAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="NavActive" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="NavCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="NavFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="NavCategories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
+  <data name="CategoryCompressed" xml:space="preserve">
+    <value>Compressed</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>Documents</value>
+  </data>
+  <data name="CategoryMusic" xml:space="preserve">
+    <value>Music</value>
+  </data>
+  <data name="CategoryPrograms" xml:space="preserve">
+    <value>Programs</value>
+  </data>
+  <data name="CategoryVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="ColumnFileName" xml:space="preserve">
+    <value>File name</value>
+  </data>
+  <data name="ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="ColumnProgress" xml:space="preserve">
+    <value>Progress</value>
+  </data>
+  <data name="ColumnSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="ColumnTimeLeft" xml:space="preserve">
+    <value>Time left</value>
+  </data>
+  <data name="ColumnDateAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="MenuOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="MenuShowInFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="MenuCopyUrl" xml:space="preserve">
+    <value>Copy URL</value>
+  </data>
+  <data name="StateQueued" xml:space="preserve">
+    <value>Queued</value>
+  </data>
+  <data name="StatePaused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="StateCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="StateFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="ProgressWithStateFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PercentFormat" xml:space="preserve">
+    <value>{0:0.0} %</value>
+  </data>
+  <data name="SizeUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="SizeBytesFormat" xml:space="preserve">
+    <value>{0} B</value>
+  </data>
+  <data name="SizeKilobytesFormat" xml:space="preserve">
+    <value>{0} KB</value>
+  </data>
+  <data name="SizeMegabytesFormat" xml:space="preserve">
+    <value>{0} MB</value>
+  </data>
+  <data name="SizeGigabytesFormat" xml:space="preserve">
+    <value>{0} GB</value>
+  </data>
+  <data name="SizeTerabytesFormat" xml:space="preserve">
+    <value>{0} TB</value>
+  </data>
+  <data name="SpeedFormat" xml:space="preserve">
+    <value>{0}/s</value>
+  </data>
+  <data name="EtaUnknown" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="EtaSecondsFormat" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="EtaMinutesSecondsFormat" xml:space="preserve">
+    <value>{0} min {1} s</value>
+  </data>
+  <data name="EtaHoursMinutesFormat" xml:space="preserve">
+    <value>{0} h {1} min</value>
+  </data>
+  <data name="EtaDaysHoursFormat" xml:space="preserve">
+    <value>{0} d {1} h</value>
+  </data>
+  <data name="StatusSpeedFormat" xml:space="preserve">
+    <value>Speed: {0}</value>
+  </data>
+  <data name="StatusActiveFormat" xml:space="preserve">
+    <value>Active: {0}</value>
+  </data>
+  <data name="EngineStateRunning" xml:space="preserve">
+    <value>aria2: running</value>
+  </data>
+  <data name="EngineStateStarting" xml:space="preserve">
+    <value>aria2: starting…</value>
+  </data>
+  <data name="EngineStateRestarting" xml:space="preserve">
+    <value>aria2: restarting…</value>
+  </data>
+  <data name="EngineStateStopped" xml:space="preserve">
+    <value>aria2: stopped</value>
+  </data>
+  <data name="EngineStateFailed" xml:space="preserve">
+    <value>aria2: failed</value>
+  </data>
+  <data name="EngineStateNotFound" xml:space="preserve">
+    <value>aria2: not found</value>
+  </data>
+  <data name="EngineMissingTitle" xml:space="preserve">
+    <value>aria2 was not found</value>
+  </data>
+  <data name="EngineMissingBody" xml:space="preserve">
+    <value>Colibri uses aria2 to download files. Install it with one of these commands, or set the path to aria2c in Settings, then select Retry.</value>
+  </data>
+  <data name="EngineMissingDebian" xml:space="preserve">
+    <value>Debian, Ubuntu: sudo apt install aria2</value>
+  </data>
+  <data name="EngineMissingFedora" xml:space="preserve">
+    <value>Fedora: sudo dnf install aria2</value>
+  </data>
+  <data name="EngineMissingArch" xml:space="preserve">
+    <value>Arch Linux: sudo pacman -S aria2</value>
+  </data>
+  <data name="EngineMissingOpenSuse" xml:space="preserve">
+    <value>openSUSE: sudo zypper install aria2</value>
+  </data>
+  <data name="EngineMissingMac" xml:space="preserve">
+    <value>macOS (Homebrew): brew install aria2</value>
+  </data>
+  <data name="EngineRetry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="AddUrlTitle" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="AddUrlUrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="AddUrlFileNameLabel" xml:space="preserve">
+    <value>File name</value>
+  </data>
+  <data name="AddUrlFolderLabel" xml:space="preserve">
+    <value>Save to</value>
+  </data>
+  <data name="AddUrlBrowse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="AddUrlSizeLabel" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="AddUrlDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="AddUrlCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="AddUrlPickFolderTitle" xml:space="preserve">
+    <value>Choose a folder</value>
+  </data>
+  <data name="AddUrlNothingToDownload" xml:space="preserve">
+    <value>There is nothing to download at this address.</value>
+  </data>
+  <data name="AddUrlFailedFormat" xml:space="preserve">
+    <value>Could not add the download: {0}</value>
+  </data>
+  <data name="AddUrlFolderNotFullPath" xml:space="preserve">
+    <value>Choose a full folder path, for example with Browse.</value>
+  </data>
+  <data name="UrlErrorEmpty" xml:space="preserve">
+    <value>Enter a URL.</value>
+  </data>
+  <data name="UrlErrorTooLong" xml:space="preserve">
+    <value>The URL is too long.</value>
+  </data>
+  <data name="UrlErrorInvalidCharacters" xml:space="preserve">
+    <value>The URL contains spaces or invalid characters.</value>
+  </data>
+  <data name="UrlErrorNotAbsolute" xml:space="preserve">
+    <value>Enter a full URL that starts with http://, https:// or ftp://.</value>
+  </data>
+  <data name="UrlErrorUnsupportedScheme" xml:space="preserve">
+    <value>Only http, https and ftp links are supported.</value>
+  </data>
+  <data name="UrlErrorNoHost" xml:space="preserve">
+    <value>The URL has no server name.</value>
+  </data>
+  <data name="CommandResumeAll" xml:space="preserve">
+    <value>Resume all</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Browse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="StateDownloading" xml:space="preserve">
+    <value>Downloading</value>
+  </data>
+  <data name="StatusFailedFormat" xml:space="preserve">
+    <value>Failed: {0}</value>
+  </data>
+  <data name="DetailsToggle" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="EmptyListHint" xml:space="preserve">
+    <value>No downloads yet. Choose Add URL, or start a download in your browser.</value>
+  </data>
+  <data name="DetailsEmpty" xml:space="preserve">
+    <value>Select a download to see its details.</value>
+  </data>
+  <data name="DetailsUrl" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="DetailsSavedTo" xml:space="preserve">
+    <value>Saved to</value>
+  </data>
+  <data name="DetailsStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="DetailsDownloaded" xml:space="preserve">
+    <value>Downloaded</value>
+  </data>
+  <data name="DetailsSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="DetailsTimeLeft" xml:space="preserve">
+    <value>Time left</value>
+  </data>
+  <data name="DetailsConnections" xml:space="preserve">
+    <value>Connections</value>
+  </data>
+  <data name="DetailsDownloadedFormat" xml:space="preserve">
+    <value>{0} of {1} ({2})</value>
+  </data>
+  <data name="DetailsSegmentsName" xml:space="preserve">
+    <value>Downloaded parts of the file</value>
+  </data>
+  <data name="TrayToolTipFormat" xml:space="preserve">
+    <value>Colibri — {0} active, {1}</value>
+  </data>
+  <data name="TrayOpen" xml:space="preserve">
+    <value>Open Colibri</value>
+  </data>
+  <data name="TrayExit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="TrayUnavailable" xml:space="preserve">
+    <value>No tray icon: closing the window exits Colibri</value>
+  </data>
+  <data name="NotificationCompleted" xml:space="preserve">
+    <value>Download completed</value>
+  </data>
+  <data name="NotificationFailed" xml:space="preserve">
+    <value>Download failed</value>
+  </data>
+  <data name="NotificationOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="NotificationShowInFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="NotificationRetry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete downloads</value>
+  </data>
+  <data name="DeleteConfirmOneFormat" xml:space="preserve">
+    <value>Delete “{0}” from the list?</value>
+  </data>
+  <data name="DeleteConfirmManyFormat" xml:space="preserve">
+    <value>Delete {0} downloads from the list?</value>
+  </data>
+  <data name="DeleteAlsoFiles" xml:space="preserve">
+    <value>Also delete the file(s)</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsBack" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="SettingsSavedAutomatically" xml:space="preserve">
+    <value>Changes are saved as you make them.</value>
+  </data>
+  <data name="SettingsGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="SettingsStartWithSystem" xml:space="preserve">
+    <value>Start Colibri when I sign in</value>
+  </data>
+  <data name="SettingsAutostartUnsupported" xml:space="preserve">
+    <value>Starting with the system is not available on this desktop.</value>
+  </data>
+  <data name="SettingsCloseToTray" xml:space="preserve">
+    <value>Closing the window keeps Colibri running in the tray</value>
+  </data>
+  <data name="SettingsMinimizeToTray" xml:space="preserve">
+    <value>Minimizing the window hides it in the tray</value>
+  </data>
+  <data name="SettingsTrayUnavailable" xml:space="preserve">
+    <value>This desktop has no tray area, so closing the window exits Colibri.</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="SettingsThemeSystem" xml:space="preserve">
+    <value>Use system setting</value>
+  </data>
+  <data name="SettingsThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="SettingsThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="SettingsDownloads" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="SettingsDefaultFolder" xml:space="preserve">
+    <value>Default folder</value>
+  </data>
+  <data name="SettingsCategoryFolders" xml:space="preserve">
+    <value>Folder per category (empty = a subfolder of the default folder)</value>
+  </data>
+  <data name="SettingsUseDefault" xml:space="preserve">
+    <value>Use default</value>
+  </data>
+  <data name="SettingsMaxConcurrent" xml:space="preserve">
+    <value>Maximum simultaneous downloads</value>
+  </data>
+  <data name="SettingsConnections" xml:space="preserve">
+    <value>Connections per server</value>
+  </data>
+  <data name="SettingsSpeedLimit" xml:space="preserve">
+    <value>Global speed limit in KiB/s (0 = unlimited)</value>
+  </data>
+  <data name="SettingsBrowser" xml:space="preserve">
+    <value>Browser</value>
+  </data>
+  <data name="SettingsBrowserStatus" xml:space="preserve">
+    <value>Browser integration</value>
+  </data>
+  <data name="BrowserStatusRegistered" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="BrowserStatusNotRegistered" xml:space="preserve">
+    <value>Not configured</value>
+  </data>
+  <data name="BrowserStatusOutdated" xml:space="preserve">
+    <value>Needs repair</value>
+  </data>
+  <data name="BrowserChrome" xml:space="preserve">
+    <value>Google Chrome</value>
+  </data>
+  <data name="BrowserEdge" xml:space="preserve">
+    <value>Microsoft Edge</value>
+  </data>
+  <data name="BrowserChromium" xml:space="preserve">
+    <value>Chromium</value>
+  </data>
+  <data name="SettingsBrowserInstall" xml:space="preserve">
+    <value>Install / repair</value>
+  </data>
+  <data name="SettingsBrowserHint" xml:space="preserve">
+    <value>Lets the Colibri extension for Chrome and Edge hand downloads over to Colibri. Run it again after moving Colibri to another folder.</value>
+  </data>
+  <data name="BrowserInstallFailed" xml:space="preserve">
+    <value>Browser integration could not be set up. The log has the details.</value>
+  </data>
+  <data name="BrowserNoneFound" xml:space="preserve">
+    <value>No supported browser was found (Chrome, Edge or Chromium). Start the browser once, then try again.</value>
+  </data>
+  <data name="SettingsCaptureExtensions" xml:space="preserve">
+    <value>File types to capture (comma-separated)</value>
+  </data>
+  <data name="SettingsCaptureMinSize" xml:space="preserve">
+    <value>Minimum size to capture in KiB (0 = any size)</value>
+  </data>
+  <data name="SettingsAdvanced" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="SettingsAria2Path" xml:space="preserve">
+    <value>aria2c path (empty = the bundled or system copy)</value>
+  </data>
+  <data name="SettingsAria2PickTitle" xml:space="preserve">
+    <value>Choose aria2c</value>
+  </data>
+  <data name="SettingsOpenLogs" xml:space="preserve">
+    <value>Open logs folder</value>
+  </data>
+  <data name="LayoutSidebar" xml:space="preserve">
+    <value>Collapse sidebar</value>
+  </data>
+  <data name="LayoutCompact" xml:space="preserve">
+    <value>Compact rows</value>
+  </data>
+  <data name="LayoutSmallIcons" xml:space="preserve">
+    <value>Small icons only</value>
+  </data>
+  <data name="LayoutIcons" xml:space="preserve">
+    <value>Icons only</value>
+  </data>
+  <data name="LayoutMenu" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="LayoutReset" xml:space="preserve">
+    <value>Reset layout</value>
+  </data>
+  <data name="LayoutComfortable" xml:space="preserve">
+    <value>Comfortable rows</value>
+  </data>
+  <data name="LayoutLabels" xml:space="preserve">
+    <value>Icons with labels</value>
+  </data>
+  <data name="ColumnHost" xml:space="preserve"><value>Host</value></data>
+  <data name="ColumnCategory" xml:space="preserve"><value>Category</value></data>
+  <data name="ColumnCompleted" xml:space="preserve"><value>Completed date</value></data>
+  <data name="LayoutHeaderResize" xml:space="preserve"><value>Drag to resize column header height</value></data>
+  <data name="SettingsAccent" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="AccentRed" xml:space="preserve"><value>Warm red</value></data>
+  <data name="AccentBlue" xml:space="preserve"><value>Blue</value></data>
+  <data name="AccentGreen" xml:space="preserve"><value>Green</value></data>
+  <data name="AccentPurple" xml:space="preserve"><value>Purple</value></data>
+  <data name="AccentAmber" xml:space="preserve"><value>Amber</value></data>
+  <data name="DuplicateUrlPrompt" xml:space="preserve"><value>This URL is already in your downloads. Resume is available for a paused or failed download. Download again creates a separate file.</value></data>
+  <data name="DuplicateRedownload" xml:space="preserve"><value>Download again</value></data>
+  <data name="DuplicateRename" xml:space="preserve"><value>Choose another name</value></data>
+  <data name="StatusFreeUnknown" xml:space="preserve"><value>Free: unknown</value></data>
+  <data name="StatusFreeFormat" xml:space="preserve"><value>Free: {0}</value></data>
+  <data name="StatusUnlimited" xml:space="preserve"><value>Limit: unlimited</value></data>
+  <data name="StatusLimitFormat" xml:space="preserve"><value>Limit: {0}</value></data>
+  <data name="StatusNetworkDefault" xml:space="preserve"><value>Default network</value></data>
+  <data name="DetailsOverview" xml:space="preserve"><value>Overview</value></data>
+  <data name="DetailsPieces" xml:space="preserve"><value>Pieces</value></data>
+  <data name="DetailsLog" xml:space="preserve"><value>Log</value></data>
+  <data name="DetailsOptions" xml:space="preserve"><value>Options</value></data>
+  <data name="DetailsPopOut" xml:space="preserve"><value>Pop out</value></data>
+  <data name="DetailsUnknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="DetailsNone" xml:space="preserve"><value>None</value></data>
+  <data name="DetailsFinalUrl" xml:space="preserve"><value>Final URL</value></data>
+  <data name="DetailsAverageSpeed" xml:space="preserve"><value>Average speed</value></data>
+  <data name="DetailsResume" xml:space="preserve"><value>Server resume support</value></data>
+  <data name="DetailsResumeUnknown" xml:space="preserve"><value>Unknown — aria2 RPC does not report the server&apos;s resume capability.</value></data>
+  <data name="DetailsLastError" xml:space="preserve"><value>Last error</value></data>
+  <data name="DetailsPieceSummary" xml:space="preserve"><value>{0} pieces · {1} complete · {2} missing · {3} per piece</value></data>
+  <data name="DetailsPiecesUnknown" xml:space="preserve"><value>Piece map unknown — waiting for a valid engine bitfield.</value></data>
+  <data name="DetailsPieceLegend" xml:space="preserve"><value>Accent: complete · grey: missing. The map represents every reported piece; narrow displays combine adjacent pieces. The last piece may be smaller.</value></data>
+  <data name="DetailsServerNote" xml:space="preserve"><value>One row per server reported by aria2. Exact byte ranges per connection are unavailable. An empty list means no servers are currently reported.</value></data>
+  <data name="DetailsFileIndex" xml:space="preserve"><value>File</value></data>
+  <data name="DetailsGraphNote" xml:space="preserve"><value>Speed over the last five minutes. Left: 5 minutes ago · right: latest observation. Vertical scale: 0 to the value above.</value></data>
+  <data name="DetailsHistoryNote" xml:space="preserve"><value>Current session observations. Average excludes queued and paused time. Engine-internal retries are not reported; explicit retries are logged.</value></data>
+  <data name="DetailsOptionsNote" xml:space="preserve"><value>Speed limit applies immediately (0 = unlimited). Changing connections may restart the transfer inside aria2. Options are saved with this download and reused when it is retried.</value></data>
+  <data name="DetailsSpeedLimit" xml:space="preserve"><value>Speed limit (KiB/s)</value></data>
+  <data name="DetailsConnectionLimit" xml:space="preserve"><value>Connections per server</value></data>
+  <data name="DetailsApplyOptions" xml:space="preserve"><value>Apply</value></data>
+  <data name="DetailsOptionsInvalid" xml:space="preserve"><value>Enter a speed limit from 0 to 10,000,000 KiB/s and a whole connection count from 1 to 16.</value></data>
+  <data name="DetailsRemoved" xml:space="preserve"><value>This download was removed.</value></data>
+  <data name="DetailLogStarted" xml:space="preserve"><value>Started</value></data>
+  <data name="DetailLogRetried" xml:space="preserve"><value>Retried</value></data>
+  <data name="DetailLogRedirected" xml:space="preserve"><value>Redirected</value></data>
+  <data name="DetailLogObserved" xml:space="preserve"><value>Session observation began</value></data>
+  <data name="SettingsAutoOpenDetails" xml:space="preserve"><value>Open download details in a window when a download starts</value></data>
+  <data name="BrowserFallback" xml:space="preserve"><value>Let the browser download it instead</value></data>
+  <data name="BulkAddTitle" xml:space="preserve"><value>Choose links to download</value></data>
+  <data name="BulkFilter" xml:space="preserve"><value>Filter links</value></data>
+  <data name="BulkSelectVisible" xml:space="preserve"><value>Select visible</value></data>
+  <data name="BulkClearVisible" xml:space="preserve"><value>Clear visible</value></data>
+  <data name="BulkAddFailed" xml:space="preserve"><value>Some links could not be added. Transfers have been paused.</value></data>
+  <data name="SettingsAppearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsBrowserIntegration" xml:space="preserve"><value>Browser Integration</value></data>
+  <data name="SettingsPageNavigation" xml:space="preserve"><value>Settings pages</value></data>
+  <data name="SettingsLayoutHint" xml:space="preserve"><value>Choose row density, toolbar labels and sidebar visibility, or reset the window layout.</value></data>
+  <data name="SettingsPalette" xml:space="preserve"><value>Background palette</value></data>
+  <data name="PaletteWarm" xml:space="preserve"><value>Warm (default)</value></data>
+  <data name="PaletteGraphite" xml:space="preserve"><value>Graphite</value></data>
+  <data name="PaletteOcean" xml:space="preserve"><value>Ocean</value></data>
+  <data name="PaletteForest" xml:space="preserve"><value>Forest</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>Language</value></data>
+  <data name="SettingsLanguageSystem" xml:space="preserve"><value>System default</value></data>
+  <data name="SettingsLanguageEnglish" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsLanguageRestart" xml:space="preserve"><value>Restart Colibri to apply the language change.</value></data>
+  <data name="UpdateHeading" xml:space="preserve"><value>Updates</value></data>
+  <data name="UpdateInstalledVersion" xml:space="preserve"><value>Installed version</value></data>
+  <data name="UpdateAvailableVersion" xml:space="preserve"><value>Available version</value></data>
+  <data name="UpdateAutomaticChecks" xml:space="preserve"><value>Check for updates at startup and every hour</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Check now</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Download update</value></data>
+  <data name="UpdateCancel" xml:space="preserve"><value>Cancel download</value></data>
+  <data name="UpdateReveal" xml:space="preserve"><value>Show package</value></data>
+  <data name="UpdateInstall" xml:space="preserve"><value>Exit and install</value></data>
+  <data name="UpdateNotChecked" xml:space="preserve"><value>Updates have not been checked yet.</value></data>
+  <data name="UpdateChecking" xml:space="preserve"><value>Checking GitHub releases…</value></data>
+  <data name="UpdateCurrent" xml:space="preserve"><value>No newer published release is available.</value></data>
+  <data name="UpdateAvailable" xml:space="preserve"><value>A newer release is available.</value></data>
+  <data name="UpdateFeedUnavailable" xml:space="preserve"><value>The public release feed is unavailable. The repository may be private, no release may be published, or GitHub may have limited requests.</value></data>
+  <data name="UpdateCheckFailed" xml:space="preserve"><value>The update check failed. Check your connection and try again later.</value></data>
+  <data name="UpdateDownloading" xml:space="preserve"><value>Downloading and verifying the update…</value></data>
+  <data name="UpdateReady" xml:space="preserve"><value>The update package is downloaded and verified.</value></data>
+  <data name="UpdateCancelled" xml:space="preserve"><value>The update download was cancelled.</value></data>
+  <data name="UpdateDownloadFailed" xml:space="preserve"><value>The update could not be downloaded or verified. No package will be installed.</value></data>
+  <data name="UpdateRevealFailed" xml:space="preserve"><value>The update folder could not be opened.</value></data>
+  <data name="UpdateInstallFailed" xml:space="preserve"><value>The installer could not be prepared. Colibri will remain open.</value></data>
+  <data name="UpdatePreferenceFailed" xml:space="preserve"><value>The update preference could not be saved.</value></data>
+  <data name="UpdateInstallerInstructions" xml:space="preserve"><value>Exit and install closes Colibri and opens setup after this process exits. Setup refuses to replace files while an installed download process is still running. Your settings and downloads are preserved.</value></data>
+  <data name="UpdatePortableInstructions" xml:space="preserve"><value>Close Colibri, extract the verified ZIP into a new folder, and run the new version. Settings and download history remain in your user data folder.</value></data>
+  <data name="UpdateOtherPlatforms" xml:space="preserve"><value>Release checks are available here. Automatic package installation currently supports Windows only.</value></data>
+  <data name="QueuesTitle" xml:space="preserve"><value>Queues</value></data>
+  <data name="QueueName" xml:space="preserve"><value>Name</value></data>
+  <data name="QueueConcurrency" xml:space="preserve"><value>Simultaneous downloads</value></data>
+  <data name="QueueCreate" xml:space="preserve"><value>Create queue</value></data>
+  <data name="QueueSave" xml:space="preserve"><value>Save queue</value></data>
+  <data name="QueueDelete" xml:space="preserve"><value>Delete empty queue</value></data>
+  <data name="QueueStart" xml:space="preserve"><value>Start queue</value></data>
+  <data name="QueueStop" xml:space="preserve"><value>Stop queue</value></data>
+  <data name="QueueSchedule" xml:space="preserve"><value>Schedule</value></data>
+  <data name="QueueScheduleNone" xml:space="preserve"><value>No schedule</value></data>
+  <data name="QueueScheduleOnce" xml:space="preserve"><value>One time</value></data>
+  <data name="QueueScheduleWeekly" xml:space="preserve"><value>Weekly</value></data>
+  <data name="QueueStartAt" xml:space="preserve"><value>Start (ISO date and time with offset)</value></data>
+  <data name="QueueStopAt" xml:space="preserve"><value>Stop (ISO date and time with offset)</value></data>
+  <data name="QueueTimeZone" xml:space="preserve"><value>Time zone</value></data>
+  <data name="QueueStartTime" xml:space="preserve"><value>Start time (HH:mm)</value></data>
+  <data name="QueueStopTime" xml:space="preserve"><value>Stop time (HH:mm)</value></data>
+  <data name="QueueDays" xml:space="preserve"><value>Days (Sunday=0 through Saturday=6, comma separated)</value></data>
+  <data name="QueueScheduleHelp" xml:space="preserve"><value>Schedules apply while Colibri is running and recover the latest start or stop after restart. Queue starts leave manually paused downloads paused.</value></data>
+  <data name="QueueStatusRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="QueueStatusStopped" xml:space="preserve"><value>Stopped</value></data>
+  <data name="NetworkTitle" xml:space="preserve"><value>Network</value></data>
+  <data name="NetworkInterface" xml:space="preserve"><value>Required network adapter</value></data>
+  <data name="NetworkSystemRoute" xml:space="preserve"><value>System route</value></data>
+  <data name="NetworkInterfaceLimit" xml:space="preserve"><value>Strict adapter isolation is unavailable on this platform. Selecting an adapter rejects transfers instead of using another route. HTTP proxies are supported; HTTPS and SOCKS proxy transports are unavailable in aria2.</value></data>
+  <data name="NetworkProxy" xml:space="preserve"><value>Proxy endpoint (http://host:port)</value></data>
+  <data name="NetworkUser" xml:space="preserve"><value>Proxy username</value></data>
+  <data name="NetworkPassword" xml:space="preserve"><value>Proxy password</value></data>
+  <data name="NetworkSave" xml:space="preserve"><value>Apply network settings</value></data>
+  <data name="NetworkSaved" xml:space="preserve"><value>Network settings saved. Existing downloads retain their own network settings.</value></data>
+  <data name="NetworkInvalid" xml:space="preserve"><value>Enter a valid proxy endpoint and credentials. Credentials in URLs are not accepted.</value></data>
+  <data name="NetworkDownloadSaved" xml:space="preserve"><value>Network settings saved for this download. Resume it when ready.</value></data>
+  <data name="BulkDestination" xml:space="preserve"><value>Destination</value></data>
+  <data name="BulkRefreshHelp" xml:space="preserve"><value>For expired authenticated links, cancel this offer and select those links again in the browser. Colibri cannot recreate a browser request from an expired URL.</value></data>
+  <data name="CaptureActionCapture" xml:space="preserve"><value>Capture</value></data>
+  <data name="CaptureActionAsk" xml:space="preserve"><value>Ask</value></data>
+  <data name="CaptureActionBrowser" xml:space="preserve"><value>Keep in browser</value></data>
+  <data name="CaptureEnabled" xml:space="preserve"><value>Enable browser capture</value></data>
+  <data name="CapturePrivate" xml:space="preserve"><value>Allow downloads from private windows</value></data>
+  <data name="CapturePrecedence" xml:space="preserve"><value>Safety and exclusions take precedence, then minimum size, extension overrides, and category. Unknown types ask. Capture starts a transfer; Ask opens a confirmation.</value></data>
+  <data name="CaptureOverrides" xml:space="preserve"><value>Extension overrides</value></data>
+  <data name="CaptureOverridesHelp" xml:space="preserve"><value>Comma-separated entries: zip=capture, pdf=ask, apk=browser. Changing a category clears its known extension overrides.</value></data>
+  <data name="CaptureExclusions" xml:space="preserve"><value>Exclusion rules</value></data>
+  <data name="CaptureExclusionsHelp" xml:space="preserve"><value>One per line: host:example.com (exact host), domain:example.com (host and subdomains), path:example.com/files (exact host and path subtree), type:pdf (all hosts). Exclusions always keep downloads in the browser. Queries and wildcards are unsupported.</value></data>
+  <data name="CapturePolicyInvalid" xml:space="preserve"><value>Use extension=capture, extension=ask or extension=browser (maximum 256).</value></data>
+  <data name="CaptureExclusionInvalid" xml:space="preserve"><value>Enter a valid host:, domain:, path: or type: rule (maximum 256).</value></data>
+  <data name="BulkReassociate" xml:space="preserve"><value>Refresh selected in browser</value></data>
+  <data name="CaptureReasonSafety" xml:space="preserve"><value>Last decision: kept in browser by an exclusion or request safety restriction.</value></data>
+  <data name="CaptureReasonMinimum" xml:space="preserve"><value>Last decision: kept in browser because it is below the minimum size.</value></data>
+  <data name="CaptureReasonDisabled" xml:space="preserve"><value>Last decision: browser capture is disabled.</value></data>
+  <data name="CaptureReasonPreference" xml:space="preserve"><value>Last decision: followed the extension or category preference.</value></data>
+  <data name="CaptureReasonNone" xml:space="preserve"><value>Capture decisions retain only a reason, never a URL or request credentials.</value></data>
+  <data name="QueueMove" xml:space="preserve"><value>Move to queue</value></data>
+  <data name="SettingsMagnetClipboard" xml:space="preserve"><value>Recognize magnet links when pasting</value></data>
+  <data name="SettingsMagnetClipboardHelp" xml:space="preserve"><value>Off by default. Paste or Add opens a preview; fetching metadata and downloading require your confirmation. Colibri does not monitor your clipboard.</value></data>
+  <data name="CommandImportTorrent" xml:space="preserve"><value>Import torrent</value></data>
+  <data name="CommandMedia" xml:space="preserve"><value>Media</value></data>
+  <data name="SettingsMediaEnabled" xml:space="preserve"><value>Enable optional media helpers</value></data>
+  <data name="SettingsMediaHelp" xml:space="preserve"><value>Configure trusted native tools yourself. Direct media downloads work without these tools. Some sites and protected streams are unsupported.</value></data>
+  <data name="SettingsYtDlpPath" xml:space="preserve"><value>Absolute path to yt-dlp</value></data>
+  <data name="SettingsFfmpegPath" xml:space="preserve"><value>Absolute path to FFmpeg (optional)</value></data>
+  <data name="SettingsYtDlpLicensePath" xml:space="preserve"><value>yt-dlp license file (or adjacent LICENSE/COPYING)</value></data>
+  <data name="CommandEditTorrent" xml:space="preserve"><value>Torrent files and seeding</value></data>
+  <data name="CommandStopSeeding" xml:space="preserve"><value>Stop seeding</value></data>
+  <data name="TorrentTitle" xml:space="preserve"><value>Torrent</value></data>
+  <data name="TorrentImport" xml:space="preserve"><value>Import torrent</value></data>
+  <data name="TorrentFetchMetadata" xml:space="preserve"><value>Fetch metadata</value></data>
+  <data name="TorrentMetadataHelp" xml:space="preserve"><value>Fetching metadata contacts torrent peers but does not download selected file content. Confirm the file selection to begin downloading.</value></data>
+  <data name="TorrentDestination" xml:space="preserve"><value>Destination folder</value></data>
+  <data name="TorrentBrowse" xml:space="preserve"><value>Browse...</value></data>
+  <data name="TorrentFiles" xml:space="preserve"><value>Files to download</value></data>
+  <data name="TorrentSelectedSize" xml:space="preserve"><value>Selected size</value></data>
+  <data name="TorrentSeedEnabled" xml:space="preserve"><value>Seed after the download finishes</value></data>
+  <data name="TorrentSeedHelp" xml:space="preserve"><value>Torrent peers may receive uploaded pieces while downloading. Turning off seeding stops sharing after content completes; it does not disable protocol uploads during the download.</value></data>
+  <data name="TorrentSeedRatio" xml:space="preserve"><value>Stop at upload ratio</value></data>
+  <data name="TorrentSeedMinutes" xml:space="preserve"><value>Maximum seeding minutes</value></data>
+  <data name="TorrentUploadLimit" xml:space="preserve"><value>Upload limit (KiB/s)</value></data>
+  <data name="TorrentConfirm" xml:space="preserve"><value>Download selected files</value></data>
+  <data name="TorrentApply" xml:space="preserve"><value>Save selection and pause</value></data>
+  <data name="TorrentCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="TorrentStopSeeding" xml:space="preserve"><value>Stop seeding</value></data>
+  <data name="TorrentUploaded" xml:space="preserve"><value>Uploaded</value></data>
+  <data name="TorrentUploadSpeed" xml:space="preserve"><value>Upload speed</value></data>
+  <data name="TorrentSeeding" xml:space="preserve"><value>Seeding</value></data>
+  <data name="TorrentNotSeeding" xml:space="preserve"><value>Not seeding</value></data>
+  <data name="TorrentInvalid" xml:space="preserve"><value>The torrent operation could not be completed. Check the source, selection, destination and network policy.</value></data>
+  <data name="TorrentChooseFiles" xml:space="preserve"><value>Select at least one file.</value></data>
+  <data name="TorrentPrivate" xml:space="preserve"><value>Private torrent</value></data>
+  <data name="TorrentSelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="TorrentSelectNone" xml:space="preserve"><value>Select none</value></data>
+  <data name="TorrentSource" xml:space="preserve"><value>Torrent source (.torrent files up to 2 MiB)</value></data>
+  <data name="TorrentMetadataReady" xml:space="preserve"><value>Metadata ready. Content starts only after confirmation.</value></data>
+  <data name="TorrentPausedSaved" xml:space="preserve"><value>Selection saved. Resume the download when ready.</value></data>
+  <data name="StateSeeding" xml:space="preserve"><value>Seeding</value></data>
+  <data name="DetailsUploadSpeed" xml:space="preserve"><value>Upload speed</value></data>
+  <data name="DetailsUploaded" xml:space="preserve"><value>Uploaded</value></data>
+  <data name="MediaTitle" xml:space="preserve"><value>Optional media tools</value></data>
+  <data name="MediaHelp" xml:space="preserve"><value>Inspect a public media URL, choose a video or audio format, then preview the output and queue. Direct files work without these tools. Protected streams, authenticated extraction, live media and unsupported network policies are refused.</value></data>
+  <data name="MediaUrl" xml:space="preserve"><value>Media page or manifest URL</value></data>
+  <data name="MediaInspect" xml:space="preserve"><value>Inspect formats</value></data>
+  <data name="MediaFormat" xml:space="preserve"><value>Video or audio format and quality</value></data>
+  <data name="MediaAudio" xml:space="preserve"><value>Audio track to mux into MKV</value></data>
+  <data name="MediaFileName" xml:space="preserve"><value>Output name</value></data>
+  <data name="MediaDownload" xml:space="preserve"><value>Add selected media</value></data>
+  <data name="MediaInvalidUrl" xml:space="preserve"><value>Enter a valid HTTP or HTTPS media URL.</value></data>
+  <data name="MediaCancelled" xml:space="preserve"><value>Media inspection or submission was cancelled.</value></data>
+  <data name="MediaOperationFailed" xml:space="preserve"><value>The media operation could not be completed. Check enabled tools, absolute executable paths, license file, source, selected formats and network policy. Authenticated/custom-header requests, encrypted streams and unsupported manifests are refused.</value></data>
+  <data name="TorrentV1Only" xml:space="preserve"><value>Only BitTorrent v1 torrent files are supported. BitTorrent v2 metadata was not imported.</value></data>
+</root>
