@@ -71,6 +71,9 @@ const outputs = new Map([
   ['../colibri-browser-integration/docs/capture-policy.json', await readFile(path.join(root, 'docs/capture-policy.json'), 'utf8').then(s => s.replaceAll('\r\n', '\n'))],
 ]);
 for (const [relative, content] of outputs) {
+  // A single-repository CI checkout validates app outputs. The default continues
+  // to require sibling copies so local coordinated contract checks detect drift.
+  if (process.argv.includes('--app-only') && relative.startsWith('../')) continue;
   const target = path.join(root, relative);
   if (process.argv.includes('--check')) {
     if ((await readFile(target, 'utf8')).replaceAll('\r\n', '\n') !== content) throw new Error(`Capture catalog drift: ${relative}`);

@@ -28,7 +28,7 @@ public sealed class Aria2TorrentTests
     [InlineData(true)]
     public async Task Selected_content_uses_addTorrent_index_mapping_and_seeding_is_opt_in(bool seed)
     {
-        var directory = Path.Combine(Path.GetTempPath(), "colibri-torrent-test-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(AppContext.BaseDirectory, "colibri-torrent-test-" + Guid.NewGuid().ToString("N"));
         using var transport = new FakeTransport { Responder = _ => FakeTransport.Result("0123456789abcdef") };
         using var client = new Aria2RpcClient(transport, "secret");
         client.Start();
@@ -59,7 +59,7 @@ public sealed class Aria2TorrentTests
     public async Task Metadata_preview_removes_owned_job_and_files_before_returning_or_cancellation(bool cancel)
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-        var root = Path.Combine(Path.GetTempPath(), "colibri-metadata-test-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(AppContext.BaseDirectory, "colibri-metadata-test-" + Guid.NewGuid().ToString("N"));
         var hash = TorrentMetainfo.Parse(Metainfo).Metadata.InfoHash;
         var state = "complete";
         using var transport = new FakeTransport
@@ -99,7 +99,7 @@ public sealed class Aria2TorrentTests
     [Fact]
     public async Task Stopping_known_reconstructed_paused_torrent_does_not_require_native_length_probe()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "colibri-torrent-stop-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(AppContext.BaseDirectory, "colibri-torrent-stop-" + Guid.NewGuid().ToString("N"));
         var state = "paused";
         using var transport = new FakeTransport { Responder = request =>
         {

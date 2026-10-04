@@ -11,7 +11,9 @@ public sealed class MediaCleanupTests
     [Fact]
     public async Task PersistedOwnedWorkspaceCleanupRetainsUnknownUserFiles()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "colibri-media-cleanup-" + Guid.NewGuid().ToString("N"));
+        // macOS's temporary directory can contain system symlink ancestors. Use
+        // this owned test output so the success case exercises a link-free path.
+        var folder = Path.Combine(AppContext.BaseDirectory, "colibri-media-cleanup-" + Guid.NewGuid().ToString("N"));
         var handle = Guid.NewGuid().ToString("N");
         var work = Path.Combine(folder, ".colibri-media-" + handle);
         Directory.CreateDirectory(work);
