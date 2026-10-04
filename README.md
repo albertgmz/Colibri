@@ -6,13 +6,13 @@ Colibri is a download manager built with C#/.NET 10, Avalonia and aria2. It prov
 
 ## Download and use
 
-[GitHub releases](https://github.com/albertgmz/Colibri/releases) will contain a versioned Windows installer and portable ZIP after the release workflow runs. This repository is currently private; the owner will make it public himself. No public release is claimed yet.
+Download the versioned Windows installer or portable ZIP from [GitHub releases](https://github.com/albertgmz/Colibri/releases) after the first successful publication. The public repository automatically packages and publishes tested `v2`/`main` branch tips.
 
 The installer is per-user and preserves settings and downloads on upgrade/uninstall. The portable ZIP is unpack-and-run and uses the same existing AppData profile. Exit Colibri from its tray menu before upgrading. See [Windows packaging](docs/WINDOWS-PACKAGING.md).
 
 Settings → General checks for updates at startup and hourly, with manual checking and verified downloads. Installed Windows copies can exit and open setup; portable copies receive a ZIP to extract into a new folder. [Update behavior](docs/UPDATES.md) explains the feed and installation checks.
 
-Browser capture for Chrome/Edge is maintained in the separate private [browser integration repository](https://github.com/albertgmz/colibri-browser-integration). Install its extension and use Colibri Settings → Browser integration → Install / repair. App language and browser language are configured independently; [translation contributions](docs/TRANSLATING.md) are welcome.
+Browser capture for Chrome/Edge is maintained in the separate [browser integration repository](https://github.com/albertgmz/colibri-browser-integration). Install its extension and use Colibri Settings → Browser integration → Install / repair. App language and browser language are configured independently; [translation contributions](docs/TRANSLATING.md) are welcome.
 
 ## Build
 
