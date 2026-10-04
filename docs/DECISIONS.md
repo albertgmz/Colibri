@@ -562,3 +562,32 @@ Only after protected repository initialization succeeds does Core remove the leg
 session and its temporary file. Failure prevents startup. Core reconstructs stable
 GIDs and options from its repository, while aria2 control files preserve partial
 pieces. This supersedes the session-based recovery described in earlier decisions.
+
+## 58. Fluent palettes are separate from theme and accent
+
+Warm preserves the existing appearance; Graphite, Ocean and Forest select neutral
+surfaces independently of light/dark/system mode and accent. Canonical design
+tokens generate app resources and extension CSS. An additive config reply carries
+the selected palette without changing protocol v2. Invalid or absent persisted
+palette values normalize to Warm without discarding other settings.
+
+Avalonia's non-accent Fluent palette properties do not notify existing brushes.
+Changing the palette therefore replaces the configured FluentTheme at its existing
+style position and replaces the dynamic surface dictionary. Tests assert actual
+realized popup backgrounds, open windows, and restoration of Warm.
+
+## 59. Windows portable and per-user setup packages
+
+The owner requested packaging and closed the broader implementation plan. A local,
+git-ignored build.bat delegates to the tracked Windows build script. It builds,
+tests, publishes a self-contained managed/untrimmed app, creates a portable ZIP,
+compiles NSIS setup, and launches the portable app only after success. Each run
+uses a new artifact directory; failed stages stop without overwriting prior output.
+
+Portable packages retain the existing AppData profile. Setup installs binaries in
+the current user's LocalAppData Programs folder and doubles as an upgrade package.
+Owned-path manifests, hashes, atomic manifest publication and staged uninstall
+preserve unknown files, user-replaced shortcuts, profiles and downloads. Setup
+refuses running installed processes and leaves browser registration to the app.
+Helper recovery checks and compilation passed; actual isolated-profile installer
+execution remains unverified. Ordinary CLR shipping remains the measured default.
