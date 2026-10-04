@@ -32,6 +32,31 @@ public class IpcRequestHandlerTests
             (await ui.Engine.GetStatusAsync(item.EngineHandle!, TestContext.Current.CancellationToken))!.State);
     }
 
+    [AvaloniaFact]
+    public async Task Manual_offer_cannot_override_exclusion_or_private_restrictions()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Settings.BrowserExclusionRules = ["domain:example.com"];
+        var handler = new IpcRequestHandler(ui.ViewModel, ui.Dialogs, () => { }, ui.Settings);
+        var excluded = await handler.HandleAsync(new AddRequest("https://a.example.com/a.zip", null, Colibri.Core.Models.LinkContext.Empty), CancellationToken.None);
+        Assert.Equal("browser", excluded.State);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+        ui.Settings.BrowserExclusionRules = [];
+        var privateOffer = await handler.HandleAsync(new AddRequest("https://other.test/a.zip", null, Colibri.Core.Models.LinkContext.Empty, PrivateWindow: true), CancellationToken.None);
+        Assert.Equal("browser", privateOffer.State);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+    }
+
+    [Fact]
+    public void Capture_policy_roundtrip_preserves_actions_and_exclusions()
+    {
+        var config = new CaptureConfig(["zip"], 42, CapturePolicy: new(new() { ["other"] = "ask" }, new() { ["apk"] = "capture" }), ExclusionRules: ["path:example.com/files"]);
+        var roundtrip = IpcProtocol.ParseResponse(IpcProtocol.SerializeResponse(new IpcResponse(true, Config: config)));
+        Assert.Equal("capture", roundtrip.Config!.CapturePolicy!.Extensions["apk"]);
+        Assert.Equal("path:example.com/files", Assert.Single(roundtrip.Config.ExclusionRules!));
+        Assert.Equal(42, roundtrip.Config.MinSizeKiB);
+    }
+
     private static IpcRequest Parse(string line)
     {
         Assert.True(IpcProtocol.TryParseRequest(line, out var request, out var error), error);

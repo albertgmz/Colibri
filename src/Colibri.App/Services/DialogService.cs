@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
+using Avalonia.Platform.Storage;
 using Colibri.App.Resources;
 using Colibri.App.ViewModels;
 using Colibri.App.Views;
@@ -33,8 +34,44 @@ public sealed class DialogService : IDialogService
         window.Show();
         window.Activate();
     }
+    public void ShowNetworkSettings(NetworkSettingsViewModel viewModel)
+    {
+        var window = new Window { Title = Strings.NetworkTitle, Width = 560, Height = 540,
+            MinWidth = 400, MinHeight = 350,
+            Content = new ScrollViewer { Content = new NetworkSettingsView { DataContext = viewModel } },
+            WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        if (MainWindow is { } owner) window.Show(owner); else window.Show();
+    }
     private static Window? MainWindow =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+    public async Task<string?> PickTorrentFileAsync()
+    {
+        if (MainWindow is not { } owner) return null;
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Strings.CommandImportTorrent,
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("BitTorrent") { Patterns = ["*.torrent"] }]
+        });
+        return files.FirstOrDefault()?.TryGetLocalPath();
+    }
+
+    public void ShowTorrentImport(TorrentImportViewModel viewModel)
+    {
+        var window = new TorrentImportWindow { DataContext = viewModel, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        viewModel.CloseRequested += (_, _) => window.Close();
+        window.Closed += (_, _) => viewModel.WindowClosed();
+        if (MainWindow is { } owner) window.Show(owner); else window.Show();
+    }
+
+    public void ShowMedia(MediaViewModel viewModel)
+    {
+        var window = new MediaWindow { DataContext = viewModel, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        viewModel.CloseRequested += (_, _) => window.Close();
+        window.Closed += (_, _) => viewModel.WindowClosed();
+        if (MainWindow is { } owner) window.Show(owner); else window.Show();
+    }
 
     public async Task<string?> ReadClipboardTextAsync()
     {

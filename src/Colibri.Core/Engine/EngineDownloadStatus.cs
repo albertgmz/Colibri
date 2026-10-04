@@ -25,4 +25,7 @@ public sealed record EngineDownloadStatus(
     string? FilePath = null,
     string? Bitfield = null,
     int? NumPieces = null,
-    long? PieceLength = null);
+    long? PieceLength = null,
+    long UploadSpeed = 0,
+    long UploadedBytes = 0,
+    bool IsSeeding = false);

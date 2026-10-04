@@ -16,4 +16,8 @@ public interface IDialogService
     /// <summary>Shows the Add URL window for <paramref name="viewModel"/>.</summary>
     void ShowAddUrl(AddUrlViewModel viewModel);
     void ShowBulkAdd(BulkAddViewModel viewModel) { }
+    void ShowNetworkSettings(NetworkSettingsViewModel viewModel) { }
+    Task<string?> PickTorrentFileAsync() => Task.FromResult<string?>(null);
+    void ShowTorrentImport(TorrentImportViewModel viewModel) { }
+    void ShowMedia(MediaViewModel viewModel) { }
 }

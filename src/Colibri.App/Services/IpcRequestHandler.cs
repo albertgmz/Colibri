@@ -21,6 +21,7 @@ public sealed class IpcRequestHandler
     private readonly Action _showMainWindow;
     private readonly AppSettings _settings;
     private readonly ISettingsStore? _store;
+    private bool _automaticCaptureNegotiated;
     private readonly ConcurrentDictionary<string, CaptureSession> _captures = new();
 
     public IpcRequestHandler(MainWindowViewModel viewModel, IDialogService dialogs, Action showMainWindow, AppSettings settings, ISettingsStore? store = null)
@@ -38,6 +39,7 @@ public sealed class IpcRequestHandler
         switch (request)
         {
             case HelloRequest hello:
+                _automaticCaptureNegotiated = hello.Capabilities.Contains("automatic-capture-v1");
                 return hello.ProtocolVersion == BrowserProtocol.Version
                     ? new IpcResponse(true, Config: CaptureConfigFrom(_settings), ProtocolVersion: BrowserProtocol.Version,
                         AppVersion: typeof(IpcRequestHandler).Assembly.GetName().Version?.ToString(), Capabilities: BrowserProtocol.Capabilities)
@@ -71,6 +73,7 @@ public sealed class IpcRequestHandler
                 return new IpcResponse(true, Config: CaptureConfigFrom(_settings));
             case BulkAddRequest bulk:
                 if (ct.IsCancellationRequested) return IpcResponse.Failure(ExitingError);
+                if (bulk.Links.Any(IsSafetyExcluded)) return new IpcResponse(true, State: "browser", DecisionReason: CaptureCatalog.Reasons.Excluded);
                 var bulkCapture = NewCapture();
                 if (bulkCapture is null) return IpcResponse.Failure("Too many pending captures.");
                 await OnUiThreadAsync(() => _dialogs.ShowBulkAdd(_viewModel.CreateBulkAdd(bulk.Links, bulkCapture)));
@@ -95,6 +98,10 @@ public sealed class IpcRequestHandler
                 return accepted ? IpcResponse.Success : IpcResponse.Failure(ExitingError);
 
             case AddRequest add:
+                var decision = BrowserCaptureRules.Decide(_settings, add.FinalUrl ?? add.Url, add.Context.FileName, add.Context.Size, add.PrivateWindow, add.Context.RequestMethod);
+                _settings.LastBrowserCaptureReason = IsSafetyExcluded(add) ? CaptureCatalog.Reasons.Safety : decision.Reason;
+                if (IsSafetyExcluded(add) || (add.CaptureAction != null && decision.Action == "browser"))
+                    return new IpcResponse(true, State: "browser", DecisionReason: decision.Reason);
                 if (ct.IsCancellationRequested) return IpcResponse.Failure(ExitingError);
                 var offer = NewCapture();
                 if (offer is null) return IpcResponse.Failure("Too many pending captures.");
@@ -105,6 +112,8 @@ public sealed class IpcRequestHandler
                     view.AttachCapture(offer);
                     offer.Token.Register(() => Dispatcher.UIThread.Post(view.DismissCapture));
                     _dialogs.ShowAddUrl(view);
+                    if (add.CaptureAction == "capture" && decision.Action == "capture" && _automaticCaptureNegotiated)
+                        _ = view.DownloadCommand.ExecuteAsync(null);
                 });
                 return new IpcResponse(true, State: "pending", CaptureId: offer.Id);
 
@@ -125,7 +134,7 @@ public sealed class IpcRequestHandler
     /// The settings page replaces the list rather than changing it, so reading it here is safe.
     /// </summary>
     internal static CaptureConfig CaptureConfigFrom(AppSettings settings) => new(
-        settings.BrowserCaptureExtensions
+        LegacyCompatibleExtensions(settings)
             .Where(e => e.Length is > 0 and <= IpcProtocol.MaxCaptureExtensionLength && e.All(char.IsAsciiLetterOrDigit))
             .Select(e => e.ToLowerInvariant())
             .Distinct()
@@ -133,7 +142,19 @@ public sealed class IpcRequestHandler
             .ToList(),
         Math.Max(0, settings.BrowserCaptureMinSizeKiB), settings.BrowserCaptureEnabled,
         settings.BrowserExcludedSites ?? [], settings.BrowserCapturePrivate, settings.BrowserBypassModifier,
-        settings.Theme.ToString().ToLowerInvariant(), settings.AccentColor, BackgroundPalettes.Normalize(settings.BackgroundPalette));
+        settings.Theme.ToString().ToLowerInvariant(), settings.AccentColor, BackgroundPalettes.Normalize(settings.BackgroundPalette),
+        BrowserCaptureRules.Normalize(settings.BrowserCapturePolicy ?? BrowserCaptureRules.Migrate(settings.BrowserCaptureExtensions)),
+        settings.BrowserExclusionRules.Where(r => BrowserCaptureRules.TryNormalizeRule(r, out _)).Take(256).ToList());
+
+    private static IEnumerable<string> LegacyCompatibleExtensions(AppSettings settings)
+    {
+        if (settings.BrowserCapturePolicy is not { } policy) return settings.BrowserCaptureExtensions;
+        return settings.BrowserCaptureExtensions.Concat(CaptureCatalog.Categories.SelectMany(c => c.Extensions)).Concat(policy.Extensions.Keys)
+            .Where(e => (policy.Extensions.GetValueOrDefault(e) ?? policy.Categories.GetValueOrDefault(BrowserCaptureRules.Category("file." + e)) ?? "ask") is "ask" or "capture");
+    }
+
+    private bool IsSafetyExcluded(AddRequest add) => new[] { add.Url, add.FinalUrl, add.Context.Referrer }.Concat(add.Context.Redirects)
+        .Where(u => !string.IsNullOrWhiteSpace(u)).Any(u => BrowserCaptureRules.Decide(_settings, u!, add.Context.FileName, add.Context.Size, add.PrivateWindow, add.Context.RequestMethod).Reason is CaptureCatalog.Reasons.Excluded or CaptureCatalog.Reasons.Private or CaptureCatalog.Reasons.Method);
 
     private CaptureSession? NewCapture()
     {

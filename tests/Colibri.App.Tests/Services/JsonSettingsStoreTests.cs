@@ -1,6 +1,7 @@
 using Colibri.App.Services;
 using Colibri.Core.Models;
 using Colibri.Core.Settings;
+using Colibri.Core.Platform;
 using Colibri.Core.Tests.Fakes;
 using Microsoft.Extensions.Logging;
 
@@ -141,14 +142,28 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task A_corrupt_file_gives_the_defaults_and_logs_a_warning()
+    public async Task A_corrupt_file_blocks_network_startup_and_logs_a_safe_warning()
     {
         await File.WriteAllTextAsync(_paths.SettingsPath, "{ this is not json", Ct);
 
-        var settings = await Create().LoadAsync(Ct);
-
-        Assert.Equal(new AppSettings().ConnectionsPerServer, settings.ConnectionsPerServer);
+        await Assert.ThrowsAsync<CredentialProtectionException>(() => Create().LoadAsync(Ct));
         Assert.Contains(_logger.Entries, e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Direct_policy_round_trips_without_a_vault_and_proxy_defaults_are_encrypted()
+    {
+        var directStore = Create();
+        await directStore.SaveAsync(new AppSettings { DefaultNetworkPolicy = new() }, Ct);
+        Assert.NotNull((await directStore.LoadAsync(Ct)).DefaultNetworkPolicy);
+        var store = new JsonSettingsStore(_paths.SettingsPath, _logger, new SqliteDownloadRepositoryTests.TestProtector());
+        await store.SaveAsync(new AppSettings { DefaultNetworkPolicy = new()
+        { Proxy = new() { Endpoint = new("http://proxy.test:8080"), UserName = "user", Password = "secret-network-test" } } }, Ct);
+        var text = await File.ReadAllTextAsync(_paths.SettingsPath, Ct);
+        Assert.DoesNotContain("secret-network-test", text);
+        Assert.DoesNotContain("proxy.test", text);
+        Assert.Equal("secret-network-test", (await store.LoadAsync(Ct)).DefaultNetworkPolicy!.Proxy!.Password);
+        await Assert.ThrowsAsync<CredentialProtectionException>(() => Create().LoadAsync(Ct));
     }
 
     [Fact]

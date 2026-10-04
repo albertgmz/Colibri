@@ -2,7 +2,7 @@
 
 Colibri is a download manager built with C#/.NET 10, Avalonia and aria2. It provides categorized downloads, pause/resume, live progress, detailed transfer views, tray controls and browser capture.
 
-**Status: v2 in development.** Windows transfers and UI have been exercised locally, and the owner confirmed Chrome capture including a synthetic authenticated-cookie download. Linux/macOS compile and run the CI tests; their desktop UI and credential stores still need runtime verification. Torrents and media-site extraction are future work, not supported features.
+**Status: v2 in development.** Windows transfers and UI have been exercised locally, and the owner confirmed Chrome capture including a synthetic authenticated-cookie download. Grouped capture preferences, named scheduled queues, protected HTTP proxy settings, opt-in v1 torrent import and optional configured media tools are available. [Feature boundaries](docs/FEATURE-PHASES.md) describe supported discovery, segmented media and routing limitations. Linux/macOS desktop UI and credential stores still need runtime verification; strict adapter enforcement is rejected on every platform.
 
 ## Download and use
 
@@ -36,6 +36,6 @@ Linux/macOS require aria2 separately. See [build details](docs/BUILD.md) and [ve
 
 ## Documentation and licence
 
-[Current goals](docs/PLAN-v2.md) · [Architecture decisions](docs/DECISIONS.md) · [Browser protocol](docs/protocol.md) · [Plugins](docs/plugins.md)
+[Feature phases](docs/FEATURE-PHASES.md) · [Closed v2 plan](docs/PLAN-v2.md) · [Architecture decisions](docs/DECISIONS.md) · [Browser protocol](docs/protocol.md) · [Plugins](docs/plugins.md)
 
 Colibri uses the [MIT License](LICENSE). Windows ships aria2 as a separate GPLv2 program, with its licence and matching source; see [aria2 notes](third_party/aria2/README.md) and [third-party notices](THIRD-PARTY-NOTICES.md).

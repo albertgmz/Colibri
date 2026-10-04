@@ -32,7 +32,7 @@ public static class AppServices
     public static IServiceCollection AddColibriApp(this IServiceCollection services)
     {
         services.AddSingleton<ISettingsStore>(sp =>
-            new JsonSettingsStore(sp.GetRequiredService<IAppPaths>().SettingsPath, sp.GetRequiredService<ILogger<JsonSettingsStore>>()));
+            new JsonSettingsStore(sp.GetRequiredService<IAppPaths>().SettingsPath, sp.GetRequiredService<ILogger<JsonSettingsStore>>(), sp.GetRequiredService<ICredentialProtector>()));
 
         // Loaded once and shared. Program resolves it before the UI starts, so this blocking load never
         // runs on the UI thread.
@@ -50,12 +50,15 @@ public static class AppServices
             // Read on every engine start, so changed settings apply the next time aria2 starts.
             Aria2Settings ReadSettings() => new(
                 settings.Aria2Path,
-                new EngineOptions(settings.MaxConcurrentDownloads, settings.ConnectionsPerServer, settings.GlobalSpeedLimitKiB * 1024L));
+                new EngineOptions(settings.MaxConcurrentDownloads, settings.ConnectionsPerServer, settings.GlobalSpeedLimitKiB * 1024L) { NetworkPolicy = settings.DefaultNetworkPolicy });
 
             return new Aria2Engine(
                 sp.GetRequiredService<IAria2Locator>(), sp.GetRequiredService<IAppPaths>(), sp.GetRequiredService<ILogger<Aria2Engine>>(), ReadSettings);
         });
         services.AddSingleton<IDownloadEngine>(sp => sp.GetRequiredService<Aria2Engine>());
+        services.AddSingleton<Colibri.Platform.Media.YtDlpMediaHelper>();
+        services.AddSingleton<Colibri.Core.Media.IMediaHelper>(sp => sp.GetRequiredService<Colibri.Platform.Media.YtDlpMediaHelper>());
+        services.AddSingleton<IDownloadEngine>(sp => sp.GetRequiredService<Colibri.Platform.Media.YtDlpMediaHelper>());
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<DownloadManager>();
@@ -67,6 +70,7 @@ public static class AppServices
         // Its IBrowserHostRegistrar parameter is optional (tests leave it out; the page then hides the
         // browser integration status); AddColibriPlatform registers one on every OS.
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<NetworkSettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
 
         // The window frame depends on the OS. IWindowChrome uses Avalonia types, so it cannot live in

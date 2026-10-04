@@ -74,15 +74,15 @@ public class Aria2StatusTests
     }
 
     [Fact]
-    public void Error_status_carries_message_and_code()
+    public void Error_status_carries_code_without_native_credential_text()
     {
         var json = Status("error");
         json["errorCode"] = "3";
-        json["errorMessage"] = "Resource not found";
+        json["errorMessage"] = "Failure at http://user:private-password@proxy.test";
 
         var status = Aria2Status.Parse(json);
 
-        Assert.Equal("Resource not found (aria2 error 3)", status.ErrorMessage);
+        Assert.Equal("aria2 error 3", status.ErrorMessage);
     }
 
     [Fact]

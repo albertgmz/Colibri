@@ -16,7 +16,7 @@ namespace Colibri.Core.Services;
 /// Events are raised on background threads; UI code must marshal them to its own thread. Items passed
 /// to event handlers and returned from methods are copies, so they can be read freely.
 /// </remarks>
-public sealed class DownloadManager
+public sealed partial class DownloadManager
 {
     /// <summary>Progress-only changes are written to the database at most this often per download.</summary>
     public static readonly TimeSpan ProgressSaveInterval = TimeSpan.FromSeconds(5);
@@ -35,6 +35,7 @@ public sealed class DownloadManager
     private readonly Dictionary<Guid, DateTimeOffset> _lastSaved = new();
     private readonly HashSet<Guid> _unsaved = new();
     private readonly Dictionary<Guid, DownloadTelemetry> _telemetry = new();
+    private readonly Dictionary<Guid, long> _sessionUploadedBytes = new();
 
     public async Task<DownloadDetails?> GetDetailsAsync(Guid id, CancellationToken ct)
     {
@@ -128,6 +129,8 @@ public sealed class DownloadManager
         _paths = paths;
         _logger = logger;
         _time = time;
+        _baseEngineOptions = new(settings.MaxConcurrentDownloads, settings.ConnectionsPerServer, settings.GlobalSpeedLimitKiB * 1024L) { NetworkPolicy = settings.DefaultNetworkPolicy };
+        _queues[Guid.Empty] = new() { MaxConcurrentDownloads = settings.MaxConcurrentDownloads, LastScheduleEvaluationUtc = time.GetUtcNow() };
     }
 
     /// <summary>A download was added.</summary>
@@ -154,6 +157,7 @@ public sealed class DownloadManager
     /// </summary>
     public async Task InitializeAsync(CancellationToken ct)
     {
+        await LoadQueuesAsync(ct);
         var stored = await _repository.GetAllAsync(ct);
         // Reading the repository completes credential migration before any legacy session is removed.
         // A cleanup failure must prevent engine startup rather than retaining a plaintext fallback.
@@ -192,6 +196,7 @@ public sealed class DownloadManager
             try
             {
                 await engine.StartAsync(ct);
+                await engine.ApplyOptionsAsync(EffectiveEngineOptions(), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -290,6 +295,7 @@ public sealed class DownloadManager
             try
             {
                 await engine.StartAsync(ct);
+                await engine.ApplyOptionsAsync(EffectiveEngineOptions(), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -302,20 +308,18 @@ public sealed class DownloadManager
     /// Applies engine-wide options (concurrency, connections per server, speed limit) to every engine.
     /// Failures are logged; the options are still used the next time an engine starts.
     /// </summary>
-    public async Task ApplyEngineOptionsAsync(EngineOptions options, CancellationToken ct)
+    public Task ApplyEngineOptionsAsync(EngineOptions options, CancellationToken ct) => RunLockedAsync(async changes =>
     {
-        foreach (var engine in _engines)
-        {
-            try
-            {
-                await engine.ApplyOptionsAsync(options, ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(ex, "Engine {EngineId} did not accept the new options", engine.Id);
-            }
-        }
-    }
+        if (options.GlobalSpeedLimitBytesPerSecond > 0 && options.GlobalSpeedLimitBytesPerSecond < _engines.Count)
+            throw new ArgumentOutOfRangeException(nameof(options), "The combined speed limit must allocate at least one byte per second to each engine.");
+        var defaultChanged = options.MaxConcurrentDownloads != _baseEngineOptions.MaxConcurrentDownloads;
+        _baseEngineOptions = options;
+        if (defaultChanged && _queues.TryGetValue(Guid.Empty, out var queue))
+            await SaveQueueChangeAsync(queue with { MaxConcurrentDownloads = Math.Clamp(options.MaxConcurrentDownloads, 1, 20) }, ct);
+        await EnforceQueuesAsync(changes, ct);
+        await ApplyQueueEngineOptionsAsync(ct);
+        return true;
+    }, ct);
 
     /// <summary>
     /// Stops and starts every engine, for example after the aria2 path changed. Unfinished downloads
@@ -329,6 +333,7 @@ public sealed class DownloadManager
             {
                 await engine.StopAsync(ct);
                 await engine.StartAsync(ct);
+                await engine.ApplyOptionsAsync(EffectiveEngineOptions(), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -370,7 +375,7 @@ public sealed class DownloadManager
     /// <param name="ct">Cancellation token.</param>
     /// <exception cref="ArgumentException">The URL is not accepted by <see cref="UrlPolicy"/>.</exception>
     public async Task<IReadOnlyList<DownloadItem>> AddAsync(
-        string url, LinkContext context, string? fileNameOverride, string? folderOverride, CancellationToken ct)
+        string url, LinkContext context, string? fileNameOverride, string? folderOverride, CancellationToken ct, Guid? queueId = null)
     {
         if (!UrlPolicy.TryValidate(url, out var uri, out string? error))
         {
@@ -392,6 +397,7 @@ public sealed class DownloadManager
 
         return await RunLockedAsync<IReadOnlyList<DownloadItem>>(async changes =>
         {
+            if (!_queues.ContainsKey(queueId ?? Guid.Empty)) throw new ArgumentException("Unknown queue.", nameof(queueId));
             var created = new List<DownloadItem>();
             try
             {
@@ -399,7 +405,7 @@ public sealed class DownloadManager
                 {
                     ct.ThrowIfCancellationRequested();
                     var nameOverride = requests.Count == 1 ? fileNameOverride : null;
-                    var item = await AddOneAsync(request, nameOverride, folderOverride, changes, ct);
+                    var item = await AddOneAsync(request, nameOverride, folderOverride, changes, ct, queueId ?? Guid.Empty);
                     created.Add(item.Clone());
                 }
             }
@@ -453,7 +459,11 @@ public sealed class DownloadManager
                 if (engine is { State: EngineState.Running } && item.EngineHandle is { } handle)
                 {
                     // Waits until the engine has stopped writing, so the file can be deleted below.
-                    await TryEngineAsync(() => engine.RemoveAsync(handle, ct), "remove", item);
+                    if (!await TryEngineAsync(() => engine.RemoveAsync(handle, ct), "remove", item))
+                    {
+                        await StopTransferForCancellationAsync(item, changes);
+                        throw new EngineOperationException("The download could not be removed. It remains stopped for another attempt.");
+                    }
                 }
 
                 var path = Path.Combine(item.SaveFolder, item.FileName);
@@ -464,8 +474,14 @@ public sealed class DownloadManager
                 }
                 else if (deleteFiles)
                 {
-                    DeleteFile(path);
-                    DeleteFile(path + ".aria2");
+                    if (engine is IEngineFileCleanup cleanup)
+                        await cleanup.DeleteOwnedPartialFilesAsync(item.Clone(), ct);
+                    if (item.Torrent is not null) DeleteTorrentFiles(item);
+                    else
+                    {
+                        DeleteFile(path);
+                        DeleteFile(path + ".aria2");
+                    }
                 }
 
                 try
@@ -489,6 +505,14 @@ public sealed class DownloadManager
     /// <summary>One poll tick: reads every download and the totals from each running engine.</summary>
     internal async Task PollOnceAsync(CancellationToken ct)
     {
+        await RunLockedAsync(async changes =>
+        {
+            await EvaluateQueueSchedulesAsync(ct);
+            await StopExpiredSeedsAsync(changes, ct);
+            await EnforceQueuesAsync(changes, ct);
+            if (_queueOptionsChanged) await ApplyQueueEngineOptionsAsync(ct);
+            return true;
+        }, ct);
         long speed = 0;
         int active = 0, waiting = 0;
         foreach (var engine in _engines.Where(e => e.State == EngineState.Running))
@@ -597,6 +621,7 @@ public sealed class DownloadManager
                 }
             }
 
+            await EnforceQueuesAsync(changes, ct);
             return true;
         }, ct);
     }
@@ -604,16 +629,17 @@ public sealed class DownloadManager
     private async Task ReconcileOneAsync(
         IDownloadEngine engine, DownloadItem item, Dictionary<string, EngineDownloadStatus> known, Changes changes, CancellationToken ct)
     {
+        if (item.State is DownloadState.Active or DownloadState.Queued) item.QueueHeld = !CanStartInQueue(item);
         if (item.EngineHandle is { } handle && known.TryGetValue(handle, out var status) && status.State != EngineDownloadState.Removed)
         {
-            if (item.State == DownloadState.Paused && status.State is EngineDownloadState.Active or EngineDownloadState.Waiting)
+            if ((item.State == DownloadState.Paused || item.QueueHeld) && status.State is EngineDownloadState.Active or EngineDownloadState.Waiting)
             {
                 if (await TryEngineAsync(() => engine.PauseAsync(handle, ct), "pause", item))
                 {
                     status = status with { State = EngineDownloadState.Paused, DownloadSpeed = 0 };
                 }
             }
-            else if (item.State is DownloadState.Active or DownloadState.Queued && status.State == EngineDownloadState.Paused)
+            else if (!item.QueueHeld && item.State is DownloadState.Active or DownloadState.Queued && status.State == EngineDownloadState.Paused)
             {
                 if (await TryEngineAsync(() => engine.ResumeAsync(handle, ct), "resume", item))
                 {
@@ -643,7 +669,7 @@ public sealed class DownloadManager
         }
 
         _logger.LogInformation("Re-adding download {Id} ({FileName}) to engine {EngineId}", item.Id, item.FileName, engine.Id);
-        await AddToEngineAsync(engine, item, startPaused: item.State == DownloadState.Paused, changes, ct);
+        await AddToEngineAsync(engine, item, startPaused: item.State == DownloadState.Paused || item.QueueHeld, changes, ct);
     }
 
     private async Task<bool> PauseItemsAsync(List<DownloadItem> items, Changes changes, CancellationToken ct)
@@ -658,6 +684,7 @@ public sealed class DownloadManager
 
             if (TrySetState(item, DownloadState.Paused))
             {
+                item.QueueHeld = false;
                 item.DownloadSpeed = 0;
                 item.Connections = 0;
                 changes.Update(item);
@@ -692,7 +719,7 @@ public sealed class DownloadManager
     }
 
     private async Task<DownloadItem> AddOneAsync(
-        DownloadRequest request, string? fileNameOverride, string? folderOverride, Changes changes, CancellationToken ct)
+        DownloadRequest request, string? fileNameOverride, string? folderOverride, Changes changes, CancellationToken ct, Guid queueId)
     {
         var name = FileNameSanitizer.Sanitize(string.IsNullOrWhiteSpace(fileNameOverride) ? request.SuggestedFileName : fileNameOverride);
         var category = CategoryMapper.FromFileName(name);
@@ -709,6 +736,10 @@ public sealed class DownloadManager
         var item = new DownloadItem
         {
             Url = request.Uri.AbsoluteUri,
+            QueueId = queueId,
+            Torrent = request.Torrent,
+            MediaSelection = request.MediaSelection,
+            NetworkPolicy = request.NetworkPolicy ?? _settings.DefaultNetworkPolicy ?? new Colibri.Core.Network.DownloadNetworkPolicy(),
             FileName = name,
             SaveFolder = folder,
             Category = category,
@@ -756,7 +787,9 @@ public sealed class DownloadManager
 
         if (problem is null && engine is not null)
         {
-            await AddToEngineAsync(engine, item, startPaused: false, changes, ct);
+            item.QueueHeld = !CanStartInQueue(item);
+            await SaveAsync(item);
+            await AddToEngineAsync(engine, item, startPaused: item.QueueHeld, changes, ct);
         }
 
         return item;
@@ -764,6 +797,16 @@ public sealed class DownloadManager
 
     private async Task ResumeOneAsync(DownloadItem item, Changes changes, CancellationToken ct)
     {
+        if (!CanStartInQueue(item))
+        {
+            item.QueueHeld = true;
+            TrySetState(item, DownloadState.Queued);
+            item.ErrorMessage = null;
+            await SaveAsync(item);
+            changes.Update(item);
+            return;
+        }
+        item.QueueHeld = false;
         var engine = EngineOf(item);
         if (engine is null)
         {
@@ -876,6 +919,7 @@ public sealed class DownloadManager
         try
         {
             item.EngineHandle = await engine.AddAsync(ToRequest(item), item.SaveFolder, item.FileName, item.EngineHandle, startPaused, ct);
+            _sessionUploadedBytes.Remove(item.Id); // A reconstructed GID starts a new native upload counter.
             ct.ThrowIfCancellationRequested();
             item.ErrorMessage = null;
             if (!startPaused)
@@ -922,6 +966,8 @@ public sealed class DownloadManager
         var changed = false;
         var history = TelemetryOf(item);
         var target = ToDownloadState(status.State);
+        if (item.State != DownloadState.Paused && item.QueueHeld && target == DownloadState.Paused)
+            target = DownloadState.Queued;
 
         // aria2's forcePause takes a moment; until then it still reports the download as active. The
         // user's Paused stands until they resume (reconcile fixes a real mismatch after a restart).
@@ -938,6 +984,9 @@ public sealed class DownloadManager
                 case DownloadState.Completed:
                     item.CompletedAt = _time.GetUtcNow();
                     item.Headers.Clear();
+                    if (item.NetworkPolicy is { } policy)
+                        item.NetworkPolicy = policy with { Proxy = policy.Proxy is { } proxy
+                            ? new Colibri.Core.Network.DownloadProxy { Endpoint = proxy.Endpoint } : null };
                     break;
                 case DownloadState.Failed:
                     item.ErrorMessage = status.ErrorMessage;
@@ -976,6 +1025,24 @@ public sealed class DownloadManager
             changed = true;
         }
 
+        var seeding = item.State == DownloadState.Active && status.IsSeeding;
+        var uploadSpeed = item.State == DownloadState.Active ? status.UploadSpeed : 0;
+        var reportedUpload = Math.Max(0, status.UploadedBytes);
+        var previousUpload = _sessionUploadedBytes.GetValueOrDefault(item.Id);
+        var uploadDelta = reportedUpload >= previousUpload ? reportedUpload - previousUpload : reportedUpload;
+        _sessionUploadedBytes[item.Id] = reportedUpload;
+        if (seeding && item.SeedStartedAt is null)
+        {
+            item.SeedStartedAt = _time.GetUtcNow();
+            stateChanged = changed = true; // Persist the wall-clock budget before a possible restart.
+        }
+        if (item.IsSeeding != seeding || item.UploadSpeed != uploadSpeed || uploadDelta > 0)
+        {
+            item.IsSeeding = seeding;
+            item.UploadSpeed = uploadSpeed;
+            item.UploadedBytes += uploadDelta;
+            changed = true;
+        }
         var running = item.State == DownloadState.Active;
         var speed = running ? status.DownloadSpeed : 0;
         var connections = running ? status.Connections : 0;
@@ -1212,6 +1279,7 @@ public sealed class DownloadManager
             throw new DownloadCleanupException();
         }
         if (item.State is DownloadState.Queued or DownloadState.Active) TrySetState(item, DownloadState.Paused);
+        item.QueueHeld = false;
         item.DownloadSpeed = 0;
         item.Connections = 0;
         changes.Update(item);
@@ -1278,7 +1346,7 @@ public sealed class DownloadManager
         }
     }
 
-    private static DownloadRequest ToRequest(DownloadItem item) => new()
+    private DownloadRequest ToRequest(DownloadItem item) => new()
     {
         Uri = new Uri(item.Url),
         SuggestedFileName = item.FileName,
@@ -1286,6 +1354,9 @@ public sealed class DownloadManager
         Referrer = item.Referrer,
         UserAgent = item.UserAgent,
         TransferOptions = item.TransferOptions,
+        NetworkPolicy = item.NetworkPolicy ?? new Colibri.Core.Network.DownloadNetworkPolicy(),
+        Torrent = RemainingTorrentBudget(item),
+        MediaSelection = item.MediaSelection,
     };
 
     private static Dictionary<string, EngineDownloadStatus> ToDictionary(IEnumerable<EngineDownloadStatus> statuses)
@@ -1334,7 +1405,11 @@ public sealed class DownloadManager
     {
         foreach (var item in snapshot.Added.Concat(snapshot.Updated))
             TelemetryOf(item).Observe(item, _time.GetUtcNow());
-        foreach (var id in snapshot.Removed) _telemetry.Remove(id);
+        foreach (var id in snapshot.Removed)
+        {
+            _telemetry.Remove(id);
+            _sessionUploadedBytes.Remove(id);
+        }
         foreach (var item in snapshot.Added)
         {
             Raise(ItemAdded, item);

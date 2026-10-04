@@ -26,4 +26,8 @@ public sealed record DownloadRequest
     public string? MimeType { get; init; }
 
     public DownloadTransferOptions? TransferOptions { get; init; }
+
+    public Network.DownloadNetworkPolicy? NetworkPolicy { get; init; }
+    public Torrents.TorrentDownload? Torrent { get; init; }
+    public Media.MediaSelection? MediaSelection { get; init; }
 }

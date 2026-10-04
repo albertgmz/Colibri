@@ -6,7 +6,7 @@ public static class BrowserProtocol
     public const int Version = 2;
     public const string FirefoxId = "colibri-browser-integration@colibri.download";
     public static IReadOnlyList<string> Capabilities { get; } =
-        ["capture-confirmation", "request-context", "bulk-add", "settings-push"];
+        ["capture-confirmation", "request-context", "bulk-add", "settings-push", "capture-policy-v1", "automatic-capture-v1"];
 }
 
 public sealed record HelloRequest(int ProtocolVersion, string ExtensionVersion, IReadOnlyList<string> Capabilities) : IpcRequest;

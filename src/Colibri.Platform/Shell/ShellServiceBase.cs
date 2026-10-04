@@ -13,6 +13,13 @@ internal abstract class ShellServiceBase(ILogger logger) : IShellService
 {
     protected ILogger Logger { get; } = logger;
 
+    public Task OpenUrlAsync(Uri uri)
+    {
+        if (!uri.IsAbsoluteUri || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length != 0)
+            throw new ArgumentException("Unsupported source page.");
+        return OpenAsync(uri.AbsoluteUri);
+    }
+
     public Task OpenFileAsync(string path)
     {
         if (FullPath(path) is not { } file || !File.Exists(file))

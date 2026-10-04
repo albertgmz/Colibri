@@ -13,4 +13,7 @@ public interface IShellService
 
     /// <summary>Opens a folder in the file manager.</summary>
     Task OpenFolderAsync(string path);
+
+    /// <summary>Opens a deliberate source-page re-association in the default browser.</summary>
+    Task OpenUrlAsync(Uri uri) => throw new NotSupportedException();
 }

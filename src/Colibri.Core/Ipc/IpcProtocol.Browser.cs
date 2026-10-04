@@ -51,6 +51,31 @@ public static partial class IpcProtocol
         return request is not null;
     }
 
+    private static Services.BrowserCapturePolicy? ReadCapturePolicy(JsonElement root)
+    {
+        if (!root.TryGetProperty("capturePolicy", out var policy)) return null;
+        Dictionary<string, string> Read(string name, bool category)
+        {
+            if (!policy.TryGetProperty(name, out var map) || map.ValueKind != JsonValueKind.Object || map.EnumerateObject().Count() > 256)
+                throw new FieldException("Invalid capture policy.");
+            var result = new Dictionary<string, string>();
+            foreach (var pair in map.EnumerateObject()) {
+                if (pair.Value.ValueKind != JsonValueKind.String || !Services.BrowserCaptureRules.IsAction(pair.Value.GetString()) ||
+                    (category ? !Services.CaptureCatalog.Categories.Any(c => c.Id == pair.Name) : pair.Name.Length is < 1 or > 16 || !pair.Name.All(char.IsAsciiLetterOrDigit)))
+                    throw new FieldException("Invalid capture policy.");
+                result[pair.Name.ToLowerInvariant()] = pair.Value.GetString()!;
+            }
+            return result;
+        }
+        return new(Read("categories", true), Read("extensions", false));
+    }
+    private static IReadOnlyList<string> ReadExclusionRules(JsonElement root)
+    {
+        var rules = ReadStringArray(root, "exclusionRules", 256, 512);
+        if (rules.Any(r => !Services.BrowserCaptureRules.TryNormalizeRule(r, out _))) throw new FieldException("Invalid exclusion rule.");
+        return rules;
+    }
+
     private static string ReadCaptureId(JsonElement root)
     {
         var id = OptionalString(root, "captureId", 64);
@@ -133,6 +158,7 @@ public static partial class IpcProtocol
 
     private static void WriteBrowserV2Response(Utf8JsonWriter json, IpcResponse response)
     {
+        WriteOptional(json, "decisionReason", response.DecisionReason);
         WriteOptional(json, "state", response.State); WriteOptional(json, "captureId", response.CaptureId);
         if (response.State is { } state)
         {
@@ -147,6 +173,13 @@ public static partial class IpcProtocol
             json.WriteBoolean("capturePrivate", config.CapturePrivate); json.WriteString("bypassModifier", config.BypassModifier);
             json.WriteString("theme", config.Theme); json.WriteString("accent", config.Accent);
             json.WriteString("palette", Settings.BackgroundPalettes.Normalize(config.Palette));
+            if (config.CapturePolicy is { } policy) {
+                json.WriteStartObject("capturePolicy");
+                json.WriteStartObject("categories"); foreach (var pair in policy.Categories) json.WriteString(pair.Key, pair.Value); json.WriteEndObject();
+                json.WriteStartObject("extensions"); foreach (var pair in policy.Extensions) json.WriteString(pair.Key, pair.Value); json.WriteEndObject();
+                json.WriteEndObject();
+            }
+            WriteArray(json, "exclusionRules", config.ExclusionRules ?? []);
         }
     }
 

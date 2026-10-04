@@ -72,3 +72,16 @@ disallowed private-window captures remain with the browser.
 # Background palettes
 
 Config-bearing replies may include `palette`: `warm`, `graphite`, `ocean`, or `forest`. This additive protocol v2 field is owned by application Settings. Older applications omit it; extensions default missing or unknown values to `warm`. The existing `theme` and `accent` remain independent. Popup and onboarding surfaces apply the palette when their existing configuration refresh runs; no additional polling or appearance selector is introduced in the extension.
+
+
+### Capture policy capability
+
+`capture-policy-v1` adds optional `capturePolicy` action maps (`categories` with stable catalog IDs, `extensions` without dots) and `exclusionRules` to config replies. Actions are `capture`, `ask`, and `browser` (Keep in browser). Catalog and browser rules are app-owned in `docs/capture-policy.json` and `docs/capture-rules.ts`; `node scripts/generate-capture-policy.mjs --check` checks generated app and sibling artifacts for drift.
+
+Old settings migrate additively: legacy allowlisted extensions Ask, known extensions excluded by that allowlist Keep, unknown types Ask through Other. The minimum remains unchanged; unknown sizes do not prove a download is below it. The browser-suggested filename takes precedence over URL and MIME. Only genuine browser downloads enter automatic evaluation; observed HTTP responses never independently create offers. The existing required GET observation prevents replay of POST or unassociated requests.
+
+Precedence: GET/private restrictions and any exclusion, enabled setting, minimum known size, extension action, category action. Supported exclusions: `host:example.com` exact host, `domain:example.com` host plus subdomains, `path:example.com/files` exact host plus path segment subtree, and `type:pdf` all hosts. All matching exclusions Keep; queries, wildcards, credentials, and control characters are rejected. Original/final/redirect/referrer hosts are checked. Manual context-menu and bulk offers cannot override these safety restrictions.
+
+`automatic-capture-v1` permits optional add `captureAction: capture` only after hello negotiation. `ask` opens confirmation; absent retains manual confirmation behavior. The app reevaluates authoritative preferences and private/exclusion safety. Automatic acquisition uses the same confirmation command and capture session rollback path. Pending replies always leave the browser paused; cancellation requires explicit `accepted: true` with authoritative accepted state after desktop acquisition. Duplicate confirmation, failed acquisition, restart, and lost replies retain the existing cleanup/attention limits; this optional capability does not promise exactly-once delivery across process loss.
+
+`privateWindow` is an optional bounded boolean on add and each bulk link. Settings remembers only the last bounded decision reason in memory; `decisionReason` replies contain a code and never a URL, headers or credentials. Older apps ignore optional policy fields and receive a compatible allowlist/minimum representation; automatic capture downgrades to Ask when negotiation is absent.

@@ -29,7 +29,7 @@ internal sealed class Aria2RpcClient : IDisposable
         ["aria2.onDownloadStop"] = EngineDownloadEventKind.Stopped,
         ["aria2.onDownloadComplete"] = EngineDownloadEventKind.Completed,
         ["aria2.onDownloadError"] = EngineDownloadEventKind.Error,
-        ["aria2.onBtDownloadComplete"] = EngineDownloadEventKind.Completed,
+        ["aria2.onBtDownloadComplete"] = EngineDownloadEventKind.ContentCompleted,
     };
 
     private readonly IAria2Transport _transport;
@@ -149,6 +149,9 @@ internal sealed class Aria2RpcClient : IDisposable
 
     public async Task<string> AddUriAsync(IEnumerable<string> uris, JsonObject options, CancellationToken ct) =>
         AsString(await CallAsync("aria2.addUri", [new JsonArray([.. uris.Select(u => JsonValue.Create(u))]), options], ct));
+
+    public async Task<string> AddTorrentAsync(byte[] metainfo, JsonObject options, CancellationToken ct) =>
+        AsString(await CallAsync("aria2.addTorrent", [Convert.ToBase64String(metainfo), new JsonArray(), options], ct));
 
     // forcePause/forceRemove instead of pause/remove: the plain versions only add BitTorrent tracker
     // announcements (which can take seconds), Colibri does not use BitTorrent, and the forced ones react at once.
@@ -324,5 +327,5 @@ internal sealed class Aria2RpcClient : IDisposable
     private static JsonArray AsArray(JsonNode? node) => node as JsonArray ?? throw UnexpectedAnswer(node);
 
     private static FormatException UnexpectedAnswer(JsonNode? node) =>
-        new($"Unexpected answer from aria2: {node?.ToJsonString() ?? "null"}");
+        new("Unexpected answer shape from aria2.");
 }

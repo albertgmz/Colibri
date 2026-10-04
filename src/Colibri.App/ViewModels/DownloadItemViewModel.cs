@@ -12,6 +12,11 @@ namespace Colibri.App.ViewModels;
 /// </summary>
 public partial class DownloadItemViewModel : ObservableObject
 {
+    [ObservableProperty] private Guid _queueId;
+    [ObservableProperty] private bool _isTorrent;
+    [ObservableProperty] private bool _isSeeding;
+    [ObservableProperty] private string _uploadSpeedText = "";
+    [ObservableProperty] private string _uploadedText = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FilePath))]
     private string _fileName = string.Empty;
@@ -120,6 +125,11 @@ public partial class DownloadItemViewModel : ObservableObject
     /// <summary>Copies a fresh snapshot from the download manager into this row.</summary>
     public void Update(DownloadItem item)
     {
+        QueueId = item.QueueId;
+        IsTorrent = item.Torrent is not null;
+        IsSeeding = item.IsSeeding;
+        UploadSpeedText = DisplayFormat.Speed(item.UploadSpeed);
+        UploadedText = DisplayFormat.Size(item.UploadedBytes);
         FileName = item.FileName;
         Url = item.Url;
         SaveFolder = item.SaveFolder;
@@ -174,6 +184,7 @@ public partial class DownloadItemViewModel : ObservableObject
             _ when string.IsNullOrWhiteSpace(item.ErrorMessage) => Strings.StateFailed,
             _ => string.Format(CultureInfo.CurrentCulture, Strings.StatusFailedFormat, item.ErrorMessage),
         };
+        if (item.IsSeeding) StatusText = Strings.StateSeeding;
         var completedBytes = item.State == DownloadState.Completed && item.TotalBytes is { } size ? size : item.CompletedBytes;
         DownloadedText = item.TotalBytes is > 0
             ? string.Format(CultureInfo.CurrentCulture, Strings.DetailsDownloadedFormat,

@@ -10,4 +10,5 @@ public enum EngineDownloadEventKind
     Stopped,
     Completed,
     Error,
+    ContentCompleted,
 }

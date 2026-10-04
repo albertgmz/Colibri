@@ -1,4 +1,5 @@
 using Colibri.Core.Models;
+using Colibri.Core.Services;
 
 namespace Colibri.Core.Settings;
 
@@ -7,6 +8,11 @@ namespace Colibri.Core.Settings;
 /// </summary>
 public sealed class AppSettings
 {
+    public bool MediaEnabled { get; set; }
+    public string YtDlpPath { get; set; } = "";
+    public string FfmpegPath { get; set; } = "";
+    public string YtDlpLicensePath { get; set; } = "";
+
     public WindowLayout Layout { get; set; } = new();
 
     public string AccentColor { get; set; } = "#C42B1C";
@@ -36,6 +42,9 @@ public sealed class AppSettings
 
     public bool AutoOpenDetailsWindow { get; set; }
 
+    /// <summary>Recognize magnets on explicit Paste/Add actions; never monitor the clipboard.</summary>
+    public bool EnableMagnetClipboard { get; set; }
+
     /// <summary>Base download folder. Empty means the user's Downloads folder, resolved at runtime.</summary>
     public string DefaultDownloadFolder { get; set; } = string.Empty;
 
@@ -58,14 +67,7 @@ public sealed class AppSettings
     public string Aria2Path { get; set; } = string.Empty;
 
     /// <summary>File extensions (lower case, without the dot) that browser capture hands over to Colibri.</summary>
-    public List<string> BrowserCaptureExtensions { get; set; } =
-    [
-        "zip", "rar", "7z", "gz", "tar",
-        "exe", "msi", "dmg", "pkg", "deb", "rpm", "appimage", "iso",
-        "pdf", "epub", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-        "mp3", "flac", "wav",
-        "mp4", "mkv", "avi", "mov", "webm",
-    ];
+    public List<string> BrowserCaptureExtensions { get; set; } = [.. CaptureCatalog.LegacyCaptureExtensions];
 
     /// <summary>
     /// Browser downloads smaller than this (in KiB) stay in the browser.
@@ -73,8 +75,19 @@ public sealed class AppSettings
     /// </summary>
     public int BrowserCaptureMinSizeKiB { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? LastBrowserCaptureReason { get; set; }
+
+    public BrowserCapturePolicy? BrowserCapturePolicy { get; set; }
+    public List<string> BrowserExclusionRules { get; set; } = [];
+
     public bool BrowserCaptureEnabled { get; set; } = true;
     public List<string> BrowserExcludedSites { get; set; } = [];
     public bool BrowserCapturePrivate { get; set; }
     public string BrowserBypassModifier { get; set; } = "none";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Network.DownloadNetworkPolicy? DefaultNetworkPolicy { get; set; }
+
+    public string? ProtectedDefaultNetworkPolicy { get; set; }
 }

@@ -285,8 +285,8 @@ public class Aria2EngineTests
 
         var ex = await Assert.ThrowsAsync<EngineOperationException>(() => engine.PauseAsync("aaaaaaaaaaaaaaaa", Ct));
 
-        Assert.Contains("cannot be paused now", ex.Message);
-        Assert.IsType<Aria2RpcException>(ex.InnerException);
+        Assert.Contains("RPC error", ex.Message);
+        Assert.Null(ex.InnerException);
     }
 
     [Fact]
@@ -456,6 +456,24 @@ public class Aria2EngineTests
         await engine.RemoveAsync("aaaaaaaaaaaaaaaa", Ct);
 
         Assert.Equal(["aria2.tellStatus"], transport.Sent.Select(Method));
+    }
+
+    [Fact]
+    public async Task Removing_never_started_paused_job_accepts_verified_absence_without_a_stopped_result()
+    {
+        var removed = false;
+        var (engine, transport) = Create(request => Method(request) switch
+        {
+            "aria2.forceRemove" => Removed(),
+            "aria2.removeDownloadResult" => FakeTransport.Error(1, "GID aaaaaaaaaaaaaaaa is not found"),
+            _ => removed ? FakeTransport.Error(1, "GID aaaaaaaaaaaaaaaa is not found")
+                : FakeTransport.Result(StatusJson("aaaaaaaaaaaaaaaa", "paused")),
+        });
+        await engine.RemoveAsync("aaaaaaaaaaaaaaaa", Ct);
+        Assert.Contains(transport.Sent, request => Method(request) == "aria2.removeDownloadResult");
+        Assert.Equal("aria2.tellStatus", Method(transport.Sent.Last()));
+
+        JsonObject Removed() { removed = true; return FakeTransport.Result("OK"); }
     }
 
     [Fact]

@@ -16,7 +16,7 @@ namespace Colibri.Engine.Aria2;
 /// they should be deleted. After aria2 restarts (state goes Restarting -> Running) callers should
 /// re-read all downloads with <see cref="GetAllAsync"/>.
 /// </remarks>
-public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDisposable
+public sealed partial class Aria2Engine : Colibri.Core.Torrents.ITorrentEngine, ILegacyCredentialCleanup, IDisposable
 {
     // tellWaiting/tellStopped return pages. One page of 1000 covers any realistic queue; downloads beyond
     // it are not reported by GetAllAsync.
@@ -30,24 +30,27 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
     private readonly string? _legacySessionPath;
     private readonly Func<Aria2Settings> _settings;
     private volatile EngineOptions _options;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Colibri.Core.Network.DownloadNetworkPolicy> _networkPolicies = new();
 
     public Aria2Engine(IAria2Locator locator, IAppPaths paths, ILogger<Aria2Engine> logger, Func<Aria2Settings> settings)
     {
         _settings = settings;
+        _metadataRoot = Path.GetFullPath(Path.Combine(paths.DataDirectory, "torrent-metadata"));
         _legacySessionPath = paths.Aria2SessionPath;
         _options = settings().Options;
         _process = new Aria2Process(locator, paths, logger, () => _options);
         _process.StateChanged += (_, state) => StateChanged?.Invoke(this, state);
-        _process.DownloadEvent += (_, e) => DownloadEvent?.Invoke(this, e);
+        _process.DownloadEvent += (_, e) => OnDownloadEvent(e);
     }
 
     /// <summary>Test constructor: talks to an already connected client instead of launching aria2.</summary>
-    internal Aria2Engine(Aria2RpcClient client, EngineOptions options)
+    internal Aria2Engine(Aria2RpcClient client, EngineOptions options, string? metadataRoot = null)
     {
         _testClient = client;
+        _metadataRoot = Path.GetFullPath(metadataRoot ?? Path.Combine(Path.GetTempPath(), "colibri-torrent-metadata", Guid.NewGuid().ToString("N")));
         _options = options;
         _settings = () => new Aria2Settings(null, _options);
-        client.Notification += (_, e) => DownloadEvent?.Invoke(this, e);
+        client.Notification += (_, e) => OnDownloadEvent(e);
     }
 
     public string Id => "aria2";
@@ -58,6 +61,14 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
 
     public event EventHandler<EngineState>? StateChanged;
 
+    private void OnDownloadEvent(EngineDownloadEvent downloadEvent)
+    {
+        if (_metadataJobs.ContainsKey(downloadEvent.Handle)) return;
+        if (downloadEvent.Kind == EngineDownloadEventKind.Completed)
+            _networkPolicies.TryRemove(downloadEvent.Handle, out _);
+        DownloadEvent?.Invoke(this, downloadEvent);
+    }
+
     /// <summary>Process id of the running aria2c, or null. For the smoke test.</summary>
     internal int? Aria2ProcessId => _process?.ProcessId;
 
@@ -66,11 +77,13 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
         ?? throw new EngineOperationException("The aria2 engine is not running.");
 
     public bool CanHandle(DownloadRequest request) =>
-        SupportedSchemes.Contains(request.Uri.Scheme, StringComparer.OrdinalIgnoreCase);
+        request.MediaSelection is null && (request.Torrent is not null
+            || SupportedSchemes.Contains(request.Uri.Scheme, StringComparer.OrdinalIgnoreCase));
 
     public Task StartAsync(CancellationToken ct)
     {
         var settings = _settings();
+        Aria2NetworkPolicy.Validate(settings.Options.NetworkPolicy);
         _options = settings.Options;
         return _process?.StartAsync(settings.Aria2Path, ct) ?? Task.CompletedTask;
     }
@@ -84,6 +97,13 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
     public async Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct)
     {
         _options = options;
+        try { Aria2NetworkPolicy.Validate(options.NetworkPolicy); }
+        catch (EngineOperationException)
+        {
+            // A newly selected strict policy must not leave existing default-route transfers running.
+            await StopAsync(CancellationToken.None);
+            throw;
+        }
         if (State != EngineState.Running)
         {
             return; // Used on the next start.
@@ -103,6 +123,8 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
     public async Task<string> AddAsync(
         DownloadRequest request, string saveFolder, string fileName, string? handle, bool startPaused, CancellationToken ct)
     {
+        if (request.Torrent is not null)
+            return await AddTorrentAsync(request, saveFolder, fileName, handle, startPaused, ct);
         if (!CanHandle(request))
         {
             throw new ArgumentException($"aria2 cannot download '{request.Uri.Scheme}' URLs.", nameof(request));
@@ -110,21 +132,53 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
 
         var gid = handle ?? Aria2AddOptions.NewGid();
         var options = Aria2AddOptions.Build(request, saveFolder, fileName, gid, _options.ConnectionsPerServer);
+        var networkPolicy = request.NetworkPolicy ?? _options.NetworkPolicy ?? new Colibri.Core.Network.DownloadNetworkPolicy();
+        Aria2NetworkPolicy.Apply(options, networkPolicy);
         if (startPaused)
         {
             // aria2's "pause" option adds the download in the paused state.
             options["pause"] = "true";
         }
 
-        await Refusable(() => Client.AddUriAsync([Aria2AddOptions.ToAria2Url(request.Uri)], options, ct), "add the download");
+        try { await Client.AddUriAsync([Aria2AddOptions.ToAria2Url(request.Uri)], options, ct); }
+        catch (Aria2RpcException)
+        {
+            // aria2 error text can echo credential-bearing options; never log or expose it.
+            throw new EngineOperationException("aria2 could not add the download. Check the address and network settings.");
+        }
+        _networkPolicies[gid] = networkPolicy;
         return gid;
     }
 
     public Task PauseAsync(string handle, CancellationToken ct) =>
         Refusable(() => Client.ForcePauseAsync(handle, ct), $"pause download {handle}");
 
-    public Task ResumeAsync(string handle, CancellationToken ct) =>
-        Refusable(() => Client.UnpauseAsync(handle, ct), $"resume download {handle}");
+    public Task ResumeAsync(string handle, CancellationToken ct)
+    {
+        Aria2NetworkPolicy.Validate(_options.NetworkPolicy);
+        if (_networkPolicies.TryGetValue(handle, out var policy)) Aria2NetworkPolicy.Validate(policy);
+        if (_torrentHandles.ContainsKey(handle)) ValidateTorrentPolicy(policy ?? _options.NetworkPolicy);
+        return Refusable(() => Client.UnpauseAsync(handle, ct), $"resume download {handle}");
+    }
+
+    public async Task ApplyNetworkPolicyAsync(string handle, Colibri.Core.Network.DownloadNetworkPolicy? policy, CancellationToken ct)
+    {
+        await PauseAsync(handle, ct);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(RemoveTimeout);
+        while (await ReadStateAsync(Client, handle, timeout.Token) is EngineDownloadState.Active or EngineDownloadState.Waiting)
+            await Task.Delay(TimeSpan.FromMilliseconds(50), timeout.Token);
+        var effective = policy ?? _options.NetworkPolicy ?? new Colibri.Core.Network.DownloadNetworkPolicy();
+        if (_torrentHandles.ContainsKey(handle)) ValidateTorrentPolicy(effective);
+        var values = new JsonObject();
+        Aria2NetworkPolicy.Apply(values, effective);
+        try { await Client.CallAsync("aria2.changeOption", [handle, values], ct); }
+        catch (Aria2RpcException)
+        {
+            throw new EngineOperationException("aria2 could not change the network policy. The download remains paused.");
+        }
+        _networkPolicies[handle] = effective;
+    }
 
     public async Task RemoveAsync(string handle, CancellationToken ct)
     {
@@ -132,6 +186,8 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
         var state = await ReadStateAsync(client, handle, ct);
         if (state is null)
         {
+            _networkPolicies.TryRemove(handle, out _);
+            _torrentHandles.TryRemove(handle, out _);
             return; // Already gone.
         }
 
@@ -141,18 +197,20 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
             {
                 await client.ForceRemoveAsync(handle, ct);
             }
-            catch (Aria2RpcException ex)
+            catch (Aria2RpcException)
             {
                 // The download may have finished between the two calls; then only its result is left to clear.
                 var now = await ReadStateAsync(client, handle, ct);
                 if (now is null)
                 {
+                    _networkPolicies.TryRemove(handle, out _);
+                    _torrentHandles.TryRemove(handle, out _);
                     return;
                 }
 
                 if (IsUnfinished(now.Value))
                 {
-                    throw new EngineOperationException($"aria2 could not remove download {handle}: {ex.Message}", ex);
+                    throw new EngineOperationException($"aria2 could not remove download {handle}.");
                 }
             }
 
@@ -160,7 +218,16 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
         }
 
         // aria2 keeps stopped downloads (complete, error, removed) in memory until their result is removed.
-        await Refusable(() => client.RemoveDownloadResultAsync(handle, ct), $"forget download {handle}");
+        try { await client.RemoveDownloadResultAsync(handle, ct); }
+        catch (Aria2RpcException)
+        {
+            // aria2 can discard a never-started paused torrent without creating a stopped result.
+            // Fresh absence is authoritative; a remaining GID still means cleanup failed.
+            if (await ReadStateAsync(client, handle, ct) is not null)
+                throw new EngineOperationException($"aria2 could not forget download {handle}.");
+        }
+        _networkPolicies.TryRemove(handle, out _);
+        _torrentHandles.TryRemove(handle, out _);
     }
 
     public async Task<EngineDownloadStatus?> GetStatusAsync(string handle, CancellationToken ct)
@@ -178,7 +245,7 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
     public async Task<IReadOnlyList<EngineDownloadStatus>> GetAllAsync(CancellationToken ct)
     {
         var all = await Client.TellAllAsync(ListPageSize, Aria2Status.Keys, ct);
-        return all.Select(Aria2Status.Parse).ToList();
+        return all.Where(status => !_metadataJobs.ContainsKey(status["gid"]?.ToString() ?? "")).Select(Aria2Status.Parse).ToList();
     }
 
     public async Task<EngineGlobalStats> GetGlobalStatsAsync(CancellationToken ct)
@@ -315,7 +382,7 @@ public sealed class Aria2Engine : IDownloadEngine, ILegacyCredentialCleanup, IDi
         }
         catch (Aria2RpcException ex)
         {
-            throw new EngineOperationException($"aria2 could not {action}: {ex.Message}", ex);
+            throw new EngineOperationException($"aria2 could not {action} (RPC error {ex.Code}).");
         }
     }
 }

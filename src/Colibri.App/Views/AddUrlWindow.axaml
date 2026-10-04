@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Colibri.App.ViewModels"
         xmlns:res="using:Colibri.App.Resources"
+        xmlns:q="using:Colibri.Core.Queues"
         x:Class="Colibri.App.Views.AddUrlWindow"
         x:DataType="vm:AddUrlViewModel"
         Title="{x:Static res:Strings.AddUrlTitle}"
@@ -38,6 +39,10 @@
             <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SizeText}" VerticalAlignment="Center" />
         </Grid>
 
+        <ComboBox ItemsSource="{Binding Queues}" SelectedItem="{Binding SelectedQueue}" HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="{x:Static res:Strings.QueuesTitle}">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="q:DownloadQueue"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
         <Border IsVisible="{Binding IsDuplicatePrompt}" Padding="12" BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Spacing="10">
                 <TextBlock Text="{x:Static res:Strings.DuplicateUrlPrompt}" TextWrapping="Wrap" />

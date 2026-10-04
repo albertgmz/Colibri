@@ -22,7 +22,7 @@
       <TabItem AutomationProperties.Name="{x:Static res:Strings.DetailsOverview}">
         <TabItem.Header><TextBlock Text="{x:Static res:Strings.DetailsOverview}" FontSize="12" TextWrapping="NoWrap" /></TabItem.Header>
         <ScrollViewer>
-          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="12" Margin="4">
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="12" Margin="4">
             <TextBlock Text="{x:Static res:Strings.DetailsUrl}" Opacity="0.65" />
             <SelectableTextBlock Grid.Column="1" Text="{Binding Row.Url}" TextWrapping="Wrap" />
             <TextBlock Grid.Row="1" Text="{x:Static res:Strings.DetailsFinalUrl}" Opacity="0.65" />
@@ -45,6 +45,10 @@
             <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding LastError}" TextWrapping="Wrap" />
             <TextBlock Grid.Row="10" Text="{x:Static res:Strings.DetailsConnections}" Opacity="0.65" />
             <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding Row.Connections}" />
+            <TextBlock Grid.Row="11" Text="{x:Static res:Strings.DetailsUploadSpeed}" Opacity="0.65" IsVisible="{Binding Row.IsTorrent}" />
+            <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding Row.UploadSpeedText}" IsVisible="{Binding Row.IsTorrent}" />
+            <TextBlock Grid.Row="12" Text="{x:Static res:Strings.DetailsUploaded}" Opacity="0.65" IsVisible="{Binding Row.IsTorrent}" />
+            <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding Row.UploadedText}" IsVisible="{Binding Row.IsTorrent}" />
           </Grid>
         </ScrollViewer>
       </TabItem>

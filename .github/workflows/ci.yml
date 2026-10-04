@@ -27,6 +27,8 @@ jobs:
           node-version: 24
       - name: Script tests
         run: node --test scripts/version.test.mjs scripts/release.test.mjs
+      - name: Check generated capture catalog
+        run: node scripts/generate-capture-policy.mjs --check
       - name: Validate every introduced commit
         env:
           EVENT: ${{ github.event_name }}

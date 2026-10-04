@@ -148,6 +148,8 @@ public static partial class IpcProtocol
                     WriteOptional(json, "contentDisposition", context.ContentDisposition);
                     if (context.ResponseStatus is { } responseStatus) json.WriteNumber("responseStatus", responseStatus);
                     json.WriteString("requestMethod", context.RequestMethod);
+                    WriteOptional(json, "captureAction", add.CaptureAction);
+                    json.WriteBoolean("privateWindow", add.PrivateWindow);
                     json.WriteStartObject("headers");
                     foreach (var (name, value) in context.Headers)
                     {
@@ -223,7 +225,7 @@ public static partial class IpcProtocol
             return new IpcResponse(ok.GetBoolean(), error, ReadCaptureConfig(root),
                 OptionalString(root, "state", 32), OptionalString(root, "captureId", 64),
                 root.TryGetProperty("protocolVersion", out var version) ? version.GetInt32() : null,
-                OptionalString(root, "appVersion", 128), root.TryGetProperty("capabilities", out _) ? ReadStringArray(root, "capabilities", 32, 64) : null);
+                OptionalString(root, "appVersion", 128), root.TryGetProperty("capabilities", out _) ? ReadStringArray(root, "capabilities", 32, 64) : null, OptionalString(root, "decisionReason", 32));
         }
         catch (JsonException ex)
         {
@@ -325,7 +327,7 @@ public static partial class IpcProtocol
             OptionalBool(root, "enabled") ?? true, ReadStringArray(root, "excludedSites", 256, 253),
             OptionalBool(root, "capturePrivate") ?? false, OptionalString(root, "bypassModifier", 16) ?? "none",
             OptionalString(root, "theme", 16) ?? "system", OptionalString(root, "accent", 32) ?? "#C42B1C",
-            Settings.BackgroundPalettes.Normalize(root.TryGetProperty("palette", out var palette) && palette.ValueKind == JsonValueKind.String ? palette.GetString() : null));
+            Settings.BackgroundPalettes.Normalize(root.TryGetProperty("palette", out var palette) && palette.ValueKind == JsonValueKind.String ? palette.GetString() : null), ReadCapturePolicy(root), ReadExclusionRules(root));
     }
 
     private static bool TryParseActivate(JsonElement root, out IpcRequest? request, out string? error)
@@ -410,7 +412,9 @@ public static partial class IpcProtocol
             RequestMethod = ReadRequestMethod(root),
         };
 
-        request = new AddRequest(uri.AbsoluteUri, finalUri?.AbsoluteUri, context);
+        var action = OptionalString(root, "captureAction", 16);
+        if (action is not (null or "capture" or "ask")) throw new FieldException("Invalid capture action.");
+        request = new AddRequest(uri.AbsoluteUri, finalUri?.AbsoluteUri, context, action, OptionalBool(root, "privateWindow") ?? false);
         error = null;
         return true;
     }

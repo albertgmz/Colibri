@@ -82,6 +82,7 @@ public static class PlatformServiceCollectionExtensions
         }
 
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<Colibri.Core.Network.INetworkInterfaceService, Colibri.Platform.Network.NetworkInterfaceService>();
         services.AddSingleton<IReleaseUpdateService>(sp =>
         {
             var kind = UpdatePackageKind.None;

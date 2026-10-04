@@ -599,4 +599,112 @@
   <data name="UpdateInstallerInstructions" xml:space="preserve"><value>Exit and install closes Colibri and opens setup after this process exits. Setup refuses to replace files while an installed download process is still running. Your settings and downloads are preserved.</value></data>
   <data name="UpdatePortableInstructions" xml:space="preserve"><value>Close Colibri, extract the verified ZIP into a new folder, and run the new version. Settings and download history remain in your user data folder.</value></data>
   <data name="UpdateOtherPlatforms" xml:space="preserve"><value>Release checks are available here. Automatic package installation currently supports Windows only.</value></data>
+  <data name="QueuesTitle" xml:space="preserve"><value>Queues</value></data>
+  <data name="QueueName" xml:space="preserve"><value>Name</value></data>
+  <data name="QueueConcurrency" xml:space="preserve"><value>Simultaneous downloads</value></data>
+  <data name="QueueCreate" xml:space="preserve"><value>Create queue</value></data>
+  <data name="QueueSave" xml:space="preserve"><value>Save queue</value></data>
+  <data name="QueueDelete" xml:space="preserve"><value>Delete empty queue</value></data>
+  <data name="QueueStart" xml:space="preserve"><value>Start queue</value></data>
+  <data name="QueueStop" xml:space="preserve"><value>Stop queue</value></data>
+  <data name="QueueSchedule" xml:space="preserve"><value>Schedule</value></data>
+  <data name="QueueScheduleNone" xml:space="preserve"><value>No schedule</value></data>
+  <data name="QueueScheduleOnce" xml:space="preserve"><value>One time</value></data>
+  <data name="QueueScheduleWeekly" xml:space="preserve"><value>Weekly</value></data>
+  <data name="QueueStartAt" xml:space="preserve"><value>Start (ISO date and time with offset)</value></data>
+  <data name="QueueStopAt" xml:space="preserve"><value>Stop (ISO date and time with offset)</value></data>
+  <data name="QueueTimeZone" xml:space="preserve"><value>Time zone</value></data>
+  <data name="QueueStartTime" xml:space="preserve"><value>Start time (HH:mm)</value></data>
+  <data name="QueueStopTime" xml:space="preserve"><value>Stop time (HH:mm)</value></data>
+  <data name="QueueDays" xml:space="preserve"><value>Days (Sunday=0 through Saturday=6, comma separated)</value></data>
+  <data name="QueueScheduleHelp" xml:space="preserve"><value>Schedules apply while Colibri is running and recover the latest start or stop after restart. Queue starts leave manually paused downloads paused.</value></data>
+  <data name="QueueStatusRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="QueueStatusStopped" xml:space="preserve"><value>Stopped</value></data>
+  <data name="NetworkTitle" xml:space="preserve"><value>Network</value></data>
+  <data name="NetworkInterface" xml:space="preserve"><value>Required network adapter</value></data>
+  <data name="NetworkSystemRoute" xml:space="preserve"><value>System route</value></data>
+  <data name="NetworkInterfaceLimit" xml:space="preserve"><value>Strict adapter isolation is unavailable on this platform. Selecting an adapter rejects transfers instead of using another route. HTTP proxies are supported; HTTPS and SOCKS proxy transports are unavailable in aria2.</value></data>
+  <data name="NetworkProxy" xml:space="preserve"><value>Proxy endpoint (http://host:port)</value></data>
+  <data name="NetworkUser" xml:space="preserve"><value>Proxy username</value></data>
+  <data name="NetworkPassword" xml:space="preserve"><value>Proxy password</value></data>
+  <data name="NetworkSave" xml:space="preserve"><value>Apply network settings</value></data>
+  <data name="NetworkSaved" xml:space="preserve"><value>Network settings saved. Existing downloads retain their own network settings.</value></data>
+  <data name="NetworkInvalid" xml:space="preserve"><value>Enter a valid proxy endpoint and credentials. Credentials in URLs are not accepted.</value></data>
+  <data name="NetworkDownloadSaved" xml:space="preserve"><value>Network settings saved for this download. Resume it when ready.</value></data>
+  <data name="BulkDestination" xml:space="preserve"><value>Destination</value></data>
+  <data name="BulkRefreshHelp" xml:space="preserve"><value>For expired authenticated links, cancel this offer and select those links again in the browser. Colibri cannot recreate a browser request from an expired URL.</value></data>
+  <data name="CaptureActionCapture" xml:space="preserve"><value>Capture</value></data>
+  <data name="CaptureActionAsk" xml:space="preserve"><value>Ask</value></data>
+  <data name="CaptureActionBrowser" xml:space="preserve"><value>Keep in browser</value></data>
+  <data name="CaptureEnabled" xml:space="preserve"><value>Enable browser capture</value></data>
+  <data name="CapturePrivate" xml:space="preserve"><value>Allow downloads from private windows</value></data>
+  <data name="CapturePrecedence" xml:space="preserve"><value>Safety and exclusions take precedence, then minimum size, extension overrides, and category. Unknown types ask. Capture starts a transfer; Ask opens a confirmation.</value></data>
+  <data name="CaptureOverrides" xml:space="preserve"><value>Extension overrides</value></data>
+  <data name="CaptureOverridesHelp" xml:space="preserve"><value>Comma-separated entries: zip=capture, pdf=ask, apk=browser. Changing a category clears its known extension overrides.</value></data>
+  <data name="CaptureExclusions" xml:space="preserve"><value>Exclusion rules</value></data>
+  <data name="CaptureExclusionsHelp" xml:space="preserve"><value>One per line: host:example.com (exact host), domain:example.com (host and subdomains), path:example.com/files (exact host and path subtree), type:pdf (all hosts). Exclusions always keep downloads in the browser. Queries and wildcards are unsupported.</value></data>
+  <data name="CapturePolicyInvalid" xml:space="preserve"><value>Use extension=capture, extension=ask or extension=browser (maximum 256).</value></data>
+  <data name="CaptureExclusionInvalid" xml:space="preserve"><value>Enter a valid host:, domain:, path: or type: rule (maximum 256).</value></data>
+  <data name="BulkReassociate" xml:space="preserve"><value>Refresh selected in browser</value></data>
+  <data name="CaptureReasonSafety" xml:space="preserve"><value>Last decision: kept in browser by an exclusion or request safety restriction.</value></data>
+  <data name="CaptureReasonMinimum" xml:space="preserve"><value>Last decision: kept in browser because it is below the minimum size.</value></data>
+  <data name="CaptureReasonDisabled" xml:space="preserve"><value>Last decision: browser capture is disabled.</value></data>
+  <data name="CaptureReasonPreference" xml:space="preserve"><value>Last decision: followed the extension or category preference.</value></data>
+  <data name="CaptureReasonNone" xml:space="preserve"><value>Capture decisions retain only a reason, never a URL or request credentials.</value></data>
+  <data name="QueueMove" xml:space="preserve"><value>Move to queue</value></data>
+  <data name="SettingsMagnetClipboard" xml:space="preserve"><value>Recognize magnet links when pasting</value></data>
+  <data name="SettingsMagnetClipboardHelp" xml:space="preserve"><value>Off by default. Paste or Add opens a preview; fetching metadata and downloading require your confirmation. Colibri does not monitor your clipboard.</value></data>
+  <data name="CommandImportTorrent" xml:space="preserve"><value>Import torrent</value></data>
+  <data name="CommandMedia" xml:space="preserve"><value>Media</value></data>
+  <data name="SettingsMediaEnabled" xml:space="preserve"><value>Enable optional media helpers</value></data>
+  <data name="SettingsMediaHelp" xml:space="preserve"><value>Configure trusted native tools yourself. Direct media downloads work without these tools. Some sites and protected streams are unsupported.</value></data>
+  <data name="SettingsYtDlpPath" xml:space="preserve"><value>Absolute path to yt-dlp</value></data>
+  <data name="SettingsFfmpegPath" xml:space="preserve"><value>Absolute path to FFmpeg (optional)</value></data>
+  <data name="SettingsYtDlpLicensePath" xml:space="preserve"><value>yt-dlp license file (or adjacent LICENSE/COPYING)</value></data>
+  <data name="CommandEditTorrent" xml:space="preserve"><value>Torrent files and seeding</value></data>
+  <data name="CommandStopSeeding" xml:space="preserve"><value>Stop seeding</value></data>
+  <data name="TorrentTitle" xml:space="preserve"><value>Torrent</value></data>
+  <data name="TorrentImport" xml:space="preserve"><value>Import torrent</value></data>
+  <data name="TorrentFetchMetadata" xml:space="preserve"><value>Fetch metadata</value></data>
+  <data name="TorrentMetadataHelp" xml:space="preserve"><value>Fetching metadata contacts torrent peers but does not download selected file content. Confirm the file selection to begin downloading.</value></data>
+  <data name="TorrentDestination" xml:space="preserve"><value>Destination folder</value></data>
+  <data name="TorrentBrowse" xml:space="preserve"><value>Browse...</value></data>
+  <data name="TorrentFiles" xml:space="preserve"><value>Files to download</value></data>
+  <data name="TorrentSelectedSize" xml:space="preserve"><value>Selected size</value></data>
+  <data name="TorrentSeedEnabled" xml:space="preserve"><value>Seed after the download finishes</value></data>
+  <data name="TorrentSeedHelp" xml:space="preserve"><value>Torrent peers may receive uploaded pieces while downloading. Turning off seeding stops sharing after content completes; it does not disable protocol uploads during the download.</value></data>
+  <data name="TorrentSeedRatio" xml:space="preserve"><value>Stop at upload ratio</value></data>
+  <data name="TorrentSeedMinutes" xml:space="preserve"><value>Maximum seeding minutes</value></data>
+  <data name="TorrentUploadLimit" xml:space="preserve"><value>Upload limit (KiB/s)</value></data>
+  <data name="TorrentConfirm" xml:space="preserve"><value>Download selected files</value></data>
+  <data name="TorrentApply" xml:space="preserve"><value>Save selection and pause</value></data>
+  <data name="TorrentCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="TorrentStopSeeding" xml:space="preserve"><value>Stop seeding</value></data>
+  <data name="TorrentUploaded" xml:space="preserve"><value>Uploaded</value></data>
+  <data name="TorrentUploadSpeed" xml:space="preserve"><value>Upload speed</value></data>
+  <data name="TorrentSeeding" xml:space="preserve"><value>Seeding</value></data>
+  <data name="TorrentNotSeeding" xml:space="preserve"><value>Not seeding</value></data>
+  <data name="TorrentInvalid" xml:space="preserve"><value>The torrent operation could not be completed. Check the source, selection, destination and network policy.</value></data>
+  <data name="TorrentChooseFiles" xml:space="preserve"><value>Select at least one file.</value></data>
+  <data name="TorrentPrivate" xml:space="preserve"><value>Private torrent</value></data>
+  <data name="TorrentSelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="TorrentSelectNone" xml:space="preserve"><value>Select none</value></data>
+  <data name="TorrentSource" xml:space="preserve"><value>Torrent source (.torrent files up to 2 MiB)</value></data>
+  <data name="TorrentMetadataReady" xml:space="preserve"><value>Metadata ready. Content starts only after confirmation.</value></data>
+  <data name="TorrentPausedSaved" xml:space="preserve"><value>Selection saved. Resume the download when ready.</value></data>
+  <data name="StateSeeding" xml:space="preserve"><value>Seeding</value></data>
+  <data name="DetailsUploadSpeed" xml:space="preserve"><value>Upload speed</value></data>
+  <data name="DetailsUploaded" xml:space="preserve"><value>Uploaded</value></data>
+  <data name="MediaTitle" xml:space="preserve"><value>Optional media tools</value></data>
+  <data name="MediaHelp" xml:space="preserve"><value>Inspect a public media URL, choose a video or audio format, then preview the output and queue. Direct files work without these tools. Protected streams, authenticated extraction, live media and unsupported network policies are refused.</value></data>
+  <data name="MediaUrl" xml:space="preserve"><value>Media page or manifest URL</value></data>
+  <data name="MediaInspect" xml:space="preserve"><value>Inspect formats</value></data>
+  <data name="MediaFormat" xml:space="preserve"><value>Video or audio format and quality</value></data>
+  <data name="MediaAudio" xml:space="preserve"><value>Audio track to mux into MKV</value></data>
+  <data name="MediaFileName" xml:space="preserve"><value>Output name</value></data>
+  <data name="MediaDownload" xml:space="preserve"><value>Add selected media</value></data>
+  <data name="MediaInvalidUrl" xml:space="preserve"><value>Enter a valid HTTP or HTTPS media URL.</value></data>
+  <data name="MediaCancelled" xml:space="preserve"><value>Media inspection or submission was cancelled.</value></data>
+  <data name="MediaOperationFailed" xml:space="preserve"><value>The media operation could not be completed. Check enabled tools, absolute executable paths, license file, source, selected formats and network policy. Authenticated/custom-header requests, encrypted streams and unsupported manifests are refused.</value></data>
+  <data name="TorrentV1Only" xml:space="preserve"><value>Only BitTorrent v1 torrent files are supported. BitTorrent v2 metadata was not imported.</value></data>
 </root>

@@ -7,9 +7,68 @@
       "description": "Optional app-owned appearance fields on a successful config/hello/settings-update reply; absent or unknown palette falls back to warm.",
       "type": "object",
       "properties": {
-        "theme": { "enum": ["system", "light", "dark"] },
-        "accent": { "type": "string", "pattern": "^#[a-fA-F0-9]{6}$" },
-        "palette": { "enum": ["warm", "graphite", "ocean", "forest"] }
+        "theme": {
+          "enum": [
+            "system",
+            "light",
+            "dark"
+          ]
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "palette": {
+          "enum": [
+            "warm",
+            "graphite",
+            "ocean",
+            "forest"
+          ]
+        },
+        "capturePolicy": {
+          "$ref": "#/$defs/capturePolicy"
+        },
+        "exclusionRules": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "capturePolicy": {
+      "type": "object",
+      "required": [
+        "categories",
+        "extensions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "categories": {
+          "type": "object",
+          "maxProperties": 256,
+          "additionalProperties": {
+            "enum": [
+              "capture",
+              "ask",
+              "browser"
+            ]
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "maxProperties": 256,
+          "additionalProperties": {
+            "enum": [
+              "capture",
+              "ask",
+              "browser"
+            ]
+          }
+        }
       }
     }
   },
@@ -227,6 +286,15 @@
           }
         }
       }
+    },
+    "captureAction": {
+      "enum": [
+        "capture",
+        "ask"
+      ]
+    },
+    "privateWindow": {
+      "type": "boolean"
     }
   },
   "allOf": [

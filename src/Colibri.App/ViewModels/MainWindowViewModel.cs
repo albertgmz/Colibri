@@ -43,6 +43,8 @@ public partial class MainWindowViewModel : ObservableObject
     private List<Guid> _pendingDelete = [];
     private bool _loaded;
     private readonly IVolumeInfoService? _volumes;
+    private readonly Colibri.Core.Network.INetworkInterfaceService? _networkInterfaces;
+    private readonly Colibri.Core.Media.IMediaHelper? _mediaHelper;
     private DateTimeOffset _nextVolumeCheck;
 
     [ObservableProperty]
@@ -142,7 +144,9 @@ public partial class MainWindowViewModel : ObservableObject
         AppSettings settings,
         ISettingsStore settingsStore,
         ILogger<MainWindowViewModel> logger,
-        IVolumeInfoService? volumes = null)
+        IVolumeInfoService? volumes = null,
+        Colibri.Core.Network.INetworkInterfaceService? networkInterfaces = null,
+        Colibri.Core.Media.IMediaHelper? mediaHelper = null)
     {
         _manager = manager;
         _shell = shell;
@@ -151,6 +155,8 @@ public partial class MainWindowViewModel : ObservableObject
         _settingsStore = settingsStore;
         _logger = logger;
         _volumes = volumes;
+        _networkInterfaces = networkInterfaces;
+        _mediaHelper = mediaHelper;
         SettingsPage = settingsPage;
         _isDetailsVisible = settings.ShowDetailsPane;
         _trayToolTipText = Strings.AppName;
@@ -184,17 +190,42 @@ public partial class MainWindowViewModel : ObservableObject
         _manager.ItemRemoved += (_, id) => Dispatcher.UIThread.Post(() => Remove(id));
         _manager.GlobalStatsChanged += (_, stats) => Dispatcher.UIThread.Post(() => ShowStats(stats));
         _manager.EngineStateChanged += (_, state) => Dispatcher.UIThread.Post(() => ShowEngineState(state));
+        _manager.QueuesChanged += (_, queues) => Dispatcher.UIThread.Post(() => RefreshQueueNavigation(queues));
 
         static NavItemViewModel Category(string label, DownloadCategory category) =>
             new(label, "IconCategory" + category, NavFilter.Category, category);
     }
 
-    public IReadOnlyList<NavItemViewModel> NavItems { get; }
+    public ObservableCollection<NavItemViewModel> NavItems { get; }
+    public ObservableCollection<QueueDestinationViewModel> QueueDestinations { get; } = [];
+    private void RefreshQueueNavigation(IReadOnlyList<Colibri.Core.Queues.DownloadQueue> queues)
+    {
+        var selectedQueue = SelectedNav.Filter == NavFilter.Queue ? SelectedNav.QueueId : null;
+        foreach (var row in NavItems.Where(n => n.Filter == NavFilter.Queue || n.Label == Strings.QueuesTitle && n.IsHeader).ToArray()) NavItems.Remove(row);
+        NavItems.Add(new(Strings.QueuesTitle, "", NavFilter.Header));
+        QueueDestinations.Clear();
+        foreach (var queue in queues)
+        {
+            NavItems.Add(new(queue.Name, "IconNavAll", NavFilter.Queue, queueId: queue.Id));
+            QueueDestinations.Add(new(queue.Name, new AsyncRelayCommand(() =>
+                _manager.MoveToQueueAsync(_selectedItems.Select(i => i.Id).ToArray(), queue.Id, CancellationToken.None))));
+        }
+        if (selectedQueue is not null) SelectedNav = NavItems.FirstOrDefault(n => n.QueueId == selectedQueue) ?? NavItems[0];
+        UpdateCounts();
+    }
 
     /// <summary>The rows the table shows (filtered and sorted).</summary>
     public DataGridCollectionView Downloads { get; }
 
     public SettingsViewModel SettingsPage { get; }
+    [RelayCommand]
+    private async Task EditDownloadNetworkAsync()
+    {
+        if (_selectedItems.Count != 1 || _networkInterfaces is null) return;
+        var editor = new NetworkSettingsViewModel(_settings, _settingsStore, _networkInterfaces, _manager);
+        await editor.LoadAsync(_selectedItems[0].Id);
+        _dialogs.ShowNetworkSettings(editor);
+    }
 
     /// <summary>Every row, whatever the filter.</summary>
     public IReadOnlyList<DownloadItemViewModel> AllItems => _items;
@@ -219,6 +250,7 @@ public partial class MainWindowViewModel : ObservableObject
             // Off the UI thread: starting aria2 and reading the database take a moment.
             await Task.Run(() => _manager.InitializeAsync(CancellationToken.None));
             AddOrUpdate(await _manager.GetItemsAsync(CancellationToken.None), added: true);
+            RefreshQueueNavigation(await _manager.GetQueuesAsync(CancellationToken.None));
 
             // Only after a successful load: "no downloads yet" would be wrong when they could not be read.
             _loaded = true;
@@ -253,13 +285,28 @@ public partial class MainWindowViewModel : ObservableObject
         return RunSafeAsync(() => _settingsStore.SaveAsync(_settings, CancellationToken.None), "save the layout");
     }
 
-    public AddUrlViewModel CreateAddUrl(LinkContext context, string? url) => new(_manager, context, url, _logger);
+    public AddUrlViewModel CreateAddUrl(LinkContext context, string? url)
+    {
+        var view = new AddUrlViewModel(_manager, context, url, _logger);
+        _ = view.LoadQueuesAsync();
+        return view;
+    }
 
-    public BulkAddViewModel CreateBulkAdd(IReadOnlyList<Colibri.Core.Ipc.AddRequest> links, CaptureSession capture) => new(_manager, links, capture);
+    public BulkAddViewModel CreateBulkAdd(IReadOnlyList<Colibri.Core.Ipc.AddRequest> links, CaptureSession capture)
+    {
+        var view = new BulkAddViewModel(_manager, links, capture, _shell);
+        _ = view.LoadQueuesAsync();
+        return view;
+    }
 
     public bool ShowAddUrlForText(string? text)
     {
         var url = text?.Trim();
+        if (_settings.EnableMagnetClipboard && url?.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _ = ShowTorrentSourceAsync(url);
+            return true;
+        }
         if (!UrlPolicy.TryValidate(url, out _, out string? _)) return false;
         _dialogs.ShowAddUrl(CreateAddUrl(LinkContext.Empty, url));
         return true;
@@ -291,6 +338,11 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var text = (await _dialogs.ReadClipboardTextAsync())?.Trim();
+            if (_settings.EnableMagnetClipboard && text?.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                await ShowTorrentSourceAsync(text);
+                return;
+            }
             if (UrlPolicy.TryValidate(text, out _, out string? _))
             {
                 url = text;

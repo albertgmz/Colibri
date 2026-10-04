@@ -18,11 +18,11 @@ namespace Colibri.App.Services;
 /// </remarks>
 public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCredentialRepository
 {
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 5;
 
     private const string Columns =
         "id, url, final_url, file_name, save_folder, category, state, total_bytes, completed_bytes, download_speed, " +
-        "connections, engine_id, engine_handle, referrer, user_agent, headers, added_at, completed_at, error_message, speed_limit, connection_limit, protected_headers";
+        "connections, engine_id, engine_handle, referrer, user_agent, headers, added_at, completed_at, error_message, speed_limit, connection_limit, protected_headers, queue_id, queue_held, protected_network, protected_torrent, media_selection, uploaded_bytes, seed_started_at";
 
     private readonly string _connectionString;
     private readonly ICredentialProtector _credentialProtector;
@@ -68,7 +68,7 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
                 INSERT INTO downloads ({Columns})
                 VALUES ($id, $url, $final_url, $file_name, $save_folder, $category, $state, $total_bytes, $completed_bytes,
                         $download_speed, $connections, $engine_id, $engine_handle, $referrer, $user_agent, $headers,
-                        $added_at, $completed_at, $error_message, $speed_limit, $connection_limit, $protected_headers)
+                        $added_at, $completed_at, $error_message, $speed_limit, $connection_limit, $protected_headers, $queue_id, $queue_held, $protected_network, $protected_torrent, $media_selection, $uploaded_bytes, $seed_started_at)
                 """;
             Bind(command, item);
             return command.ExecuteNonQuery();
@@ -85,7 +85,10 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
                     download_speed = $download_speed, connections = $connections, engine_id = $engine_id,
                     engine_handle = $engine_handle, referrer = $referrer, user_agent = $user_agent, headers = $headers,
                     added_at = $added_at, completed_at = $completed_at, error_message = $error_message,
-                    speed_limit = $speed_limit, connection_limit = $connection_limit, protected_headers = $protected_headers
+                    speed_limit = $speed_limit, connection_limit = $connection_limit, protected_headers = $protected_headers,
+                    queue_id = $queue_id, queue_held = $queue_held, protected_network = $protected_network,
+                    protected_torrent = $protected_torrent, media_selection = $media_selection,
+                    uploaded_bytes = $uploaded_bytes, seed_started_at = $seed_started_at
                 WHERE id = $id
                 """;
             Bind(command, item);
@@ -104,10 +107,26 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
     public Task ClearCredentialsAsync(Guid downloadId, CancellationToken ct) =>
         RunAsync(connection =>
         {
+            using var transaction = connection.BeginTransaction();
+            Colibri.Core.Network.DownloadNetworkPolicy policy;
+            using (var read = connection.CreateCommand())
+            {
+                read.Transaction = transaction;
+                read.CommandText = "SELECT protected_network FROM downloads WHERE id = $id";
+                read.Parameters.AddWithValue("$id", downloadId.ToString());
+                var payload = read.ExecuteScalar();
+                policy = payload is byte[] bytes
+                    ? NetworkCredentialStorage.Unprotect(bytes, downloadId, _credentialProtector) : new();
+            }
             using var command = connection.CreateCommand();
-            command.CommandText = "UPDATE downloads SET headers = '{}', protected_headers = NULL WHERE id = $id";
+            command.Transaction = transaction;
+            command.CommandText = "UPDATE downloads SET headers = '{}', protected_headers = NULL, protected_network = $network WHERE id = $id";
             command.Parameters.AddWithValue("$id", downloadId.ToString());
-            return command.ExecuteNonQuery();
+            command.Parameters.AddWithValue("$network", NetworkCredentialStorage.Protect(
+                NetworkCredentialStorage.WithoutCredentials(policy), downloadId, _credentialProtector));
+            var changed = command.ExecuteNonQuery();
+            transaction.Commit();
+            return changed;
         }, ct);
 
     private async Task<T> RunAsync<T>(Func<SqliteConnection, T> work, CancellationToken ct)
@@ -228,6 +247,21 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
                 }
                 Execute(connection, "PRAGMA user_version = 3", transaction);
             }
+            if (version < 4)
+            {
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN queue_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN queue_held INTEGER NOT NULL DEFAULT 0", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN protected_network BLOB", transaction);
+                Execute(connection, "PRAGMA user_version = 4", transaction);
+            }
+            if (version < 5)
+            {
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN protected_torrent BLOB", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN media_selection TEXT", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN uploaded_bytes INTEGER NOT NULL DEFAULT 0", transaction);
+                Execute(connection, "ALTER TABLE downloads ADD COLUMN seed_started_at TEXT", transaction);
+                Execute(connection, "PRAGMA user_version = 5", transaction);
+            }
             transaction.Commit();
         }
 
@@ -290,6 +324,14 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
         p.AddWithValue("$error_message", (object?)item.ErrorMessage ?? DBNull.Value);
         p.AddWithValue("$speed_limit", (object?)item.TransferOptions?.SpeedLimitBytesPerSecond ?? DBNull.Value);
         p.AddWithValue("$connection_limit", (object?)item.TransferOptions?.ConnectionsPerServer ?? DBNull.Value);
+        p.AddWithValue("$queue_id", item.QueueId.ToString());
+        p.AddWithValue("$queue_held", item.QueueHeld ? 1 : 0);
+        p.AddWithValue("$protected_network", ProtectNetwork(item.State == DownloadState.Completed
+            ? NetworkCredentialStorage.WithoutCredentials(item.NetworkPolicy) : item.NetworkPolicy, item.Id));
+        p.AddWithValue("$protected_torrent", (object?)ProtectTorrent(item.Torrent, item.Id) ?? DBNull.Value);
+        p.AddWithValue("$uploaded_bytes", item.UploadedBytes);
+        p.AddWithValue("$seed_started_at", (object?)item.SeedStartedAt?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
+        p.AddWithValue("$media_selection", (object?)(item.MediaSelection is null ? null : JsonSerializer.Serialize(item.MediaSelection)) ?? DBNull.Value);
     }
 
     private DownloadItem Read(SqliteDataReader r) => new()
@@ -314,7 +356,50 @@ public sealed class SqliteDownloadRepository : IDownloadRepository, IDownloadCre
         CompletedAt = r.IsDBNull(17) ? null : ParseDate(r.GetString(17)),
         ErrorMessage = NullableString(r, 18),
         TransferOptions = r.IsDBNull(19) || r.IsDBNull(20) ? null : new(r.GetInt64(19), r.GetInt32(20)),
+        QueueId = Guid.Parse(r.GetString(22)),
+        QueueHeld = r.GetInt32(23) != 0,
+        NetworkPolicy = ReadNetwork(r),
+        Torrent = ReadTorrent(r),
+        MediaSelection = r.IsDBNull(26) ? null : JsonSerializer.Deserialize<Colibri.Core.Media.MediaSelection>(r.GetString(26)),
+        UploadedBytes = r.GetInt64(27),
+        SeedStartedAt = r.IsDBNull(28) ? null : ParseDate(r.GetString(28)),
     };
+
+    private byte[]? ProtectTorrent(Colibri.Core.Torrents.TorrentDownload? torrent, Guid id)
+    {
+        if (torrent is null) return null;
+        var plaintext = JsonSerializer.SerializeToUtf8Bytes(torrent);
+        try { return _credentialProtector.Protect(plaintext, id); }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
+    }
+
+    private Colibri.Core.Torrents.TorrentDownload? ReadTorrent(SqliteDataReader reader)
+    {
+        if (reader.IsDBNull(25)) return null;
+        var plaintext = _credentialProtector.Unprotect((byte[])reader[25], Guid.Parse(reader.GetString(0)));
+        try
+        {
+            var torrent = JsonSerializer.Deserialize<Colibri.Core.Torrents.TorrentDownload>(plaintext)
+                ?? throw new CredentialProtectionException();
+            var parsed = Colibri.Core.Torrents.TorrentMetainfo.Parse(torrent.Metainfo);
+            _ = Colibri.Core.Torrents.TorrentMetainfo.ValidateSelection(parsed.Metadata, torrent.SelectedFileIndices);
+            torrent.SeedOptions.Validate();
+            return torrent;
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidDataException or FormatException)
+        { throw new CredentialProtectionException(); }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
+    }
+
+    private byte[] ProtectNetwork(Colibri.Core.Network.DownloadNetworkPolicy? policy, Guid id) =>
+        NetworkCredentialStorage.Protect(policy, id, _credentialProtector);
+
+    private Colibri.Core.Network.DownloadNetworkPolicy? ReadNetwork(SqliteDataReader reader)
+    {
+        // Legacy rows used the system route; never inherit newly configured default credentials.
+        if (reader.IsDBNull(24)) return new();
+        return NetworkCredentialStorage.Unprotect((byte[])reader[24], Guid.Parse(reader.GetString(0)), _credentialProtector);
+    }
 
     private byte[]? ProtectHeaders(Dictionary<string, string> headers, Guid id)
     {

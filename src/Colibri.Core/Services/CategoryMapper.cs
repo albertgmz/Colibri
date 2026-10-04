@@ -45,24 +45,13 @@ public static class CategoryMapper
     {
         var table = new Dictionary<string, DownloadCategory>(StringComparer.OrdinalIgnoreCase);
 
-        void Add(DownloadCategory category, params string[] extensions)
+        foreach (var category in CaptureCatalog.Categories)
         {
-            foreach (var extension in extensions)
+            foreach (var extension in category.Extensions)
             {
-                table[extension] = category;
+                table.Add(extension, category.Category);
             }
         }
-
-        Add(DownloadCategory.Compressed,
-            "zip", "rar", "7z", "gz", "bz2", "xz", "tar", "tgz", "tbz2", "txz", "zst", "lz", "lzma", "cab", "iso");
-        Add(DownloadCategory.Documents,
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "txt", "rtf", "epub", "mobi", "csv", "md");
-        Add(DownloadCategory.Music,
-            "mp3", "flac", "wav", "aac", "ogg", "oga", "m4a", "opus", "wma", "aiff", "alac", "mid", "midi");
-        Add(DownloadCategory.Programs,
-            "exe", "msi", "msix", "msixbundle", "appx", "dmg", "pkg", "deb", "rpm", "appimage", "apk", "flatpak", "snap", "run");
-        Add(DownloadCategory.Video,
-            "mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v", "mpg", "mpeg", "ts", "3gp", "ogv", "vob");
 
         return table;
     }

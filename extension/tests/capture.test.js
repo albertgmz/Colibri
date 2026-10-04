@@ -182,8 +182,9 @@ test('stored rules fall back to the defaults', () => {
 test('default rules are the defaults of Colibri settings', () => {
   // AppSettings.BrowserCaptureExtensions in Colibri.Core: the same list, in the same order.
   const source = readFileSync(new URL('../../src/Colibri.Core/Settings/AppSettings.cs', import.meta.url), 'utf8');
-  const list = source.match(/BrowserCaptureExtensions \{ get; set; \} =\s*\[([^\]]*)\]/)[1];
-  assert.deepEqual([...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]), [...DEFAULT_RULES.extensions]);
+  const policy = JSON.parse(readFileSync(new URL('../../docs/capture-policy.json', import.meta.url), 'utf8'));
+  assert.match(source, /BrowserCaptureExtensions \{ get; set; \} = \[\.\. CaptureCatalog.LegacyCaptureExtensions\]/);
+  assert.deepEqual(policy.legacyCaptureExtensions, [...DEFAULT_RULES.extensions]);
   assert.match(source, /BrowserCaptureMinSizeKiB \{ get; set; \}\s*\n/);
 });
 

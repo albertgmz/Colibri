@@ -82,4 +82,8 @@ public interface IDownloadEngine
 
     Task ApplyDownloadOptionsAsync(string handle, DownloadTransferOptions options, CancellationToken ct) =>
         throw new EngineOperationException("This engine does not support per-download options.");
+
+    /// <summary>Pauses the transfer and changes its network policy. The caller persists it before resuming.</summary>
+    Task ApplyNetworkPolicyAsync(string handle, Colibri.Core.Network.DownloadNetworkPolicy? policy, CancellationToken ct) =>
+        throw new EngineOperationException("This engine does not support per-download network policies.");
 }

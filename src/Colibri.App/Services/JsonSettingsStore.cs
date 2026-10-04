@@ -1,13 +1,16 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Colibri.Core.Settings;
+using Colibri.Core.Network;
+using Colibri.Core.Platform;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 
 namespace Colibri.App.Services;
 
 /// <summary>
-/// Keeps <see cref="AppSettings"/> in an indented JSON file. A missing or unreadable file gives the
-/// defaults (and a warning in the log) instead of an error.
+/// Keeps settings in JSON. Missing files use defaults; unreadable existing files block startup
+/// so a stored network policy cannot silently become an unrestricted route.
 /// </summary>
 public sealed class JsonSettingsStore : ISettingsStore
 {
@@ -22,30 +25,38 @@ public sealed class JsonSettingsStore : ISettingsStore
     private readonly string _path;
     private readonly ILogger<JsonSettingsStore> _logger;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
+    private readonly ICredentialProtector? _credentialProtector;
+    private static readonly Guid NetworkSettingsId = new("3f8adb19-26f5-4a73-b878-1132d252ac42");
 
-    public JsonSettingsStore(string path, ILogger<JsonSettingsStore> logger)
+    public JsonSettingsStore(string path, ILogger<JsonSettingsStore> logger, ICredentialProtector? credentialProtector = null)
     {
         _path = path;
         _logger = logger;
+        _credentialProtector = credentialProtector;
     }
 
     public async Task<AppSettings> LoadAsync(CancellationToken ct)
     {
-        if (!File.Exists(_path))
-        {
-            return new AppSettings();
-        }
-
         try
         {
             await using var stream = File.OpenRead(_path);
-            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonOptions, ct);
-            return Normalize(settings ?? new AppSettings());
+            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonOptions, ct)
+                ?? throw new CredentialProtectionException();
+            if (settings.ProtectedDefaultNetworkPolicy is { } protectedPolicy)
+            {
+                byte[] ciphertext;
+                try { ciphertext = Convert.FromBase64String(protectedPolicy); }
+                catch (FormatException) { throw new CredentialProtectionException(); }
+                settings.DefaultNetworkPolicy = NetworkCredentialStorage.Unprotect(ciphertext, NetworkSettingsId, _credentialProtector);
+            }
+            return Normalize(settings);
         }
+        catch (FileNotFoundException) { return new AppSettings(); }
+        catch (DirectoryNotFoundException) { return new AppSettings(); }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            _logger.LogWarning(ex, "Could not read the settings file {Path}; using the defaults", _path);
-            return new AppSettings();
+            _logger.LogWarning("Could not safely read the settings file {Path}; network operations are blocked", _path);
+            throw new CredentialProtectionException();
         }
     }
 
@@ -54,6 +65,12 @@ public sealed class JsonSettingsStore : ISettingsStore
         await _saveLock.WaitAsync(ct);
         try
         {
+            if (settings.DefaultNetworkPolicy is { } network)
+            {
+                settings.ProtectedDefaultNetworkPolicy = Convert.ToBase64String(
+                    NetworkCredentialStorage.Protect(network, NetworkSettingsId, _credentialProtector));
+            }
+            else settings.ProtectedDefaultNetworkPolicy = null;
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
 
             // Write a temporary file next to the real one, then swap it in. A crash or full disk while
@@ -83,6 +100,10 @@ public sealed class JsonSettingsStore : ISettingsStore
         settings.Language = LanguagePreference.Normalize(settings.Language);
         settings.CategoryFolders ??= defaults.CategoryFolders;
         settings.BrowserCaptureExtensions ??= defaults.BrowserCaptureExtensions;
+        settings.BrowserExclusionRules ??= [];
+        settings.BrowserExcludedSites ??= [];
+        settings.BrowserCapturePolicy = Colibri.Core.Services.BrowserCaptureRules.Normalize(settings.BrowserCapturePolicy ?? Colibri.Core.Services.BrowserCaptureRules.Migrate(settings.BrowserCaptureExtensions));
+        settings.BrowserExclusionRules = settings.BrowserExclusionRules.Where(r => Colibri.Core.Services.BrowserCaptureRules.TryNormalizeRule(r, out _)).Take(256).Distinct().ToList();
         settings.DefaultDownloadFolder ??= defaults.DefaultDownloadFolder;
         settings.Aria2Path ??= defaults.Aria2Path;
         settings.Layout ??= new WindowLayout();

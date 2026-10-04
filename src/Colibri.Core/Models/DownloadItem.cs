@@ -22,6 +22,16 @@ public sealed class DownloadItem
 
     public DownloadState State { get; set; } = DownloadState.Queued;
 
+    public Guid QueueId { get; set; }
+    public bool QueueHeld { get; set; }
+    public Network.DownloadNetworkPolicy? NetworkPolicy { get; set; }
+    public Torrents.TorrentDownload? Torrent { get; set; }
+    public Media.MediaSelection? MediaSelection { get; set; }
+    public long UploadSpeed { get; set; }
+    public long UploadedBytes { get; set; }
+    public bool IsSeeding { get; set; }
+    public DateTimeOffset? SeedStartedAt { get; set; }
+
     /// <summary>Total size in bytes; null while unknown.</summary>
     public long? TotalBytes { get; set; }
 
@@ -72,6 +82,8 @@ public sealed class DownloadItem
     {
         var copy = (DownloadItem)MemberwiseClone();
         copy.Headers = HttpHeaders.Copy(Headers);
+        if (Torrent is { } torrent)
+            copy.Torrent = torrent with { Metainfo = torrent.Metainfo.ToArray(), SelectedFileIndices = torrent.SelectedFileIndices.ToArray() };
         return copy;
     }
 }

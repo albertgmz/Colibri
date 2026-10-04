@@ -29,6 +29,14 @@ public partial class AddUrlViewModel : ObservableObject
     private DownloadItem? _duplicate;
     private string? _duplicateApprovedUrl;
     private CaptureSession? _capture;
+    public System.Collections.ObjectModel.ObservableCollection<Colibri.Core.Queues.DownloadQueue> Queues { get; } = [];
+    [ObservableProperty] private Colibri.Core.Queues.DownloadQueue? _selectedQueue;
+    public async Task LoadQueuesAsync()
+    {
+        Queues.Clear();
+        foreach (var queue in await _manager.GetQueuesAsync(CancellationToken.None)) Queues.Add(queue);
+        SelectedQueue = Queues.FirstOrDefault(q => q.Id == Guid.Empty);
+    }
     public bool IsBrowserCapture => _capture is not null;
 
     public void AttachCapture(CaptureSession capture)
@@ -176,7 +184,7 @@ public partial class AddUrlViewModel : ObservableObject
             // The name and folder shown are only a preview of what the URL suggests; unless the user (or the
             // browser, for the name) chose them, the link resolvers decide (DECISIONS 52).
             var added = await _manager.AddAsync(
-                Url.Trim(), _context, _fileNameEdited ? FileName : null, _folderEdited ? SaveFolder : null, _capture?.Token ?? CancellationToken.None);
+                Url.Trim(), _context, _fileNameEdited ? FileName : null, _folderEdited ? SaveFolder : null, _capture?.Token ?? CancellationToken.None, SelectedQueue?.Id);
             if (added.Count == 0)
             {
                 ErrorText = Strings.AddUrlNothingToDownload;

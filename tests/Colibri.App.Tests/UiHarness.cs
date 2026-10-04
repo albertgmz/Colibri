@@ -129,6 +129,8 @@ internal sealed class FakeDialogs : IDialogService
     public string? CopiedText { get; private set; }
 
     public AddUrlViewModel? ShownAddUrl { get; private set; }
+    public TorrentImportViewModel? ShownTorrent { get; private set; }
+    public void ShowTorrentImport(TorrentImportViewModel viewModel) => ShownTorrent = viewModel;
 
     public Task<string?> ReadClipboardTextAsync() => Task.FromResult(ClipboardText);
 
@@ -143,6 +145,8 @@ internal sealed class FakeDialogs : IDialogService
 
 internal sealed class FakeShell : IShellService
 {
+    public List<Uri> OpenedUrls { get; } = [];
+    public Task OpenUrlAsync(Uri url) { OpenedUrls.Add(url); return Task.CompletedTask; }
     public List<string> Opened { get; } = [];
 
     public List<string> Revealed { get; } = [];

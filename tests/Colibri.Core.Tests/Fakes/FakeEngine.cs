@@ -1,5 +1,6 @@
 using Colibri.Core.Engine;
 using Colibri.Core.Models;
+using Colibri.Core.Torrents;
 
 namespace Colibri.Core.Tests.Fakes;
 
@@ -7,7 +8,7 @@ namespace Colibri.Core.Tests.Fakes;
 /// In-memory <see cref="IDownloadEngine"/>: keeps download snapshots in a dictionary and records calls.
 /// Tests change what it reports with <see cref="Report"/>. Also used by the App tests (linked source).
 /// </summary>
-public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
+public sealed class FakeEngine : ITorrentEngine, ILegacyCredentialCleanup
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, EngineDownloadStatus> _downloads = new();
@@ -52,7 +53,16 @@ public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
 
     public event EventHandler<EngineState>? StateChanged;
 
-    public bool CanHandle(DownloadRequest request) => request.Uri.Scheme is "http" or "https";
+    public bool CanHandle(DownloadRequest request) => request.Torrent is not null || request.Uri.Scheme is "http" or "https";
+
+    public int MetadataPreviewCount { get; private set; }
+    public TorrentMetadataResult? MetadataPreview { get; set; }
+    public Task<TorrentMetadataResult> PreviewMagnetAsync(string magnet, CancellationToken ct)
+    {
+        MetadataPreviewCount++;
+        return Task.FromResult(MetadataPreview ?? throw new EngineOperationException("Metadata unavailable."));
+    }
+    public Task StopSeedingAsync(string handle, CancellationToken ct) => RemoveAsync(handle, ct);
 
     public Task StartAsync(CancellationToken ct)
     {
@@ -72,6 +82,7 @@ public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
 
     /// <summary>The options last passed to <see cref="ApplyOptionsAsync"/>.</summary>
     public EngineOptions? AppliedOptions { get; private set; }
+    public Exception? ApplyOptionsFailure { get; set; }
 
     public int StartCount { get; private set; }
     public int CredentialCleanupCount { get; private set; }
@@ -85,6 +96,7 @@ public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
 
     public Task ApplyOptionsAsync(EngineOptions options, CancellationToken ct)
     {
+        if (ApplyOptionsFailure is { } failure) throw failure;
         AppliedOptions = options;
         return Task.CompletedTask;
     }
@@ -207,11 +219,11 @@ public sealed class FakeEngine : IDownloadEngine, ILegacyCredentialCleanup
     /// <summary>Sets what the engine reports for <paramref name="handle"/> (adds it if unknown).</summary>
     public void Report(
         string handle, EngineDownloadState state, long total = 0, long completed = 0, long speed = 0, int connections = 0,
-        string? error = null, string? bitfield = null, int? numPieces = null)
+        string? error = null, string? bitfield = null, int? numPieces = null, long uploaded = 0, long uploadSpeed = 0, bool isSeeding = false)
     {
         lock (_gate)
         {
-            _downloads[handle] = new EngineDownloadStatus(handle, state, total, completed, speed, connections, error, Bitfield: bitfield, NumPieces: numPieces);
+            _downloads[handle] = new EngineDownloadStatus(handle, state, total, completed, speed, connections, error, Bitfield: bitfield, NumPieces: numPieces, UploadSpeed: uploadSpeed, UploadedBytes: uploaded, IsSeeding: isSeeding);
         }
     }
 

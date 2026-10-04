@@ -334,6 +334,10 @@ internal sealed class Aria2Process : IDisposable
             startInfo.ArgumentList.Add(argument);
         }
 
+        foreach (var name in new[] { "http_proxy", "https_proxy", "ftp_proxy", "all_proxy", "no_proxy",
+            "HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY", "ALL_PROXY", "NO_PROXY" })
+            startInfo.Environment.Remove(name);
+
         var process = new Process { StartInfo = startInfo };
 
         // Redirected output must be read continuously: if nobody reads it, the pipe buffer fills up and
@@ -342,14 +346,14 @@ internal sealed class Aria2Process : IDisposable
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                _logger.LogInformation("aria2: {Line}", e.Data);
+                // Drain output without storing native text, which can contain request secrets.
             }
         };
         process.ErrorDataReceived += (_, e) =>
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                _logger.LogWarning("aria2: {Line}", e.Data);
+                // Drain output without storing native text, which can contain request secrets.
             }
         };
 

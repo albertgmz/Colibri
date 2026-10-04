@@ -27,11 +27,11 @@ public partial class SettingsViewModel : ObservableObject
     public const int MaxSpeedLimitKiB = 10_000_000;
 
     public IReadOnlyList<string> PageNames { get; } =
-        [Strings.SettingsGeneral, Strings.SettingsAppearance, Strings.SettingsDownloads, Strings.SettingsBrowserIntegration, Strings.SettingsAdvanced];
+        [Strings.SettingsGeneral, Strings.SettingsAppearance, Strings.SettingsDownloads, Strings.SettingsBrowserIntegration, Strings.SettingsAdvanced, Strings.NetworkTitle, Strings.QueuesTitle];
 
     // Navigation is view state, not a persisted preference. Switching pages must not reload fields.
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsGeneralPage), nameof(IsAppearancePage), nameof(IsDownloadsPage), nameof(IsBrowserPage), nameof(IsAdvancedPage))]
+    [NotifyPropertyChangedFor(nameof(IsGeneralPage), nameof(IsAppearancePage), nameof(IsDownloadsPage), nameof(IsBrowserPage), nameof(IsAdvancedPage), nameof(IsNetworkPage), nameof(IsQueuesPage))]
     private int _selectedPageIndex;
 
     public bool IsGeneralPage => SelectedPageIndex == 0;
@@ -39,6 +39,10 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsDownloadsPage => SelectedPageIndex == 2;
     public bool IsBrowserPage => SelectedPageIndex == 3;
     public bool IsAdvancedPage => SelectedPageIndex == 4;
+    public bool IsNetworkPage => SelectedPageIndex == 5;
+    public bool IsQueuesPage => SelectedPageIndex == 6;
+    public NetworkSettingsViewModel? Network { get; }
+    public QueueManagementViewModel Queues { get; }
 
     private readonly AppSettings _settings;
     private readonly ISettingsStore _store;
@@ -116,6 +120,14 @@ public partial class SettingsViewModel : ObservableObject
     private bool _autoOpenDetailsWindow;
 
     [ObservableProperty]
+    private bool _enableMagnetClipboard;
+
+    [ObservableProperty] private bool _mediaEnabled;
+    [ObservableProperty] private string _ytDlpPath = "";
+    [ObservableProperty] private string _ffmpegPath = "";
+    [ObservableProperty] private string _ytDlpLicensePath = "";
+
+    [ObservableProperty]
     private bool _isTrayAvailable = true;
 
     /// <summary>0 = system, 1 = light, 2 = dark (the order of <see cref="AppTheme"/>).</summary>
@@ -163,10 +175,13 @@ public partial class SettingsViewModel : ObservableObject
         ILogger<SettingsViewModel> logger,
         IBrowserHostRegistrar? registrar = null,
         NativeHostRegistration? hostRegistration = null,
-        UpdatesViewModel? updates = null)
+        UpdatesViewModel? updates = null,
+        NetworkSettingsViewModel? network = null)
     {
         _settings = settings;
         Updates = updates;
+        Network = network;
+        Queues = new QueueManagementViewModel(manager);
         _startupLanguage = LanguagePreference.Normalize(settings.Language);
         _store = store;
         _manager = manager;
@@ -214,6 +229,11 @@ public partial class SettingsViewModel : ObservableObject
             CloseToTray = _settings.CloseToTray;
             MinimizeToTray = _settings.MinimizeToTray;
             AutoOpenDetailsWindow = _settings.AutoOpenDetailsWindow;
+            EnableMagnetClipboard = _settings.EnableMagnetClipboard;
+            MediaEnabled = _settings.MediaEnabled;
+            YtDlpPath = _settings.YtDlpPath;
+            FfmpegPath = _settings.FfmpegPath;
+            YtDlpLicensePath = _settings.YtDlpLicensePath;
             ThemeIndex = (int)_settings.Theme;
             var languageIndex = LanguageIds.ToList().IndexOf(LanguagePreference.Normalize(_settings.Language));
             LanguageIndex = languageIndex < 0 ? 1 : languageIndex;
@@ -233,6 +253,7 @@ public partial class SettingsViewModel : ObservableObject
             SpeedLimitKiB = _settings.GlobalSpeedLimitKiB;
             CaptureExtensions = string.Join(", ", _settings.BrowserCaptureExtensions);
             CaptureMinSizeKiB = _settings.BrowserCaptureMinSizeKiB;
+            LoadCapturePolicy();
             Aria2Path = _settings.Aria2Path;
         }
         finally
@@ -255,6 +276,8 @@ public partial class SettingsViewModel : ObservableObject
         }
 
         await RefreshBrowserStatusAsync();
+        if (Network is not null) await Network.LoadAsync();
+        await Queues.LoadAsync(CancellationToken.None);
     }
 
     /// <summary>The task of the last save, so tests can wait for it.</summary>
@@ -273,6 +296,12 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnMinimizeToTrayChanged(bool value) => Change(() => _settings.MinimizeToTray = value);
 
     partial void OnAutoOpenDetailsWindowChanged(bool value) => Change(() => _settings.AutoOpenDetailsWindow = value);
+
+    partial void OnEnableMagnetClipboardChanged(bool value) => Change(() => _settings.EnableMagnetClipboard = value);
+    partial void OnMediaEnabledChanged(bool value) => Change(() => _settings.MediaEnabled = value);
+    partial void OnYtDlpPathChanged(string value) => Change(() => _settings.YtDlpPath = value.Trim());
+    partial void OnFfmpegPathChanged(string value) => Change(() => _settings.FfmpegPath = value.Trim());
+    partial void OnYtDlpLicensePathChanged(string value) => Change(() => _settings.YtDlpLicensePath = value.Trim());
 
     partial void OnThemeIndexChanged(int value)
     {
@@ -484,7 +513,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         await SaveAsync();
         await _manager.ApplyEngineOptionsAsync(
-            new EngineOptions(_settings.MaxConcurrentDownloads, _settings.ConnectionsPerServer, _settings.GlobalSpeedLimitKiB * 1024L),
+            new EngineOptions(_settings.MaxConcurrentDownloads, _settings.ConnectionsPerServer, _settings.GlobalSpeedLimitKiB * 1024L) { NetworkPolicy = _settings.DefaultNetworkPolicy },
             CancellationToken.None);
     }
 

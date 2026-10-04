@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Colibri.App.ViewModels"
              xmlns:res="using:Colibri.App.Resources"
+             xmlns:views="using:Colibri.App.Views"
              x:Class="Colibri.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
@@ -89,6 +90,10 @@
                                 <CheckBox IsChecked="{Binding AutoOpenDetailsWindow}" AutomationProperties.Name="{x:Static res:Strings.SettingsAutoOpenDetails}">
                                     <TextBlock Text="{x:Static res:Strings.SettingsAutoOpenDetails}" TextWrapping="Wrap" />
                                 </CheckBox>
+                                <CheckBox IsChecked="{Binding EnableMagnetClipboard}">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsMagnetClipboard}" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsMagnetClipboardHelp}" />
                                 <CheckBox x:Name="CloseToTrayBox" IsChecked="{Binding CloseToTray}" IsEnabled="{Binding IsTrayAvailable}"
                                           AutomationProperties.Name="{x:Static res:Strings.SettingsCloseToTray}">
                                     <TextBlock Text="{x:Static res:Strings.SettingsCloseToTray}" TextWrapping="Wrap" />
@@ -230,10 +235,30 @@
                                     <TextBlock Text="{Binding BrowserError}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" TextWrapping="Wrap"
                                                IsVisible="{Binding BrowserError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
+                                <TextBlock Classes="note" Text="{Binding LastCaptureDecision}" TextWrapping="Wrap" />
+                                <CheckBox Content="{x:Static res:Strings.CaptureEnabled}" IsChecked="{Binding BrowserCaptureEnabled}" />
+                                <CheckBox Content="{x:Static res:Strings.CapturePrivate}" IsChecked="{Binding BrowserCapturePrivate}" />
+                                <TextBlock Classes="note" TextWrapping="Wrap" Text="{x:Static res:Strings.CapturePrecedence}" />
+                                <ItemsControl ItemsSource="{Binding CaptureCategories}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CaptureCategoryPreference">
+                                            <Grid ColumnDefinitions="*,160" Margin="0,4">
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding Actions}" SelectedIndex="{Binding ActionIndex}" HorizontalAlignment="Stretch" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <StackPanel Classes="field">
-                                    <TextBlock Text="{x:Static res:Strings.SettingsCaptureExtensions}" />
-                                    <TextBox Text="{Binding CaptureExtensions, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap"
-                                             AutomationProperties.Name="{x:Static res:Strings.SettingsCaptureExtensions}" />
+                                    <TextBlock Text="{x:Static res:Strings.CaptureOverrides}" />
+                                    <TextBox Text="{Binding CaptureExtensionOverrides, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="note" TextWrapping="Wrap" Text="{x:Static res:Strings.CaptureOverridesHelp}" />
+                                </StackPanel>
+                                <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.CaptureExclusions}" />
+                                    <TextBox Text="{Binding CaptureExclusionRules, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" />
+                                    <TextBlock Classes="note" TextWrapping="Wrap" Text="{x:Static res:Strings.CaptureExclusionsHelp}" />
+                                    <TextBlock Foreground="{DynamicResource ErrorTextBrush}" Text="{Binding CapturePolicyError}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Classes="field">
                                     <TextBlock Text="{x:Static res:Strings.SettingsCaptureMinSize}" />
@@ -260,9 +285,29 @@
                                     </Grid>
                                 </StackPanel>
                                 <Button Content="{x:Static res:Strings.SettingsOpenLogs}" Command="{Binding OpenLogsFolderCommand}" />
+                                <CheckBox IsChecked="{Binding MediaEnabled}"><TextBlock Text="{x:Static res:Strings.SettingsMediaEnabled}" TextWrapping="Wrap" /></CheckBox>
+                                <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsMediaHelp}" />
+                                <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsYtDlpPath}" />
+                                    <TextBox Text="{Binding YtDlpPath, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsYtDlpLicensePath}" />
+                                    <TextBox Text="{Binding YtDlpLicensePath, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsFfmpegPath}" />
+                                    <TextBox Text="{Binding FfmpegPath, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                </ScrollViewer>
+                <ScrollViewer x:Name="NetworkPage" IsVisible="{Binding IsNetworkPage}">
+                    <views:NetworkSettingsView DataContext="{Binding Network}" />
+                </ScrollViewer>
+                <ScrollViewer x:Name="QueuesPage" IsVisible="{Binding IsQueuesPage}">
+                    <views:QueueManagementView DataContext="{Binding Queues}" />
                 </ScrollViewer>
             </Grid>
         </Grid>

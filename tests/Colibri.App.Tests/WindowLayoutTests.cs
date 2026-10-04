@@ -86,6 +86,22 @@ public class WindowLayoutTests
     }
 
     [AvaloniaFact]
+    public async Task Magnet_paste_requires_opt_in_and_only_opens_a_preview()
+    {
+        await using var ui = await UiHarness.StartAsync();
+        ui.Dialogs.ClipboardText = "magnet:?xt=urn:btih:0123456789012345678901234567890123456789&dn=fixture";
+        await ui.ViewModel.PasteUrlAsync();
+        Assert.Null(ui.Dialogs.ShownTorrent);
+        ui.Settings.EnableMagnetClipboard = true;
+        await ui.ViewModel.PasteUrlAsync();
+        Assert.NotNull(ui.Dialogs.ShownTorrent);
+        Assert.Null(ui.Dialogs.ShownAddUrl);
+        Assert.Empty(ui.ViewModel.AllItems);
+        Assert.Empty(await ui.Engine.GetAllAsync(CancellationToken.None));
+        ui.Dialogs.ShownTorrent.WindowClosed();
+    }
+
+    [AvaloniaFact]
     public async Task Accent_choice_is_saved_and_loaded_without_changing_theme()
     {
         await using var ui = await UiHarness.StartAsync();

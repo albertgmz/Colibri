@@ -152,7 +152,7 @@ public sealed class SqliteDownloadRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task A_new_file_gets_schema_version_3_and_wal_mode()
+    public async Task A_new_file_gets_schema_version_5_and_wal_mode()
     {
         await Create().GetAllAsync(Ct);
 
@@ -160,7 +160,7 @@ public sealed class SqliteDownloadRepositoryTests : IDisposable
         await connection.OpenAsync(Ct);
         await using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(3L, await command.ExecuteScalarAsync(Ct));
+        Assert.Equal(5L, await command.ExecuteScalarAsync(Ct));
         command.CommandText = "PRAGMA journal_mode";
         Assert.Equal("wal", await command.ExecuteScalarAsync(Ct));
     }
@@ -189,7 +189,7 @@ public sealed class SqliteDownloadRepositoryTests : IDisposable
         {
             await connection.OpenAsync(Ct);
             await using var command = connection.CreateCommand();
-            command.CommandText = "ALTER TABLE downloads DROP COLUMN speed_limit; ALTER TABLE downloads DROP COLUMN connection_limit; ALTER TABLE downloads DROP COLUMN protected_headers; UPDATE downloads SET headers = $headers; PRAGMA user_version = 1;";
+            command.CommandText = "ALTER TABLE downloads DROP COLUMN speed_limit; ALTER TABLE downloads DROP COLUMN connection_limit; ALTER TABLE downloads DROP COLUMN protected_headers; ALTER TABLE downloads DROP COLUMN queue_id; ALTER TABLE downloads DROP COLUMN queue_held; ALTER TABLE downloads DROP COLUMN protected_network; ALTER TABLE downloads DROP COLUMN protected_torrent; ALTER TABLE downloads DROP COLUMN media_selection; ALTER TABLE downloads DROP COLUMN uploaded_bytes; ALTER TABLE downloads DROP COLUMN seed_started_at; UPDATE downloads SET headers = $headers; PRAGMA user_version = 1;";
             command.Parameters.AddWithValue("$headers", JsonSerializer.Serialize(item.Headers));
             await command.ExecuteNonQueryAsync(Ct);
         }
@@ -317,7 +317,7 @@ public sealed class SqliteDownloadRepositoryTests : IDisposable
         await using var connection = new SqliteConnection($"Data Source={_paths.DatabasePath}");
         await connection.OpenAsync(Ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = "ALTER TABLE downloads DROP COLUMN protected_headers; UPDATE downloads SET headers = $headers; PRAGMA user_version = 2;";
+        command.CommandText = "ALTER TABLE downloads DROP COLUMN protected_headers; ALTER TABLE downloads DROP COLUMN queue_id; ALTER TABLE downloads DROP COLUMN queue_held; ALTER TABLE downloads DROP COLUMN protected_network; ALTER TABLE downloads DROP COLUMN protected_torrent; ALTER TABLE downloads DROP COLUMN media_selection; ALTER TABLE downloads DROP COLUMN uploaded_bytes; ALTER TABLE downloads DROP COLUMN seed_started_at; UPDATE downloads SET headers = $headers; PRAGMA user_version = 2;";
         command.Parameters.AddWithValue("$headers", JsonSerializer.Serialize(item.Headers));
         await command.ExecuteNonQueryAsync(Ct);
     }
@@ -328,8 +328,50 @@ public sealed class SqliteDownloadRepositoryTests : IDisposable
         public byte[] Unprotect(byte[] ciphertext, Guid downloadId) => throw new CredentialProtectionException();
     }
 
+    [Fact]
+    public async Task Network_credentials_round_trip_and_clearing_preserves_route_metadata()
+    {
+        var item = FullItem();
+        item.NetworkPolicy = new()
+        { RequiredInterfaceId = "adapter-id", Proxy = new() { Endpoint = new("http://proxy.test:8080"), UserName = "user", Password = "unique-network-password" } };
+        var repository = Create();
+        await repository.AddAsync(item, Ct);
+        Assert.Equal("unique-network-password", (await repository.GetAsync(item.Id, Ct))!.NetworkPolicy!.Proxy!.Password);
+        await repository.ClearCredentialsAsync(item.Id, Ct);
+        var cleared = (await repository.GetAsync(item.Id, Ct))!;
+        Assert.Equal("adapter-id", cleared.NetworkPolicy!.RequiredInterfaceId);
+        Assert.Equal(item.NetworkPolicy.Proxy.Endpoint, cleared.NetworkPolicy.Proxy!.Endpoint);
+        Assert.Null(cleared.NetworkPolicy.Proxy.Password);
+        Assert.Null(cleared.NetworkPolicy.Proxy.UserName);
+        item.State = DownloadState.Completed;
+        await repository.UpdateAsync(item, Ct);
+        Assert.Null((await repository.GetAsync(item.Id, Ct))!.NetworkPolicy!.Proxy!.Password);
+        SqliteConnection.ClearAllPools();
+        Assert.DoesNotContain("unique-network-password", System.Text.Encoding.UTF8.GetString(await File.ReadAllBytesAsync(_paths.DatabasePath, Ct)));
+    }
+
+    [Fact]
+    public async Task Network_blob_rejects_same_row_header_substitution_and_direct_needs_no_vault()
+    {
+        var direct = new DownloadItem { Url = "https://example.test/f", FileName = "f", SaveFolder = "/downloads", NetworkPolicy = new() };
+        var unavailable = Create(new FailingProtector());
+        await unavailable.AddAsync(direct, Ct);
+        Assert.NotNull((await unavailable.GetAsync(direct.Id, Ct))!.NetworkPolicy);
+        var item = FullItem();
+        item.NetworkPolicy = new() { Proxy = new() { Endpoint = new("http://proxy.test:8080") } };
+        var repository = Create();
+        await repository.AddAsync(item, Ct);
+        await using var connection = new SqliteConnection($"Data Source={_paths.DatabasePath}");
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE downloads SET protected_network = protected_headers WHERE id = $id";
+        command.Parameters.AddWithValue("$id", item.Id.ToString());
+        await command.ExecuteNonQueryAsync(Ct);
+        await Assert.ThrowsAsync<CredentialProtectionException>(() => repository.GetAsync(item.Id, Ct));
+    }
+
     // An authenticated test provider, independent of Windows and stable across repository instances.
-    private sealed class TestProtector : ICredentialProtector
+    internal sealed class TestProtector : ICredentialProtector
     {
         private static readonly byte[] Key = RandomNumberGenerator.GetBytes(32);
         public byte[] Protect(byte[] plaintext, Guid downloadId)

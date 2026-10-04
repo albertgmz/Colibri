@@ -128,7 +128,7 @@ public class Aria2RpcClientTests
     [InlineData("aria2.onDownloadStop", EngineDownloadEventKind.Stopped)]
     [InlineData("aria2.onDownloadComplete", EngineDownloadEventKind.Completed)]
     [InlineData("aria2.onDownloadError", EngineDownloadEventKind.Error)]
-    [InlineData("aria2.onBtDownloadComplete", EngineDownloadEventKind.Completed)]
+    [InlineData("aria2.onBtDownloadComplete", EngineDownloadEventKind.ContentCompleted)]
     public async Task Notification_raises_event_with_gid_and_kind(string method, EngineDownloadEventKind kind)
     {
         var (client, transport) = Create();

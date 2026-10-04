@@ -590,6 +590,9 @@ public sealed class DownloadManagerTests : IAsyncDisposable
     [InlineData(false)]
     public async Task Canceled_resume_batch_pauses_prior_successes_without_touching_other_transfers(bool responseThrows)
     {
+        // Four transfers must be admitted before testing rollback; otherwise the unrelated fourth
+        // transfer starts held by the default queue's concurrency limit of three.
+        _settings.MaxConcurrentDownloads = 4;
         var manager = await StartAsync();
         var first = await AddAsync(manager, "https://example.com/first.zip");
         var second = await AddAsync(manager, "https://example.com/second.zip");

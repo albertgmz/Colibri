@@ -16,6 +16,7 @@ internal static class Aria2Arguments
         string logPath,
         EngineOptions options)
     {
+        Aria2NetworkPolicy.Validate(options.NetworkPolicy);
         var arguments = new List<string>
         {
             "--enable-rpc",
@@ -49,8 +50,21 @@ internal static class Aria2Arguments
             "--check-integrity=false",
             "--console-log-level=warn",
             "--quiet=true",
-            $"--log={logPath}",
-            "--log-level=warn",
+            // Native engine output may echo URLs and proxy credentials. Colibri logs its own
+            // operation events; aria2's unredacted file log stays disabled.
+            "--all-proxy=",
+            "--http-proxy=",
+            "--https-proxy=",
+            "--ftp-proxy=",
+            "--no-proxy=",
+            "--follow-torrent=false",
+            "--follow-metalink=false",
+            "--seed-time=0",
+            "--bt-detach-seed-only=true",
+            // DHT's background lifetime is broader than one torrent request. Keep it disabled
+            // so later HTTP/proxy transfers cannot inherit direct discovery traffic.
+            "--enable-dht=false",
+            "--enable-dht6=false",
         ]);
         arguments.AddRange(GlobalOptions(options).Select(option => $"--{option.Key}={option.Value}"));
 

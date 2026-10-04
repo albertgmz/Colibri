@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Colibri.App.ViewModels"
+             xmlns:queues="using:Colibri.Core.Queues"
+             xmlns:res="using:Colibri.App.Resources"
+             x:Class="Colibri.App.Views.QueueManagementView"
+             x:DataType="vm:QueueManagementViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="10" Margin="16" MaxWidth="680" HorizontalAlignment="Stretch">
+            <TextBlock Text="{x:Static res:Strings.QueuesTitle}" FontSize="22" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding Queues}" SelectedItem="{Binding SelectedQueue}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="queues:DownloadQueue"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding Status}" />
+            <TextBlock Text="{x:Static res:Strings.QueueName}" />
+            <TextBox Text="{Binding QueueName}" />
+            <TextBlock Text="{x:Static res:Strings.QueueConcurrency}" />
+            <NumericUpDown Value="{Binding Concurrency}" Minimum="1" Maximum="20" FormatString="0" />
+            <WrapPanel>
+                <Button Content="{x:Static res:Strings.QueueCreate}" Command="{Binding CreateCommand}" Margin="0,0,8,8" />
+                <Button Content="{x:Static res:Strings.QueueStart}" Command="{Binding StartCommand}" Margin="0,0,8,8" />
+                <Button Content="{x:Static res:Strings.QueueStop}" Command="{Binding StopCommand}" Margin="0,0,8,8" />
+                <Button Content="{x:Static res:Strings.QueueDelete}" Command="{Binding DeleteCommand}" Margin="0,0,8,8" />
+            </WrapPanel>
+            <TextBlock Text="{x:Static res:Strings.QueueSchedule}" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding ScheduleModes}" SelectedIndex="{Binding ScheduleMode}" HorizontalAlignment="Stretch" />
+            <StackPanel IsVisible="{Binding IsOnce}" Spacing="6">
+                <TextBlock Text="{x:Static res:Strings.QueueStartAt}" />
+                <TextBox Text="{Binding StartAt}" PlaceholderText="2026-10-04T09:00:00.0000000-04:00" />
+                <TextBlock Text="{x:Static res:Strings.QueueStopAt}" />
+                <TextBox Text="{Binding StopAt}" PlaceholderText="2026-10-04T17:00:00.0000000-04:00" />
+            </StackPanel>
+            <StackPanel IsVisible="{Binding IsWeekly}" Spacing="6">
+                <TextBlock Text="{x:Static res:Strings.QueueTimeZone}" />
+                <ComboBox ItemsSource="{Binding TimeZones}" SelectedItem="{Binding TimeZoneId}" HorizontalAlignment="Stretch" />
+                <TextBlock Text="{x:Static res:Strings.QueueDays}" />
+                <TextBox Text="{Binding Days}" />
+                <TextBlock Text="{x:Static res:Strings.QueueStartTime}" />
+                <TextBox Text="{Binding StartTime}" PlaceholderText="09:00" />
+                <TextBlock Text="{x:Static res:Strings.QueueStopTime}" />
+                <TextBox Text="{Binding StopTime}" PlaceholderText="17:00" />
+            </StackPanel>
+            <TextBlock Text="{x:Static res:Strings.QueueScheduleHelp}" TextWrapping="Wrap" Opacity="0.7" />
+            <Button Content="{x:Static res:Strings.QueueSave}" Command="{Binding SaveCommand}" />
+            <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorTextBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

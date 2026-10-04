@@ -50,7 +50,8 @@ public class Aria2ArgumentsTests
     [Fact]
     public void Paths_with_spaces_stay_in_one_argument()
     {
-        Assert.Contains("--log=/data/My Folder/logs/aria2.log", Build());
+        Assert.Contains("--conf-path=/data/My Folder/aria2-rpc.conf", Build());
+        Assert.DoesNotContain(Build(), value => value.StartsWith("--log=", StringComparison.Ordinal));
     }
 
     [Fact]

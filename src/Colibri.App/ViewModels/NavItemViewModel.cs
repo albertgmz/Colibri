@@ -13,6 +13,7 @@ public enum NavFilter
     Completed,
     Failed,
     Category,
+    Queue,
 
     /// <summary>A section title, not selectable.</summary>
     Header,
@@ -24,12 +25,13 @@ public partial class NavItemViewModel : ObservableObject
     [ObservableProperty]
     private int _count;
 
-    public NavItemViewModel(string label, string iconKey, NavFilter filter, DownloadCategory? category = null)
+    public NavItemViewModel(string label, string iconKey, NavFilter filter, DownloadCategory? category = null, Guid? queueId = null)
     {
         Label = label;
         IconKey = iconKey;
         Filter = filter;
         Category = category;
+        QueueId = queueId;
     }
 
     public string Label { get; }
@@ -39,6 +41,7 @@ public partial class NavItemViewModel : ObservableObject
     public NavFilter Filter { get; }
 
     public DownloadCategory? Category { get; }
+    public Guid? QueueId { get; }
 
     public bool IsHeader => Filter == NavFilter.Header;
 
@@ -51,6 +54,7 @@ public partial class NavItemViewModel : ObservableObject
         NavFilter.Completed => item.State == DownloadState.Completed,
         NavFilter.Failed => item.State == DownloadState.Failed,
         NavFilter.Category => item.Category == Category,
+        NavFilter.Queue => item.QueueId == QueueId,
         _ => false,
     };
 }
