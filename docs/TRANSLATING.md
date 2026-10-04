@@ -15,7 +15,7 @@ python scripts/validate-translations.py
 python -m unittest discover -s scripts -p test_translation_validation.py
 ```
 
-The validator rejects unknown or duplicate keys, empty translations, non-string resource entries, invalid culture filenames, and missing/changed placeholders. Missing keys are allowed. A .NET build compiles culture files into standard satellite assemblies; packaging includes their culture directories. No project-file listing is needed for each new culture.
+The Python validator rejects unknown or duplicate keys, empty translations, non-string resource entries, malformed culture filename syntax, and missing/changed placeholders. Its filename check validates syntax only; use a culture recognized by .NET and verify it with the .NET build and application. Missing keys are allowed. A .NET build compiles culture files into standard satellite assemblies; packaging includes their culture directories. No project-file listing is needed for each new culture.
 
 Settings → Appearance → Language offers System default, English, and automatically discovered bundled translations, labeled with their native language names. The choice is saved and takes effect after restarting Colibri. It changes UI culture only; date and number formatting retain their existing culture. Standard .NET lookup tries a requested region, its parent language, then neutral English. With no bundled translation, English is used. Notification text uses the same startup choice before notification services initialize.
 

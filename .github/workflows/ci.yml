@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,6 +13,39 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  version:
+    name: Version and script checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Script tests
+        run: node --test scripts/version.test.mjs scripts/release.test.mjs
+      - name: Validate every introduced commit
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            node scripts/version.mjs pr-range "$BASE" "$HEAD"
+          elif [ "$EVENT" = "push" ]; then
+            node scripts/version.mjs range "$BEFORE" "$HEAD"
+          else
+            node scripts/version.mjs range 6587c041b56dd8a2a7d9edebd307543b6971b972 "$HEAD"
+          fi
+      - name: Validate application translations
+        run: |
+          python3 scripts/validate-translations.py
+          python3 -m unittest discover -s scripts -p test_translation_validation.py
+
   build:
     name: Build and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -21,9 +55,11 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
 
@@ -38,7 +74,7 @@ jobs:
         run: dotnet test Colibri.slnx -c Release --no-build
 
       # The extension's pure logic is plain JavaScript tested with Node's built-in runner; once is enough.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         if: matrix.os == 'ubuntu-latest'
         with:
           node-version: 24
@@ -46,3 +82,70 @@ jobs:
       - name: Test extension
         if: matrix.os == 'ubuntu-latest'
         run: node --test "extension/tests/*.test.js"
+
+  package:
+    name: Windows packages
+    needs: [version, build]
+    if: github.repository == 'albertgmz/Colibri' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/v2' || github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Test installer ownership helper
+        shell: powershell
+        run: .\scripts\test-windows-packaging.ps1
+      - name: Build, test, and package serially
+        shell: powershell
+        run: .\scripts\build-windows.ps1 -NoLaunch
+      - name: Verify release assets
+        shell: powershell
+        run: |
+          $package = Get-ChildItem artifacts -Directory -Filter 'windows-*' | Select-Object -First 1
+          node scripts/release.mjs validate $package.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset verification failed.' }
+          $upload = New-Item -ItemType Directory -Path artifacts/release-upload
+          $manifest = Get-Content -LiteralPath (Join-Path $package.FullName 'release-manifest.json') -Raw | ConvertFrom-Json
+          foreach ($name in @($manifest.assets.name) + @('release-manifest.json', 'SHA256SUMS')) {
+            Copy-Item -LiteralPath (Join-Path $package.FullName $name) -Destination $upload.FullName
+          }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-release-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: artifacts/release-upload/
+
+  release:
+    name: Publish verified release
+    needs: [version, build, package]
+    if: github.repository == 'albertgmz/Colibri' && github.event.repository.private == false && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/v2' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: colibri-stable-publication
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: windows-release-${{ github.sha }}
+          path: release-assets
+      - name: Verify and publish once
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/release.mjs publish release-assets

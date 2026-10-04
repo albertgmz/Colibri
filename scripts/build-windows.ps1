@@ -12,7 +12,7 @@ foreach ($moduleName in @('Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.
 $hashCommand = Get-Command -Name Get-FileHash -Module Microsoft.PowerShell.Utility -ErrorAction Stop
 $archiveCommand = Get-Command -Name Compress-Archive -Module Microsoft.PowerShell.Archive -ErrorAction Stop
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if (-not $NsisPath) { $NsisPath = Join-Path $repository 'artifacts\tools\nsis-3.13\makensis.exe' }
+if (-not $NsisPath) { $NsisPath = & (Join-Path $PSScriptRoot 'ensure-nsis.ps1') }
 $NsisPath = [IO.Path]::GetFullPath($NsisPath)
 if (-not (Test-Path -LiteralPath $NsisPath -PathType Leaf)) {
     throw 'Provide -NsisPath pointing to makensis.exe in a complete extracted NSIS portable distribution.'
@@ -36,6 +36,8 @@ function Assert-Command([string]$Stage) {
 
 Push-Location $repository
 try {
+    $version = & node scripts/version.mjs read
+    Assert-Command 'VERSION validation'
     & dotnet build Colibri.slnx -c Release
     Assert-Command 'Build'
     & dotnet test Colibri.slnx -c Release --no-build
@@ -54,20 +56,31 @@ try {
     Copy-Item -LiteralPath (Join-Path $repository 'LICENSE') -Destination $portable
     Copy-Item -LiteralPath (Join-Path $repository 'THIRD-PARTY-NOTICES.md') -Destination $portable
     Copy-Item -LiteralPath (Join-Path $repository 'third_party\aria2\README.md') -Destination (Join-Path $portable 'aria2\README.md')
-    $version = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $portable 'Colibri.exe')).ProductVersion
-    if (-not $version) { throw 'Published executable has no product version.' }
+    foreach ($executable in @('Colibri.exe', 'Colibri.NativeHost.exe')) {
+        if ([Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $portable $executable)).ProductVersion -ne $version) {
+            throw "Published $executable version does not match VERSION."
+        }
+    }
     $files = @(Get-ChildItem -LiteralPath $portable -File -Recurse | Sort-Object FullName | ForEach-Object {
         @{ path = $_.FullName.Substring($portable.Length + 1); sha256 = (& $hashCommand -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
     @{ format = 1; product = 'Colibri'; version = $version; files = $files } | ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath (Join-Path $portable 'package-manifest.json') -Encoding UTF8
-    $zip = Join-Path $artifactRoot 'Colibri-win-x64-portable.zip'
+    $zip = Join-Path $artifactRoot "Colibri-$version-win-x64-portable.zip"
     & $archiveCommand -LiteralPath $portable -DestinationPath $zip -CompressionLevel Optimal
-    $installer = Join-Path $artifactRoot 'Colibri-win-x64-setup.exe'
+    $installer = Join-Path $artifactRoot "Colibri-$version-win-x64-setup.exe"
     & $NsisPath /NOCONFIG "/DPAYLOAD_PATH=$portable" "/DINSTALLER_PATH=$installer" "/DPACKAGE_VERSION=$version" `
         "/DHELPER_PATH=$(Join-Path $repository 'packaging\windows\install-helper.ps1')" (Join-Path $repository 'packaging\windows\Colibri.nsi')
     Assert-Command 'NSIS compilation'
     if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw 'NSIS did not produce an installer.' }
+    if ([Diagnostics.FileVersionInfo]::GetVersionInfo($installer).ProductVersion -ne $version) { throw 'Installer version does not match VERSION.' }
+    $releaseFiles = @($installer, $zip) | ForEach-Object {
+        @{ name = [IO.Path]::GetFileName($_); size = (Get-Item -LiteralPath $_).Length; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }
+    }
+    $releaseJson = @{ format = 1; repository = 'albertgmz/Colibri'; version = $version; tag = "v$version"; assets = @($releaseFiles) } | ConvertTo-Json -Depth 5
+    [IO.File]::WriteAllText((Join-Path $artifactRoot 'release-manifest.json'), $releaseJson, [Text.UTF8Encoding]::new($false))
+    @($releaseFiles | ForEach-Object { "$($_.sha256)  $($_.name)" }) |
+        Set-Content -LiteralPath (Join-Path $artifactRoot 'SHA256SUMS') -Encoding ASCII
     @{ version = $version; portable = $portable; zip = $zip; installer = $installer } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $artifactRoot 'build-results.json') -Encoding UTF8
     Write-Host "Portable: $portable"

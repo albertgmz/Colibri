@@ -1,9 +1,9 @@
 # Windows packages
 
-Run from the repository on Windows with the .NET 10 SDK and a complete extracted NSIS portable distribution:
+Run from the repository on Windows with the .NET 10 SDK and Node 24:
 
 ```powershell
-.\build.bat -NsisPath .\artifacts\tools\nsis-3.13\makensis.exe
+powershell.exe -NoProfile -File .\scripts\build-windows.ps1
 ```
 
 The local root `build.bat` is deliberately ignored by Git. Its tracked implementation is `scripts/build-windows.ps1`; after cloning, invoke that script directly or recreate the local wrapper:
@@ -20,7 +20,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\bu
 exit /b %errorlevel%
 ```
 
-`-NsisPath` may also come from `COLIBRI_NSIS_PATH`. If neither is supplied, the script checks `artifacts/tools/nsis-3.13/makensis.exe`. It never downloads or installs tooling. Keep the compiler beside its NSIS includes, plugins, and other distribution files.
+`-NsisPath` may also come from `COLIBRI_NSIS_PATH`. If neither is supplied, the script uses `artifacts/tools/nsis-3.13/makensis.exe` or downloads the official NSIS 3.13 ZIP through HTTPS SourceForge mirrors. It accepts only SHA256 `BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8`, validates archive paths, and extracts a new tool directory. This pin came from the owner's inspected official download; it is not an upstream published checksum. It never runs an NSIS installer or replaces an existing tool directory. A failed download/hash/extraction stops the build; retained staging files can be inspected manually. For offline builds, supply a complete extracted distribution explicitly. Keep the compiler beside its NSIS includes, plugins, and other distribution files.
 
 Before creating output or starting a build, the script imports Utility and Archive from their absolute manifests under the current host's `$PSHOME/Modules` and resolves `Get-FileHash` and `Compress-Archive`. This prevents a batch file launched from PowerShell 7 from making Windows PowerShell 5.1 load incompatible PowerShell 7 modules through an inherited `PSModulePath`; the script does not change that environment variable. Missing packaging commands fail at this preflight. Hashing and ZIP creation invoke those resolved commands directly.
 
@@ -29,11 +29,14 @@ The script serially builds the solution, runs its tests, and publishes a self-co
 Successful output includes:
 
 - `Colibri/`: executable, runtime, native messaging host, aria2, dependencies, licenses, notices, and a SHA256 package manifest. Debug symbols are excluded.
-- `Colibri-win-x64-portable.zip`: the same portable folder.
-- `Colibri-win-x64-setup.exe`: per-user installation and upgrade package.
+- `Colibri-<version>-win-x64-portable.zip`: the same portable folder.
+- `Colibri-<version>-win-x64-setup.exe`: per-user installation and upgrade package.
+- `release-manifest.json` and `SHA256SUMS`: exact release filenames, byte lengths and SHA256 hashes.
 - `build-results.json`: version and absolute output paths.
 
 The default command launches the new portable application only after all packages succeed. `-NoLaunch` produces the same artifacts without launching an application. The script never launches the installer.
+
+Root VERSION stamps the app, native host and setup; packaging refuses mismatched executable versions. [Release policy](RELEASES.md) covers the mandatory version increase on every app repository commit and CI publishing.
 
 ## Portable data boundary
 

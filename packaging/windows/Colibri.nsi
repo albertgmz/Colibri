@@ -15,6 +15,12 @@ Unicode true
 !endif
 
 Name "Colibri"
+VIProductVersion "${PACKAGE_VERSION}.0"
+VIAddVersionKey /LANG=1033 "ProductName" "Colibri"
+VIAddVersionKey /LANG=1033 "ProductVersion" "${PACKAGE_VERSION}"
+VIAddVersionKey /LANG=1033 "FileVersion" "${PACKAGE_VERSION}.0"
+VIAddVersionKey /LANG=1033 "FileDescription" "Colibri setup"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "Colibri contributors"
 OutFile "${INSTALLER_PATH}"
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\Colibri"
