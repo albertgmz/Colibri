@@ -2,6 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/albertgmz/Colibri/blob/v2/docs/protocol.schema.json",
   "title": "Colibri browser native protocol v2",
+  "$defs": {
+    "configAppearance": {
+      "description": "Optional app-owned appearance fields on a successful config/hello/settings-update reply; absent or unknown palette falls back to warm.",
+      "type": "object",
+      "properties": {
+        "theme": { "enum": ["system", "light", "dark"] },
+        "accent": { "type": "string", "pattern": "^#[a-fA-F0-9]{6}$" },
+        "palette": { "enum": ["warm", "graphite", "ocean", "forest"] }
+      }
+    }
+  },
   "type": "object",
   "required": [
     "type",

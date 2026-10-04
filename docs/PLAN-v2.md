@@ -1,5 +1,13 @@
 # Colibri v2 implementation checklist
 
+## Owner acceptance — 2026-10-03
+
+The owner confirmed the app is working and closed the plan, requesting final
+Windows packaging. Unchecked original requirements below are deferred scope,
+not claims of implementation or verification. No further feature work is pending
+under this closed plan. The latest packaging and palette verification is recorded
+in WINDOWS-PACKAGING.md.
+
 The v2 branch starts at v1 commit `42d8967`. Work proceeds in priority order;
 unfinished items stay unchecked. Do not merge main or force-push.
 
@@ -256,17 +264,19 @@ original installer exclusion. Keep them separate from completion of Goals5–7.
 
 - [x] Local fake login site with admin/password and cookie-required ZIP;3 automated
   tests passed and owner reports browser-to-Colibri cookie capture works.
-- [ ] Git-ignored build.bat produces a portable folder/ZIP and installer/upgrader,
+- [x] Git-ignored build.bat produces a portable folder/ZIP and installer/upgrader,
   then launches the portable executable; preserve existing profiles/downloads.
-- [ ] Selectable Fluent palettes in Appearance; retain current warm default,
+- [x] Selectable Fluent palettes in Appearance; retain current warm default,
   light/dark/system and separately chosen accent, save selection and update live.
 
-Owner reports extension basic operation and Google Drive succeeded; browser identity
-is being clarified. This is owner-provided runtime evidence on their development
+Owner reports extension basic operation, Google Drive and the cookie-login fixture
+succeeded in Chrome. This is owner-provided runtime evidence on their development
 build, separate from agent-controlled all-browser or native-AOT regression coverage.
 Performance measurements and raw samples now include v2 Release, matched publish
 control/R2R startup and Windows native-host AOT handoff. See PERFORMANCE.md for
 sample counts, first-launch/cache limitations and default-shipping decisions.
 Capture expiry now uses deterministic tests (10a717d); later Ubuntu CI exposed a
 rapid pipe reconnect exchange failure. The listener successor correction passed
-461 Core/44 NativeHost Windows tests and independent review; all-OS rerun pending.
+461 Core/44 NativeHost Windows tests and independent review; CI37163070161 then
+passed on Windows, Linux and macOS. The later palette/package checkpoint built
+with zero warnings/errors and passed 906 tests with one expected Windows skip.

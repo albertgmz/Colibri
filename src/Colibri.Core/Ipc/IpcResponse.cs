@@ -18,4 +18,4 @@ public sealed record IpcResponse(bool Ok, string? Error = null, CaptureConfig? C
 /// <param name="MinSizeKiB">Downloads known to be smaller than this stay in the browser; 0 = any size.</param>
 public sealed record CaptureConfig(IReadOnlyList<string> Extensions, int MinSizeKiB,
     bool Enabled = true, IReadOnlyList<string>? ExcludedSites = null,
-    bool CapturePrivate = false, string BypassModifier = "none", string Theme = "system", string Accent = "#C42B1C");
+    bool CapturePrivate = false, string BypassModifier = "none", string Theme = "system", string Accent = "#C42B1C", string Palette = "warm");

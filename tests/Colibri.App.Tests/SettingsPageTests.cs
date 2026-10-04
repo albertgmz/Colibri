@@ -23,8 +23,10 @@ public class SettingsPageTests
         ui.Settings.AutoOpenDetailsWindow = true;
         ui.Settings.Theme = AppTheme.Dark;
         ui.Settings.CategoryFolders = new() { [DownloadCategory.Music] = @"C:\Music" };
-        var window = ui.ShowWindow();
-        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        // Isolate settings writes from MainWindow's debounced layout autosave.
+        var window = new Window { Width = 960, Height = 640, Content = new SettingsView { DataContext = ui.SettingsPage } };
+        window.Show();
+        await ui.SettingsPage.LoadAsync();
         Dispatcher.UIThread.RunJobs();
         var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
         var navigation = view.FindControl<ListBox>("PageNavigation")!;
@@ -55,10 +57,10 @@ public class SettingsPageTests
         Assert.Equal(AppTheme.Dark, ui.SettingsStore.Saved.Theme);
         Assert.Equal(@"C:\Music", ui.SettingsStore.Saved.CategoryFolders[DownloadCategory.Music]);
         Assert.Equal(7, ui.SettingsStore.Saved.ConnectionsPerServer);
-        ui.ViewModel.CloseSettingsCommand.Execute(null);
-        await ui.ViewModel.OpenSettingsCommand.ExecuteAsync(null);
+        await ui.SettingsPage.LoadAsync();
         Assert.Equal(2, ui.SettingsPage.SelectedPageIndex);
         Assert.Equal(7, ui.SettingsPage.ConnectionsPerServer);
+        window.Close();
     }
 
     [AvaloniaTheory]

@@ -5,6 +5,7 @@ obj/
 [Rr]elease/
 artifacts/
 publish/
+/build.bat
 TestResults/
 *.user
 *.suo
@@ -19,6 +20,8 @@ Thumbs.db
 
 ## Node (extension tooling, if any)
 node_modules/
+__pycache__/
+*.pyc
 
 ## Local agent configuration (never committed)
 CLAUDE.md

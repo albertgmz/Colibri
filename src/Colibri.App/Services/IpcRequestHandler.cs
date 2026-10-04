@@ -133,7 +133,7 @@ public sealed class IpcRequestHandler
             .ToList(),
         Math.Max(0, settings.BrowserCaptureMinSizeKiB), settings.BrowserCaptureEnabled,
         settings.BrowserExcludedSites ?? [], settings.BrowserCapturePrivate, settings.BrowserBypassModifier,
-        settings.Theme.ToString().ToLowerInvariant(), settings.AccentColor);
+        settings.Theme.ToString().ToLowerInvariant(), settings.AccentColor, BackgroundPalettes.Normalize(settings.BackgroundPalette));
 
     private CaptureSession? NewCapture()
     {

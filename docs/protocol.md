@@ -69,3 +69,6 @@ Cookies and authorization travel only to the native host. Recent-capture summari
 must exclude credential values and URL query strings. An interrupted port, invalid
 reply or timeout keeps the browser download. POST, unsupported protocols and
 disallowed private-window captures remain with the browser.
+# Background palettes
+
+Config-bearing replies may include `palette`: `warm`, `graphite`, `ocean`, or `forest`. This additive protocol v2 field is owned by application Settings. Older applications omit it; extensions default missing or unknown values to `warm`. The existing `theme` and `accent` remain independent. Popup and onboarding surfaces apply the palette when their existing configuration refresh runs; no additional polling or appearance selector is introduced in the extension.

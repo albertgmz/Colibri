@@ -146,6 +146,7 @@ public static partial class IpcProtocol
             json.WriteBoolean("enabled", config.Enabled); WriteArray(json, "excludedSites", config.ExcludedSites ?? []);
             json.WriteBoolean("capturePrivate", config.CapturePrivate); json.WriteString("bypassModifier", config.BypassModifier);
             json.WriteString("theme", config.Theme); json.WriteString("accent", config.Accent);
+            json.WriteString("palette", Settings.BackgroundPalettes.Normalize(config.Palette));
         }
     }
 

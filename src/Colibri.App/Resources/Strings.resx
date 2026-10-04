@@ -565,4 +565,9 @@
   <data name="SettingsBrowserIntegration" xml:space="preserve"><value>Browser Integration</value></data>
   <data name="SettingsPageNavigation" xml:space="preserve"><value>Settings pages</value></data>
   <data name="SettingsLayoutHint" xml:space="preserve"><value>Choose row density, toolbar labels and sidebar visibility, or reset the window layout.</value></data>
+  <data name="SettingsPalette" xml:space="preserve"><value>Background palette</value></data>
+  <data name="PaletteWarm" xml:space="preserve"><value>Warm (default)</value></data>
+  <data name="PaletteGraphite" xml:space="preserve"><value>Graphite</value></data>
+  <data name="PaletteOcean" xml:space="preserve"><value>Ocean</value></data>
+  <data name="PaletteForest" xml:space="preserve"><value>Forest</value></data>
 </root>

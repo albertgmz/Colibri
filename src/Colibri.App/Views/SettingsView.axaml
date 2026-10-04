@@ -92,6 +92,11 @@
                                               AutomationProperties.Name="{x:Static res:Strings.SettingsTheme}" />
                                 </StackPanel>
                                 <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsPalette}" />
+                                    <ComboBox x:Name="PaletteBox" ItemsSource="{Binding PaletteNames}" SelectedIndex="{Binding PaletteIndex}" MinWidth="200"
+                                              AutomationProperties.Name="{x:Static res:Strings.SettingsPalette}" />
+                                </StackPanel>
+                                <StackPanel Classes="field">
                                     <TextBlock Text="{x:Static res:Strings.SettingsAccent}" />
                                     <ComboBox ItemsSource="{Binding AccentNames}" SelectedIndex="{Binding AccentIndex}" MinWidth="200"
                                               AutomationProperties.Name="{x:Static res:Strings.SettingsAccent}" />

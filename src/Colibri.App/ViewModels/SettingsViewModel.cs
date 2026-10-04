@@ -56,6 +56,20 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int _accentIndex;
 
+    [ObservableProperty]
+    private int _paletteIndex;
+
+    public IReadOnlyList<string> PaletteNames { get; } =
+        [Strings.PaletteWarm, Strings.PaletteGraphite, Strings.PaletteOcean, Strings.PaletteForest];
+
+    partial void OnPaletteIndexChanged(int value)
+    {
+        if (_loading || value < 0 || value >= BackgroundPalettes.Ids.Count) return;
+        var id = BackgroundPalettes.Ids[value];
+        ThemeService.ApplyPalette(id);
+        Change(() => _settings.BackgroundPalette = id);
+    }
+
     public IReadOnlyList<string> AccentNames { get; } =
         [Strings.AccentRed, Strings.AccentBlue, Strings.AccentGreen, Strings.AccentPurple, Strings.AccentAmber];
     private static readonly string[] AccentColors = ["#C42B1C", "#0078D4", "#10893E", "#8764B8", "#C77800"];
@@ -177,6 +191,7 @@ public partial class SettingsViewModel : ObservableObject
             MinimizeToTray = _settings.MinimizeToTray;
             AutoOpenDetailsWindow = _settings.AutoOpenDetailsWindow;
             ThemeIndex = (int)_settings.Theme;
+            PaletteIndex = BackgroundPalettes.Ids.ToList().IndexOf(BackgroundPalettes.Normalize(_settings.BackgroundPalette));
             AccentIndex = Math.Max(0, Array.FindIndex(AccentColors, c => c.Equals(_settings.AccentColor, StringComparison.OrdinalIgnoreCase)));
             DefaultFolder = _settings.DefaultDownloadFolder;
             FolderError = null;

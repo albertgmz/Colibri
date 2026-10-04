@@ -11,6 +11,9 @@ public sealed class AppSettings
 
     public string AccentColor { get; set; } = "#C42B1C";
 
+    [System.Text.Json.Serialization.JsonConverter(typeof(BackgroundPaletteJsonConverter))]
+    public string BackgroundPalette { get; set; } = "warm";
+
     /// <summary>Closing the main window hides it to the tray instead of exiting.</summary>
     public bool CloseToTray { get; set; } = true;
 

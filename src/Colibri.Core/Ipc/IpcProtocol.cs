@@ -324,7 +324,8 @@ public static partial class IpcProtocol
         return new CaptureConfig(extensions, minSizeKiB,
             OptionalBool(root, "enabled") ?? true, ReadStringArray(root, "excludedSites", 256, 253),
             OptionalBool(root, "capturePrivate") ?? false, OptionalString(root, "bypassModifier", 16) ?? "none",
-            OptionalString(root, "theme", 16) ?? "system", OptionalString(root, "accent", 32) ?? "#C42B1C");
+            OptionalString(root, "theme", 16) ?? "system", OptionalString(root, "accent", 32) ?? "#C42B1C",
+            Settings.BackgroundPalettes.Normalize(root.TryGetProperty("palette", out var palette) && palette.ValueKind == JsonValueKind.String ? palette.GetString() : null));
     }
 
     private static bool TryParseActivate(JsonElement root, out IpcRequest? request, out string? error)

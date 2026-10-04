@@ -8,11 +8,17 @@
       <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#F3F3F3" />
       <SolidColorBrush x:Key="ContentPaneBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="DividerBrush" Color="#14000000" />
+      <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ContentPaneMicaBrush" Color="#B3FFFFFF" />
+      <SolidColorBrush x:Key="ChromeMicaBrush" Color="#00000000" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#202020" />
       <SolidColorBrush x:Key="ContentPaneBrush" Color="#272727" />
       <SolidColorBrush x:Key="DividerBrush" Color="#19FFFFFF" />
+      <SolidColorBrush x:Key="CardBrush" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ContentPaneMicaBrush" Color="#4D3A3A3A" />
+      <SolidColorBrush x:Key="ChromeMicaBrush" Color="#00000000" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

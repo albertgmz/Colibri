@@ -35,8 +35,8 @@ public partial class App : Application
             // Colibri keeps running with its window hidden in the tray; DesktopShell.ExitAsync ends it.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-            ThemeService.Apply(services.GetRequiredService<AppSettings>().Theme);
-            ThemeService.ApplyAccent(services.GetRequiredService<AppSettings>().AccentColor);
+            var appearance = services.GetRequiredService<AppSettings>();
+            ThemeService.ApplyAppearance(appearance.Theme, appearance.BackgroundPalette, appearance.AccentColor);
 
             var viewModel = services.GetRequiredService<MainWindowViewModel>();
             var shell = ActivatorUtilities.CreateInstance<DesktopShell>(services, desktop);

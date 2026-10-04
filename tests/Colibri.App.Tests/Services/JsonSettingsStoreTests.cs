@@ -17,6 +17,41 @@ public sealed class JsonSettingsStoreTests : IDisposable
 
     private JsonSettingsStore Create() => new(_paths.SettingsPath, _logger);
 
+    [Theory]
+    [InlineData("warm")]
+    [InlineData("graphite")]
+    [InlineData("ocean")]
+    [InlineData("forest")]
+    public async Task Background_palettes_round_trip_independently(string palette)
+    {
+        var store = Create();
+        await store.SaveAsync(new AppSettings { BackgroundPalette = palette, Theme = AppTheme.Dark, AccentColor = "#0078D4" }, Ct);
+        var loaded = await store.LoadAsync(Ct);
+        Assert.Equal(palette, loaded.BackgroundPalette);
+        Assert.Equal(AppTheme.Dark, loaded.Theme);
+        Assert.Equal("#0078D4", loaded.AccentColor);
+    }
+
+    [Theory]
+    [InlineData("null", "warm")]
+    [InlineData("\"\"", "warm")]
+    [InlineData("\"future\"", "warm")]
+    [InlineData("\" OCEAN \"", "ocean")]
+    [InlineData("12", "warm")]
+    [InlineData("true", "warm")]
+    [InlineData("{}", "warm")]
+    [InlineData("[]", "warm")]
+    public async Task Invalid_palette_tokens_preserve_other_settings(string token, string expected)
+    {
+        await File.WriteAllTextAsync(_paths.SettingsPath, "{\"Theme\":\"Dark\",\"AccentColor\":\"#0078D4\",\"ConnectionsPerServer\":7,\"BackgroundPalette\":" + token + "}", Ct);
+        var settings = await Create().LoadAsync(Ct);
+        Assert.Equal(expected, settings.BackgroundPalette);
+        Assert.Equal(AppTheme.Dark, settings.Theme);
+        Assert.Equal("#0078D4", settings.AccentColor);
+        Assert.Equal(7, settings.ConnectionsPerServer);
+        Assert.Empty(_logger.Entries);
+    }
+
     [Fact]
     public async Task V1_file_and_invalid_layout_load_without_losing_download_settings()
     {
@@ -24,6 +59,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
             """{"ConnectionsPerServer":16,"CategoryFolders":{"Music":"D:/Music"},"Layout":{"Width":1,"Height":-20,"Columns":null}}""", Ct);
         var settings = await Create().LoadAsync(Ct);
         Assert.Equal(16, settings.ConnectionsPerServer);
+        Assert.Equal("warm", settings.BackgroundPalette);
         Assert.Equal("D:/Music", settings.CategoryFolders[DownloadCategory.Music]);
         Assert.Equal(640, settings.Layout.Width);
         Assert.Equal(400, settings.Layout.Height);

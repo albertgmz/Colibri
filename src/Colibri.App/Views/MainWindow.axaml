@@ -34,7 +34,7 @@
             <Setter Property="Background" Value="{DynamicResource ChromeBackgroundBrush}" />
         </Style>
         <Style Selector=":is(Window).mica">
-            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Background" Value="{DynamicResource ChromeMicaBrush}" />
         </Style>
         <Style Selector="Border.contentPane">
             <Setter Property="Background" Value="{DynamicResource ContentPaneBrush}" />
