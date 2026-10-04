@@ -5,7 +5,9 @@ using Colibri.Core.Platform;
 using Colibri.Core.Settings;
 using Colibri.Platform;
 using Colibri.Platform.Ipc;
+using Colibri.Platform.Notifications;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -51,8 +53,10 @@ public static class Program
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"));
-        builder.Services.AddColibriPlatform(AppServices.CreateNotificationTexts());
+        builder.Services.AddColibriPlatform();
         builder.Services.AddColibriApp();
+        // Defer translated notification text creation until the saved startup UI culture is applied.
+        builder.Services.Replace(ServiceDescriptor.Singleton<NotificationTexts>(_ => AppServices.CreateNotificationTexts()));
         builder.Services.AddSingleton(endpoint);
 
         using var host = builder.Build();
@@ -82,7 +86,8 @@ public static class Program
         logger.LogInformation("Colibri {Version} starting", typeof(Program).Assembly.GetName().Version);
 
         // Load the settings now, while no UI thread exists yet (loading is async; see AppServices).
-        host.Services.GetRequiredService<AppSettings>();
+        var startupSettings = host.Services.GetRequiredService<AppSettings>();
+        LanguageService.ApplyStartup(startupSettings.Language);
 
         // Create the notification service and listen to it before anything slow happens. When a Windows toast
         // is clicked after Colibri exited, Windows starts Colibri ("-ToastActivated -Embedding", ignored like

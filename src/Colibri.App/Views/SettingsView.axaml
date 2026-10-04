@@ -87,6 +87,13 @@
                         <Border Classes="card">
                             <StackPanel Spacing="16">
                                 <StackPanel Classes="field">
+                                    <TextBlock Text="{x:Static res:Strings.SettingsLanguage}" />
+                                    <ComboBox x:Name="LanguageBox" ItemsSource="{Binding LanguageNames}" SelectedIndex="{Binding LanguageIndex}" MinWidth="200"
+                                              AutomationProperties.Name="{x:Static res:Strings.SettingsLanguage}" />
+                                    <TextBlock Classes="note" Text="{x:Static res:Strings.SettingsLanguageRestart}" TextWrapping="Wrap"
+                                               IsVisible="{Binding IsLanguageRestartRequired}" />
+                                </StackPanel>
+                                <StackPanel Classes="field">
                                     <TextBlock Text="{x:Static res:Strings.SettingsTheme}" />
                                     <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeNames}" SelectedIndex="{Binding ThemeIndex}" MinWidth="200"
                                               AutomationProperties.Name="{x:Static res:Strings.SettingsTheme}" />

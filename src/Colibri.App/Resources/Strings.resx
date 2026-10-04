@@ -570,4 +570,8 @@
   <data name="PaletteGraphite" xml:space="preserve"><value>Graphite</value></data>
   <data name="PaletteOcean" xml:space="preserve"><value>Ocean</value></data>
   <data name="PaletteForest" xml:space="preserve"><value>Forest</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>Language</value></data>
+  <data name="SettingsLanguageSystem" xml:space="preserve"><value>System default</value></data>
+  <data name="SettingsLanguageEnglish" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsLanguageRestart" xml:space="preserve"><value>Restart Colibri to apply the language change.</value></data>
 </root>

@@ -80,6 +80,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     {
         var defaults = new AppSettings();
         settings.BackgroundPalette = BackgroundPalettes.Normalize(settings.BackgroundPalette);
+        settings.Language = LanguagePreference.Normalize(settings.Language);
         settings.CategoryFolders ??= defaults.CategoryFolders;
         settings.BrowserCaptureExtensions ??= defaults.BrowserCaptureExtensions;
         settings.DefaultDownloadFolder ??= defaults.DefaultDownloadFolder;

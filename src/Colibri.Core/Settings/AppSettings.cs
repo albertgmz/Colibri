@@ -14,6 +14,9 @@ public sealed class AppSettings
     [System.Text.Json.Serialization.JsonConverter(typeof(BackgroundPaletteJsonConverter))]
     public string BackgroundPalette { get; set; } = "warm";
 
+    [System.Text.Json.Serialization.JsonConverter(typeof(LanguagePreferenceJsonConverter))]
+    public string Language { get; set; } = "system";
+
     /// <summary>Closing the main window hides it to the tray instead of exiting.</summary>
     public bool CloseToTray { get; set; } = true;
 

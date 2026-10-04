@@ -53,6 +53,25 @@ public partial class SettingsViewModel : ObservableObject
     // True while the page copies values in, so those assignments are not taken as user changes.
     private bool _loading;
 
+    private readonly string _startupLanguage;
+    public IReadOnlyList<string> LanguageIds { get; } = ["system", "en", .. LanguageService.AvailableCultures.Where(culture => culture.Name != "en").Select(culture => culture.Name)];
+    public IReadOnlyList<string> LanguageNames { get; } = [Strings.SettingsLanguageSystem, Strings.SettingsLanguageEnglish,
+        .. LanguageService.AvailableCultures.Where(culture => culture.Name != "en").Select(culture => culture.NativeName)];
+
+    [ObservableProperty]
+    private int _languageIndex;
+
+    [ObservableProperty]
+    private bool _isLanguageRestartRequired;
+
+    partial void OnLanguageIndexChanged(int value)
+    {
+        if (_loading || value < 0 || value >= LanguageIds.Count) return;
+        var id = LanguageIds[value];
+        IsLanguageRestartRequired = id != _startupLanguage;
+        Change(() => _settings.Language = id);
+    }
+
     [ObservableProperty]
     private int _accentIndex;
 
@@ -146,6 +165,7 @@ public partial class SettingsViewModel : ObservableObject
         NativeHostRegistration? hostRegistration = null)
     {
         _settings = settings;
+        _startupLanguage = LanguagePreference.Normalize(settings.Language);
         _store = store;
         _manager = manager;
         _autostart = autostart;
@@ -191,6 +211,9 @@ public partial class SettingsViewModel : ObservableObject
             MinimizeToTray = _settings.MinimizeToTray;
             AutoOpenDetailsWindow = _settings.AutoOpenDetailsWindow;
             ThemeIndex = (int)_settings.Theme;
+            var languageIndex = LanguageIds.ToList().IndexOf(LanguagePreference.Normalize(_settings.Language));
+            LanguageIndex = languageIndex < 0 ? 1 : languageIndex;
+            IsLanguageRestartRequired = LanguagePreference.Normalize(_settings.Language) != _startupLanguage;
             PaletteIndex = BackgroundPalettes.Ids.ToList().IndexOf(BackgroundPalettes.Normalize(_settings.BackgroundPalette));
             AccentIndex = Math.Max(0, Array.FindIndex(AccentColors, c => c.Equals(_settings.AccentColor, StringComparison.OrdinalIgnoreCase)));
             DefaultFolder = _settings.DefaultDownloadFolder;

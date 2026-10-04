@@ -8,6 +8,7 @@
     <AssemblyName>Colibri</AssemblyName>
     <AssemblyTitle>Colibri</AssemblyTitle>
     <Product>Colibri</Product>
+    <NeutralLanguage>en</NeutralLanguage>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Already the default since Avalonia 12; set explicitly so the intent is visible. -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>

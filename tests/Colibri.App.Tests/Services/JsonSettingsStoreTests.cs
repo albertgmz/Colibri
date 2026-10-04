@@ -18,6 +18,29 @@ public sealed class JsonSettingsStoreTests : IDisposable
     private JsonSettingsStore Create() => new(_paths.SettingsPath, _logger);
 
     [Theory]
+    [InlineData("null", "system")]
+    [InlineData("\"\"", "system")]
+    [InlineData("\"future-language\"", "system")]
+    [InlineData("\" FR-ca \"", "fr-CA")]
+    [InlineData("12", "system")]
+    [InlineData("true", "system")]
+    [InlineData("{}", "system")]
+    [InlineData("[]", "system")]
+    public async Task Language_tokens_normalize_without_resetting_other_preferences(string token, string expected)
+    {
+        await File.WriteAllTextAsync(_paths.SettingsPath, "{\"Theme\":\"Dark\",\"BackgroundPalette\":\"ocean\",\"ConnectionsPerServer\":7,\"Language\":" + token + "}", Ct);
+        var store = Create();
+        var settings = await store.LoadAsync(Ct);
+        Assert.Equal(expected, settings.Language);
+        Assert.Equal(AppTheme.Dark, settings.Theme);
+        Assert.Equal("ocean", settings.BackgroundPalette);
+        Assert.Equal(7, settings.ConnectionsPerServer);
+        Assert.Empty(_logger.Entries);
+        await store.SaveAsync(settings, Ct);
+        Assert.Equal(expected, (await store.LoadAsync(Ct)).Language);
+    }
+
+    [Theory]
     [InlineData("warm")]
     [InlineData("graphite")]
     [InlineData("ocean")]
